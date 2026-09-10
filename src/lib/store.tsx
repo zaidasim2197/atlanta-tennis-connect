@@ -89,8 +89,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               ? "Dana Whitfield"
               : existingPlayer
                 ? `${existingPlayer.firstName} ${existingPlayer.lastName}`
-                : email.split("@")[0],
-          playerId: role === "player" ? (existingPlayer?.id ?? state.players[0].id) : undefined,
+                : (email.split("@")[0] ?? email),
+          playerId: role === "player" ? (existingPlayer?.id ?? state.players[0]?.id) : undefined,
         };
         setState((s) => ({ ...s, user }));
         return user;

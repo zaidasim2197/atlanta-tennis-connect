@@ -59,7 +59,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: "player" | "organizer";
-  playerId?: string;
+  playerId?: string | undefined;
 }
 
 export const FORMAT_LABELS: Record<LeagueFormat, string> = {
