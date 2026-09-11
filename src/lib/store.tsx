@@ -29,6 +29,7 @@ interface StoreValue extends DataState {
   registerPlayer: (input: {
     leagueId: string;
     player: Omit<Player, "id">;
+    partnerId?: string;
   }) => { registration: Registration; player: Player };
   updatePlayer: (playerId: string, patch: Partial<Omit<Player, "id">>) => void;
   leagueById: (id: string) => League | undefined;
@@ -113,17 +114,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             l.id === leagueId ? { ...l, registrationOpen: !l.registrationOpen } : l,
           ),
         })),
-      registerPlayer: ({ leagueId, player }) => {
+      registerPlayer: ({ leagueId, player, partnerId }) => {
         const league = state.leagues.find((l) => l.id === leagueId)!;
         const existing = state.players.find((p) => p.email === player.email);
         const saved: Player = existing ? { ...existing, ...player } : { ...player, id: uid("p") };
-        const registration: Registration = {
+        const registration: Registration & { partnerId?: string } = {
           id: uid("r"),
           leagueId,
           playerId: saved.id,
           createdAt: new Date().toISOString().slice(0, 10),
           paymentStatus: "paid",
           amountCents: league.feeCents,
+          partnerId,
         };
         setState((s) => ({
           ...s,

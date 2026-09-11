@@ -109,12 +109,20 @@ function BrowseLeagues() {
 
   return (
     <div>
-      <section className="court-lines border-b border-border bg-primary-deep py-14 text-white sm:py-16">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <section className="group relative overflow-hidden bg-black border-b border-border py-20 text-white sm:py-32">
+        <div className="absolute inset-0">
+          <img 
+            src="https://images.unsplash.com/photo-1657534927924-a6fc6573a93e?q=80&w=1200&auto=format&fit=crop" 
+            alt="Tennis match" 
+            className="h-full w-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-1000 ease-out"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-black/10" />
+        </div>
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <Reveal>
-            <p className="eyebrow text-accent">Metro Atlanta</p>
-            <h1 className="mt-3 text-4xl font-bold sm:text-5xl">Browse leagues</h1>
-            <p className="mt-4 max-w-xl text-white/75">
+            <p className="eyebrow text-accent drop-shadow-md">Metro Atlanta</p>
+            <h1 className="mt-3 text-4xl font-bold sm:text-5xl drop-shadow-lg">Browse leagues</h1>
+            <p className="mt-4 max-w-xl text-white/90 drop-shadow-md">
               Every flight currently running or opening soon, with fees, schedules and remaining spots.
             </p>
           </Reveal>

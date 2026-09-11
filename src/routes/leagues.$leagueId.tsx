@@ -59,30 +59,38 @@ function LeagueDetail() {
 
   return (
     <div>
-      <section className="court-lines bg-primary-deep pb-14 pt-8 text-white sm:pb-16">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-white/60">
-            <Link to="/" className="transition-colors hover:text-accent">Home</Link>
-            <ChevronRight className="size-3.5" />
-            <Link to="/leagues" className="transition-colors hover:text-accent">Leagues</Link>
-            <ChevronRight className="size-3.5" />
-            <span className="text-white/90">{league.name}</span>
+      <section className="group relative overflow-hidden bg-black pb-20 pt-10 text-white sm:pb-32 sm:pt-16">
+        <div className="absolute inset-0">
+          <img 
+            src="https://images.unsplash.com/photo-1635842939844-1fbf6bea8e78?q=80&w=1200&auto=format&fit=crop" 
+            alt="Tennis court" 
+            className="h-full w-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-1000 ease-out"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+        </div>
+        <div className="relative mx-auto max-w-6xl px-4 sm:px-6 z-10">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-white/70">
+            <Link to="/" className="transition-colors hover:text-accent drop-shadow-md">Home</Link>
+            <ChevronRight className="size-3.5 drop-shadow-md" />
+            <Link to="/leagues" className="transition-colors hover:text-accent drop-shadow-md">Leagues</Link>
+            <ChevronRight className="size-3.5 drop-shadow-md" />
+            <span className="text-white drop-shadow-md">{league.name}</span>
           </nav>
 
           <div className="animate-rise mt-8 max-w-3xl">
             <div className="flex flex-wrap gap-2">
-              <span className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-accent-foreground">
+              <span className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-accent-foreground shadow-sm">
                 {FORMAT_LABELS[league.format]}
               </span>
-              <span className="rounded-full border border-white/25 px-3 py-1 text-xs font-semibold">
+              <span className="rounded-full border border-white/40 px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur-sm bg-black/20">
                 NTRP {league.skillLevel}
               </span>
-              <span className="rounded-full border border-white/25 px-3 py-1 text-xs font-semibold">
+              <span className="rounded-full border border-white/40 px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur-sm bg-black/20">
                 {season?.status === "active" ? "Season in progress" : season?.status === "upcoming" ? "Upcoming season" : "Closed season"}
               </span>
             </div>
-            <h1 className="mt-5 text-4xl font-bold sm:text-5xl">{league.name}</h1>
-            <p className="mt-4 text-lg leading-relaxed text-white/75">{league.description}</p>
+            <h1 className="mt-5 text-4xl font-bold sm:text-5xl drop-shadow-lg">{league.name}</h1>
+            <p className="mt-4 text-lg leading-relaxed text-white/90 drop-shadow-md">{league.description}</p>
           </div>
         </div>
       </section>

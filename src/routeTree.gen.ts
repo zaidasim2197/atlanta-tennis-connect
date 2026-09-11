@@ -10,18 +10,49 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as OrganizerRouteImport } from './routes/organizer'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LeaguesIndexRouteImport } from './routes/leagues.index'
 import { Route as LeaguesLeagueIdRouteImport } from './routes/leagues.$leagueId'
+import { Route as RegisterLeagueIdRouteImport } from './routes/register.$leagueId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HowItWorksRoute = HowItWorksRouteImport.update({
   id: '/how-it-works',
   path: '/how-it-works',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrganizerRoute = OrganizerRouteImport.update({
+  id: '/organizer',
+  path: '/organizer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeaguesIndexRoute = LeaguesIndexRouteImport.update({
@@ -34,38 +65,98 @@ const LeaguesLeagueIdRoute = LeaguesLeagueIdRouteImport.update({
   path: '/leagues/$leagueId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RegisterLeagueIdRoute = RegisterLeagueIdRouteImport.update({
+  id: '/register/$leagueId',
+  path: '/register/$leagueId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/how-it-works': typeof HowItWorksRoute
+  '/login': typeof LoginRoute
+  '/organizer': typeof OrganizerRoute
+  '/profile': typeof ProfileRoute
+  '/signup': typeof SignupRoute
   '/leagues/$leagueId': typeof LeaguesLeagueIdRoute
+  '/register/$leagueId': typeof RegisterLeagueIdRoute
   '/leagues/': typeof LeaguesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/how-it-works': typeof HowItWorksRoute
+  '/login': typeof LoginRoute
+  '/organizer': typeof OrganizerRoute
+  '/profile': typeof ProfileRoute
+  '/signup': typeof SignupRoute
   '/leagues/$leagueId': typeof LeaguesLeagueIdRoute
+  '/register/$leagueId': typeof RegisterLeagueIdRoute
   '/leagues': typeof LeaguesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/how-it-works': typeof HowItWorksRoute
+  '/login': typeof LoginRoute
+  '/organizer': typeof OrganizerRoute
+  '/profile': typeof ProfileRoute
+  '/signup': typeof SignupRoute
   '/leagues/$leagueId': typeof LeaguesLeagueIdRoute
+  '/register/$leagueId': typeof RegisterLeagueIdRoute
   '/leagues/': typeof LeaguesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/how-it-works' | '/leagues/$leagueId' | '/leagues/'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/how-it-works'
+    | '/login'
+    | '/organizer'
+    | '/profile'
+    | '/signup'
+    | '/leagues/$leagueId'
+    | '/register/$leagueId'
+    | '/leagues/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/how-it-works' | '/leagues/$leagueId' | '/leagues'
-  id: '__root__' | '/' | '/how-it-works' | '/leagues/$leagueId' | '/leagues/'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/how-it-works'
+    | '/login'
+    | '/organizer'
+    | '/profile'
+    | '/signup'
+    | '/leagues/$leagueId'
+    | '/register/$leagueId'
+    | '/leagues'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/how-it-works'
+    | '/login'
+    | '/organizer'
+    | '/profile'
+    | '/signup'
+    | '/leagues/$leagueId'
+    | '/register/$leagueId'
+    | '/leagues/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRoute
   HowItWorksRoute: typeof HowItWorksRoute
+  LoginRoute: typeof LoginRoute
+  OrganizerRoute: typeof OrganizerRoute
+  ProfileRoute: typeof ProfileRoute
+  SignupRoute: typeof SignupRoute
   LeaguesLeagueIdRoute: typeof LeaguesLeagueIdRoute
+  RegisterLeagueIdRoute: typeof RegisterLeagueIdRoute
   LeaguesIndexRoute: typeof LeaguesIndexRoute
 }
 
@@ -78,11 +169,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/how-it-works': {
       id: '/how-it-works'
       path: '/how-it-works'
       fullPath: '/how-it-works'
       preLoaderRoute: typeof HowItWorksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/organizer': {
+      id: '/organizer'
+      path: '/organizer'
+      fullPath: '/organizer'
+      preLoaderRoute: typeof OrganizerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leagues/': {
@@ -99,13 +225,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeaguesLeagueIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/register/$leagueId': {
+      id: '/register/$leagueId'
+      path: '/register/$leagueId'
+      fullPath: '/register/$leagueId'
+      preLoaderRoute: typeof RegisterLeagueIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRoute,
   HowItWorksRoute: HowItWorksRoute,
+  LoginRoute: LoginRoute,
+  OrganizerRoute: OrganizerRoute,
+  ProfileRoute: ProfileRoute,
+  SignupRoute: SignupRoute,
   LeaguesLeagueIdRoute: LeaguesLeagueIdRoute,
+  RegisterLeagueIdRoute: RegisterLeagueIdRoute,
   LeaguesIndexRoute: LeaguesIndexRoute,
 }
 export const routeTree = rootRouteImport

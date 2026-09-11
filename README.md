@@ -130,15 +130,7 @@ The platform should feel professional and trustworthy at every step involving mo
 
 HERO BANNER SHOULD BE VISUALLY APPEALING NOT BASIC
 
-This project was built with [Lovable](https://lovable.dev).
 
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/316e4e6b-f85a-4863-a5fa-fc8548984351).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 

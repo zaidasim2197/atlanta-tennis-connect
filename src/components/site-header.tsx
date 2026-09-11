@@ -65,6 +65,9 @@ export function SiteHeader() {
               <Button asChild variant="ghost" size="sm">
                 <Link to="/login">Sign in</Link>
               </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/signup">Sign up</Link>
+              </Button>
               <Button asChild size="sm">
                 <Link to="/leagues">Find a league</Link>
               </Button>
@@ -120,6 +123,9 @@ export function SiteHeader() {
                     <Link to="/leagues">Find a league</Link>
                   </Button>
                   <Button asChild variant="outline" onClick={() => setOpen(false)}>
+                    <Link to="/signup">Sign up</Link>
+                  </Button>
+                  <Button asChild variant="ghost" onClick={() => setOpen(false)}>
                     <Link to="/login">Sign in</Link>
                   </Button>
                 </>
