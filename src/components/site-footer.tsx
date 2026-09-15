@@ -6,7 +6,7 @@ export function SiteFooter() {
     <footer className="court-lines mt-24 bg-primary-deep text-white/80">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
         {/* Brand */}
-        <div>
+        <div className="md:col-span-1">
           <div className="flex items-center gap-2">
             <TennisBall className="size-6" />
             <span className="font-display text-lg font-bold text-white">
@@ -20,60 +20,63 @@ export function SiteFooter() {
           </p>
         </div>
 
-        {/* Players */}
-        <div>
-          <h3 className="eyebrow text-white">Players</h3>
+        {/* Mobile navigation wrapper */}
+        <div className="grid grid-cols-2 gap-6 md:contents">
+          {/* Players */}
+          <div>
+            <h3 className="eyebrow text-white">Players</h3>
 
-          <ul className="mt-4 space-y-2 text-sm">
-            <li>
-              <Link
-                to="/leagues"
-                className="transition-colors hover:text-accent"
-              >
-                Browse leagues
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/how-it-works"
-                className="transition-colors hover:text-accent"
-              >
-                How it works
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/dashboard"
-                className="transition-colors hover:text-accent"
-              >
-                My dashboard
-              </Link>
-            </li>
-          </ul>
-        </div>
+            <ul className="mt-4 space-y-2 text-sm">
+              <li>
+                <Link
+                  to="/leagues"
+                  className="transition-colors hover:text-accent"
+                >
+                  Browse leagues
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/how-it-works"
+                  className="transition-colors hover:text-accent"
+                >
+                  How it works
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/dashboard"
+                  className="transition-colors hover:text-accent"
+                >
+                  My dashboard
+                </Link>
+              </li>
+            </ul>
+          </div>
 
-        {/* Organizers */}
-        <div>
-          <h3 className="eyebrow text-white">Organizers</h3>
+          {/* Organizers */}
+          <div>
+            <h3 className="eyebrow text-white">Organizers</h3>
 
-          <ul className="mt-4 space-y-2 text-sm">
-            <li>
-              <Link
-                to="/organizer"
-                className="transition-colors hover:text-accent"
-              >
-                Organizer hub
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/login"
-                className="transition-colors hover:text-accent"
-              >
-                Sign in
-              </Link>
-            </li>
-          </ul>
+            <ul className="mt-4 space-y-2 text-sm">
+              <li>
+                <Link
+                  to="/organizer"
+                  className="transition-colors hover:text-accent"
+                >
+                  Organizer hub
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/login"
+                  className="transition-colors hover:text-accent"
+                >
+                  Sign in
+                </Link>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
 
@@ -81,7 +84,8 @@ export function SiteFooter() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           {/* Demo disclaimer */}
           <p className="overflow-hidden whitespace-nowrap border-b border-white/10 py-3 text-center text-[10px] leading-relaxed text-white">
-            Demo Notice: All content and data shown are for demonstration purposes only.
+            Demo Notice: All content and data shown are for demonstration
+            purposes only.
           </p>
 
           {/* Copyright + Powered by */}
@@ -92,12 +96,12 @@ export function SiteFooter() {
 
             {/* Vision71 branding */}
             <div className="flex items-center">
-              {/* Mobile: keep Powered by beside logo */}
+              {/* Mobile: beside logo */}
               <span className="mr-2 text-[10px] leading-none text-white sm:hidden">
                 Powered by
               </span>
 
-              {/* Desktop: Powered by directly above logo */}
+              {/* Desktop: directly above logo */}
               <div className="relative sm:pt-4">
                 <span className="absolute left-0 top-0 hidden text-[9px] leading-none text-white sm:block">
                   Powered by
