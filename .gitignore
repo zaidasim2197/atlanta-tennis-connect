@@ -38,3 +38,5 @@ backend/tests/load/results/
 *.sln
 *.sw?
 .vercel
+powershell.bat
+powershell.cmd

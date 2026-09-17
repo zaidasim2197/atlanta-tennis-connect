@@ -56,6 +56,11 @@ export class MockProvider implements PaymentProvider {
     };
   }
 
+  async cancelPayment(paymentIntentId: string): Promise<void> {
+    const entry = mockStore.get(paymentIntentId);
+    if (entry) entry.status = "cancelled";
+  }
+
   async refundPayment(input: RefundPaymentInput): Promise<RefundPaymentResult> {
     const entry = mockStore.get(input.paymentIntentId);
     if (entry) entry.status = "refunded";

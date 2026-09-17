@@ -11,7 +11,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { getPaymentProvider } from "../payment";
-import { confirmPayment } from "../lib/reservationService";
+import { confirmPayment, cancelReservation, reconcileReservation } from "../lib/reservationService";
 import { Reservation } from "../models/Reservation";
 import { wrap, ok, err } from "../lib/apiResponse";
 
@@ -68,5 +68,29 @@ router.get(
     });
   }),
 );
+
+// POST /api/payments/:reservationId/reconcile
+const handleReconcile = wrap(async (req, res) => {
+  const reservationId = req.params.reservationId;
+  if (!reservationId) return err(res, "reservationId is required", 400);
+
+  const updated = await reconcileReservation(reservationId);
+  ok(res, updated);
+});
+
+router.post("/:reservationId/reconcile", handleReconcile);
+router.post("/reconcile/:reservationId", handleReconcile);
+
+// POST /api/payments/:reservationId/cancel
+const handleCancel = wrap(async (req, res) => {
+  const reservationId = req.params.reservationId;
+  if (!reservationId) return err(res, "reservationId is required", 400);
+
+  const result = await cancelReservation(reservationId);
+  ok(res, result);
+});
+
+router.post("/:reservationId/cancel", handleCancel);
+router.post("/cancel/:reservationId", handleCancel);
 
 export default router;

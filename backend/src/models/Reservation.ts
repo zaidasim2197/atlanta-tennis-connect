@@ -52,6 +52,7 @@ export interface IReservation extends Document {
 
   // Webhook event deduplication
   lastWebhookEventId?: string;
+  webhookEventIds?: string[];
 }
 
 const ReservationSchema = new Schema<IReservation>(
@@ -79,6 +80,7 @@ const ReservationSchema = new Schema<IReservation>(
     cancelledAt:      { type: Date },
 
     lastWebhookEventId: { type: String },
+    webhookEventIds:    { type: [String], default: [] },
   },
   { timestamps: true },
 );

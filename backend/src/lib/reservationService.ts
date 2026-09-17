@@ -12,6 +12,7 @@ import { Player } from "../models/Player";
 import { Reservation, type IReservation, type ReservationStatus } from "../models/Reservation";
 import { AuditLog } from "../models/AuditLog";
 import { getPaymentProvider } from "../payment";
+import { expireReservations } from "../jobs/expireReservations";
 
 const TTL_MS = () =>
   parseInt(process.env.RESERVATION_TTL_MINUTES ?? "15", 10) * 60 * 1000;
@@ -56,6 +57,9 @@ export interface CreateReservationInput {
 export async function createReservation(
   input: CreateReservationInput,
 ): Promise<{ reservation: ReservationDTO; clientSecret?: string }> {
+  // Opportunistic cleanup of expired reservations before reserving
+  await expireReservations().catch(() => {});
+
   const provider = getPaymentProvider();
 
   // 1. Atomically decrement spotsRemaining – the only place this happens.
@@ -172,7 +176,10 @@ export async function createReservation(
     await advanceToRegistered(reservation);
   }
 
-  return { reservation: toDTO(reservation), clientSecret: payment.clientSecret };
+  return {
+    reservation: { ...toDTO(reservation), clientSecret: payment.clientSecret },
+    clientSecret: payment.clientSecret,
+  };
 }
 
 // ─── Confirm payment (called by webhook or polling) ─────────────────────────
@@ -186,7 +193,13 @@ export async function confirmPayment(
   if (!reservation) return; // already processed or unknown
 
   // Idempotency: skip if we've already processed this event
-  if (webhookEventId && reservation.lastWebhookEventId === webhookEventId) return;
+  if (
+    webhookEventId &&
+    (reservation.lastWebhookEventId === webhookEventId ||
+      reservation.webhookEventIds?.includes(webhookEventId))
+  ) {
+    return;
+  }
 
   // Only advance forward – never go backwards in the state machine
   const terminalStates: ReservationStatus[] = ["registered", "refunded", "disputed", "cancelled", "expired"];
@@ -198,7 +211,11 @@ export async function confirmPayment(
     await failReservation(reservation, incomingStatus, webhookEventId);
   } else if (incomingStatus === "refunded") {
     reservation.status = "refunded";
-    if (webhookEventId) reservation.lastWebhookEventId = webhookEventId;
+    if (webhookEventId) {
+      reservation.lastWebhookEventId = webhookEventId;
+      if (!reservation.webhookEventIds) reservation.webhookEventIds = [];
+      if (!reservation.webhookEventIds.includes(webhookEventId)) reservation.webhookEventIds.push(webhookEventId);
+    }
     await reservation.save();
     await AuditLog.create({
       reservationId: reservation._id,
@@ -210,7 +227,11 @@ export async function confirmPayment(
     });
   } else if (incomingStatus === "disputed") {
     reservation.status = "disputed";
-    if (webhookEventId) reservation.lastWebhookEventId = webhookEventId;
+    if (webhookEventId) {
+      reservation.lastWebhookEventId = webhookEventId;
+      if (!reservation.webhookEventIds) reservation.webhookEventIds = [];
+      if (!reservation.webhookEventIds.includes(webhookEventId)) reservation.webhookEventIds.push(webhookEventId);
+    }
     await reservation.save();
     await AuditLog.create({
       reservationId: reservation._id,
@@ -232,7 +253,11 @@ async function advanceToRegistered(
   const now = new Date();
   reservation.status = "registered";
   reservation.paidAt = now;
-  if (webhookEventId) reservation.lastWebhookEventId = webhookEventId;
+  if (webhookEventId) {
+    reservation.lastWebhookEventId = webhookEventId;
+    if (!reservation.webhookEventIds) reservation.webhookEventIds = [];
+    if (!reservation.webhookEventIds.includes(webhookEventId)) reservation.webhookEventIds.push(webhookEventId);
+  }
   await reservation.save();
 
   await AuditLog.create({
@@ -252,7 +277,11 @@ async function failReservation(
 ): Promise<void> {
   reservation.status = status;
   reservation.cancelledAt = new Date();
-  if (webhookEventId) reservation.lastWebhookEventId = webhookEventId;
+  if (webhookEventId) {
+    reservation.lastWebhookEventId = webhookEventId;
+    if (!reservation.webhookEventIds) reservation.webhookEventIds = [];
+    if (!reservation.webhookEventIds.includes(webhookEventId)) reservation.webhookEventIds.push(webhookEventId);
+  }
   await reservation.save();
 
   // Restore the slot
@@ -305,4 +334,99 @@ export async function getPlayerReservations(playerEmail: string): Promise<Reserv
   }).sort({ heldAt: -1 });
 
   return reservations.map(toDTO);
+}
+
+// ─── Cancel reservation & release held slot ─────────────────────────────────
+
+export async function cancelReservation(
+  reservationIdOrIntentId: string,
+): Promise<{ released: boolean }> {
+  const isObjectId = mongoose.isValidObjectId(reservationIdOrIntentId);
+  const reservation = await Reservation.findOne({
+    $or: [
+      ...(isObjectId ? [{ _id: reservationIdOrIntentId }] : []),
+      { paymentIntentId: reservationIdOrIntentId },
+    ],
+  });
+
+  if (!reservation) {
+    throw Object.assign(new Error("Reservation not found"), { statusCode: 404 });
+  }
+
+  if (["paid", "registered"].includes(reservation.status)) {
+    throw Object.assign(
+      new Error("Payment has already succeeded and cannot be cancelled"),
+      { statusCode: 409 },
+    );
+  }
+
+  const provider = getPaymentProvider();
+  if (reservation.paymentIntentId && provider.cancelPayment) {
+    try {
+      await provider.cancelPayment(reservation.paymentIntentId);
+    } catch (e) {
+      console.warn("Error cancelling provider payment intent:", e);
+    }
+  }
+
+  const updated = await Reservation.findOneAndUpdate(
+    { _id: reservation._id, status: { $in: ["held", "payment_pending"] } },
+    { $set: { status: "cancelled", cancelledAt: new Date() } },
+    { new: true },
+  );
+
+  if (updated) {
+    await League.findOneAndUpdate(
+      { slug: updated.leagueSlug },
+      { $inc: { spotsRemaining: 1 } },
+    );
+
+    await AuditLog.create({
+      reservationId: updated._id,
+      leagueSlug: updated.leagueSlug,
+      playerEmail: updated.playerEmail,
+      action: "reservation.cancelled",
+      actor: "player",
+      meta: { cancelledAt: new Date().toISOString() },
+    });
+
+    return { released: true };
+  }
+
+  return { released: false };
+}
+
+// ─── Reconcile reservation with payment provider ────────────────────────────
+
+export async function reconcileReservation(
+  reservationIdOrIntentId: string,
+): Promise<ReservationDTO> {
+  const isObjectId = mongoose.isValidObjectId(reservationIdOrIntentId);
+  const reservation = await Reservation.findOne({
+    $or: [
+      ...(isObjectId ? [{ _id: reservationIdOrIntentId }] : []),
+      { paymentIntentId: reservationIdOrIntentId },
+    ],
+  });
+
+  if (!reservation) {
+    throw Object.assign(new Error("Reservation not found"), { statusCode: 404 });
+  }
+
+  const provider = getPaymentProvider();
+  if (reservation.paymentIntentId) {
+    try {
+      const result = await provider.retrievePayment(reservation.paymentIntentId);
+      if (result.status === "paid") {
+        await advanceToRegistered(reservation);
+      } else if (result.status === "cancelled" || result.status === "failed") {
+        await failReservation(reservation, result.status);
+      }
+    } catch (e) {
+      console.error("Payment reconciliation provider error:", e);
+    }
+  }
+
+  const refreshed = (await Reservation.findById(reservation._id)) ?? reservation;
+  return toDTO(refreshed);
 }

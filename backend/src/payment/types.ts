@@ -68,6 +68,9 @@ export interface PaymentProvider {
   /** Poll current payment state. */
   retrievePayment(paymentIntentId: string): Promise<RetrievePaymentResult>;
 
+  /** Cancel an uncompleted payment. */
+  cancelPayment?(paymentIntentId: string): Promise<void>;
+
   /** Issue a full or partial refund. */
   refundPayment(input: RefundPaymentInput): Promise<RefundPaymentResult>;
 

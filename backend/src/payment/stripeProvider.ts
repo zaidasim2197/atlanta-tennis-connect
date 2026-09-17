@@ -55,6 +55,7 @@ export class StripeProvider implements PaymentProvider {
         description: input.description,
         receipt_email: input.playerEmail,
         metadata: input.metadata,
+        automatic_payment_methods: { enabled: true, allow_redirects: "never" },
       },
       { idempotencyKey: input.reservationId },
     );
@@ -73,6 +74,13 @@ export class StripeProvider implements PaymentProvider {
       status: stripeStatusToPaymentStatus(intent.status),
       amountCents: intent.amount,
     };
+  }
+
+  async cancelPayment(paymentIntentId: string): Promise<void> {
+    const intent = await this.client.paymentIntents.retrieve(paymentIntentId);
+    if (["requires_payment_method", "requires_confirmation", "requires_action", "requires_capture", "processing"].includes(intent.status)) {
+      await this.client.paymentIntents.cancel(paymentIntentId);
+    }
   }
 
   async refundPayment(input: RefundPaymentInput): Promise<RefundPaymentResult> {
