@@ -26,7 +26,7 @@ function Profile() {
 
   useEffect(() => {
     if (!user) {
-      navigate({ to: "/login" });
+      navigate({ to: "/login", search: { leagueId: undefined } });
     }
   }, [user, navigate]);
 

@@ -2,7 +2,8 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { Settings, LogOut, CheckCircle } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { formatMoney, type League } from "@/lib/tennis";
+import { formatDateRange, formatMoney, type League } from "@/lib/tennis";
+import { DemoBanner } from "@/components/demo-banner";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: () => {
@@ -17,44 +18,60 @@ function Dashboard() {
 
   if (!user) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center p-8 text-center">
-        <h2 className="text-2xl font-bold">Please log in</h2>
-        <p className="mt-2 text-muted-foreground">You must be logged in to view your dashboard.</p>
+      <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6">
+        <h1 className="text-3xl font-bold">Please sign in to view your dashboard</h1>
         <Button asChild className="mt-6 rounded-full">
-          <Link to="/login">Sign in</Link>
+          <Link to="/login" search={{ leagueId: undefined }}>Sign In</Link>
         </Button>
       </div>
     );
   }
 
-  const player = players.find(p => p.id === user.playerId);
-  const myRegistrations = registrations.filter(r => r.playerId === player?.id);
+  const currentPlayer = players.find((p) => p.id === user.playerId) || {
+    firstName: user.name.split(" ")[0] || "Player",
+    lastName: user.name.split(" ")[1] || "",
+    email: user.email,
+    phone: "(404) 555-0100",
+    ntrp: "3.5" as const,
+    city: "Atlanta",
+  };
+
+  const myRegistrations = registrations.filter((r) => r.playerId === user.playerId);
 
   const getLeagueDetails = (leagueId: string) => {
-    const league = leagues.find(l => l.id === leagueId);
-    const season = seasons.find(s => s.id === league?.seasonId);
+    const league = leagues.find((l) => l.id === leagueId);
+    const season = seasons.find((s) => s.id === league?.seasonId);
     return { league, season };
   };
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
+      {/* Header */}
+      <div className="flex flex-col gap-4 border-b border-border pb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Welcome back, {player?.firstName || user.name.split(' ')[0]}
+            Welcome back, {currentPlayer.firstName}!
           </h1>
-          <p className="mt-2 text-muted-foreground">
-            {player ? `NTRP ${player.ntrp} · ${player.city}` : "Complete your profile to get started"}
+          <p className="mt-1 text-muted-foreground">
+            Manage your leagues, view schedules, and track your tennis progress.
           </p>
         </div>
-        <div className="flex gap-4">
-          <Button asChild variant="outline" className="rounded-full">
+        <div className="flex items-center gap-3">
+          <Button asChild variant="outline" size="sm" className="rounded-full">
             <Link to="/profile">
-              <Settings className="mr-2 size-4" /> Profile
+              <Settings className="mr-2 size-4" /> Edit Profile
             </Link>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={logout} className="rounded-full text-muted-foreground">
+            <LogOut className="mr-2 size-4" /> Sign Out
           </Button>
         </div>
       </div>
+
+      <DemoBanner
+        message="Your dashboard, registered leagues and payment history are all simulated demo data."
+        className="mt-6"
+      />
 
       <div className="mt-12 grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
@@ -97,7 +114,9 @@ function Dashboard() {
                         </Link>
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        {league.scheduleDay}s at {league.scheduleTime} · {league.venue}
+                        {league.scheduleDay}s at {league.scheduleTime}
+                        {league.startDate && league.endDate ? ` · ${formatDateRange(league.startDate, league.endDate)}` : ""}
+                        {" · "}{league.venue}
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
@@ -127,11 +146,11 @@ function Dashboard() {
             <div className="mt-4 space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Contact Info</span>
-                {player?.phone ? <CheckCircle className="size-4 text-emerald-600" /> : <span className="text-xs text-amber-600">Missing</span>}
+                {currentPlayer?.phone ? <CheckCircle className="size-4 text-emerald-600" /> : <span className="text-xs text-amber-600">Missing</span>}
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Skill Level</span>
-                {player?.ntrp ? <CheckCircle className="size-4 text-emerald-600" /> : <span className="text-xs text-amber-600">Missing</span>}
+                {currentPlayer?.ntrp ? <CheckCircle className="size-4 text-emerald-600" /> : <span className="text-xs text-amber-600">Missing</span>}
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Payment Method</span>

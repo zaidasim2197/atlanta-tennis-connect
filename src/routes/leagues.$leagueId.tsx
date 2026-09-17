@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/reveal";
 import { useStore } from "@/lib/store";
 import { FORMAT_LABELS, formatDate, formatDateRange, formatMoney } from "@/lib/tennis";
+import { DemoBanner } from "@/components/demo-banner";
 
 export const Route = createFileRoute("/leagues/$leagueId")({
   head: () => ({
@@ -37,7 +38,7 @@ const MATCH_DAY = [
 
 function LeagueDetail() {
   const { leagueId } = useParams({ from: "/leagues/$leagueId" });
-  const { leagueById, seasonById, spotsLeft, registrationsForLeague } = useStore();
+  const { leagueById, seasonById, spotsLeft, registrationsForLeague, user } = useStore();
   const league = leagueById(leagueId);
 
   if (!league) {
@@ -104,7 +105,12 @@ function LeagueDetail() {
               {
                 icon: Clock,
                 label: "Season dates",
-                value: season ? formatDateRange(season.startDate, season.endDate) : "TBA",
+                value:
+                  league.startDate && league.endDate
+                    ? formatDateRange(league.startDate, league.endDate)
+                    : season
+                      ? formatDateRange(season.startDate, season.endDate)
+                      : "TBA",
               },
               { icon: Users, label: "Flight size", value: `${registered} registered · ${league.playerLimit} max` },
             ].map((item) => (
@@ -144,8 +150,12 @@ function LeagueDetail() {
               <Trophy className="mt-0.5 size-5 shrink-0 text-primary" />
               <p className="text-sm leading-relaxed text-secondary-foreground">
                 The top four players in this flight advance to the season playoff at{" "}
-                {season ? formatDate(season.endDate) : "the end of the season"}. Standings update within hours of every
-                reported result.
+                {league.endDate
+                  ? formatDate(league.endDate)
+                  : season
+                    ? formatDate(season.endDate)
+                    : "the end of the season"}
+                . Standings update within hours of every reported result.
               </p>
             </div>
           </Reveal>
@@ -153,7 +163,7 @@ function LeagueDetail() {
 
         {/* Sticky signup card */}
         <div className="lg:sticky lg:top-24 lg:self-start">
-          <Reveal className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-lift)]">
+          <div className="animate-rise rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-lift)]">
             <p className="eyebrow text-muted-foreground">Season fee</p>
             <p className="mt-1 font-display text-4xl font-bold text-primary">{formatMoney(league.feeCents)}</p>
             <p className="mt-1 text-sm text-muted-foreground">Covers court fees, balls and playoff entry.</p>
@@ -176,7 +186,7 @@ function LeagueDetail() {
             {canRegister ? (
               <Button asChild size="lg" className="mt-5 w-full">
                 <Link to="/register/$leagueId" params={{ leagueId: league.id }}>
-                  Sign up and pay
+                  {user ? "Continue to payment →" : "Sign up and pay"}
                 </Link>
               </Button>
             ) : (
@@ -196,7 +206,7 @@ function LeagueDetail() {
             >
               <ArrowLeft className="size-4" /> Back to all leagues
             </Link>
-          </Reveal>
+          </div>
         </div>
       </div>
     </div>

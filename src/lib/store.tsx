@@ -38,7 +38,7 @@ interface StoreValue extends DataState {
   spotsLeft: (leagueId: string) => number;
 }
 
-const STORAGE_KEY = "atl-tennis-league-state-v1";
+const STORAGE_KEY = "atl-tennis-league-state-v4";
 
 const initial: DataState = {
   seasons: SEED_SEASONS,
@@ -125,7 +125,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           createdAt: new Date().toISOString().slice(0, 10),
           paymentStatus: "paid",
           amountCents: league.feeCents,
-          partnerId,
+          ...(partnerId ? { partnerId } : {}),
         };
         setState((s) => ({
           ...s,

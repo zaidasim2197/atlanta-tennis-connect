@@ -2,16 +2,89 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { SKILL_LEVELS, type SkillLevel } from "@/lib/tennis";
+import { SKILL_LEVELS, FORMAT_LABELS, formatMoney, type SkillLevel } from "@/lib/tennis";
+import { TennisBall } from "@/components/tennis-ball";
+import { MapPin, CalendarDays, Lock } from "lucide-react";
 
 export const Route = createFileRoute("/signup")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    leagueId:
+      typeof search["leagueId"] === "string"
+        ? (search["leagueId"] as string)
+        : undefined,
+  }),
   component: Signup,
 });
 
+const STEPS = ["League", "Sign in", "Payment", "Confirmed"] as const;
+
+function Stepper({ current }: { current: number }) {
+  return (
+    <div className="mb-8 flex items-start justify-center">
+      {STEPS.map((label, i) => {
+        const n = i + 1;
+        const done = n < current;
+        const active = n === current;
+        return (
+          <div key={label} className="flex items-start">
+            <div className="flex flex-col items-center gap-1.5">
+              <div
+                className={`flex size-8 items-center justify-center rounded-full text-xs font-bold ring-2 transition-all ${
+                  done || active
+                    ? "bg-primary text-primary-foreground ring-primary"
+                    : "bg-background text-muted-foreground ring-border"
+                }`}
+              >
+                {done ? (
+                  <svg
+                    className="size-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                ) : (
+                  n
+                )}
+              </div>
+              <span
+                className={`text-[10px] font-semibold whitespace-nowrap ${
+                  active
+                    ? "text-primary"
+                    : done
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div
+                className={`mx-1.5 mt-4 h-0.5 w-10 shrink-0 rounded-full transition-all sm:w-14 ${
+                  done ? "bg-primary" : "bg-border"
+                }`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function Signup() {
-  const { login, updatePlayer } = useStore();
+  const { login, updatePlayer, leagueById } = useStore();
   const navigate = useNavigate();
-  
+  const { leagueId } = Route.useSearch();
+  const leagueData = leagueId ? leagueById(leagueId) : undefined;
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -23,128 +96,222 @@ function Signup() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    // Simulate network delay
     setTimeout(() => {
-      // Create user and update their details in our mock store
       const user = login("player", email);
       if (user.playerId) {
-        updatePlayer(user.playerId, {
-          firstName,
-          lastName,
-          phone,
-          city,
-          ntrp,
-        });
+        updatePlayer(user.playerId, { firstName, lastName, phone, city, ntrp });
       }
-      navigate({ to: "/dashboard" });
+      if (leagueId) {
+        navigate({ to: "/register/$leagueId", params: { leagueId } });
+      } else {
+        navigate({ to: "/dashboard" });
+      }
     }, 600);
   };
 
   return (
-    <div className="flex min-h-[80vh] items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-lg space-y-8 rounded-2xl border border-border bg-card p-8 shadow-lg">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-foreground">
-            Create a player profile
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Join the Atlanta Tennis Connect prototype.
-          </p>
-        </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="grid gap-4 sm:grid-cols-2">
+    <div className="min-h-[90vh] bg-background px-4 py-10 sm:px-6">
+      <div className="mx-auto max-w-lg">
+        {/* Progress stepper */}
+        {leagueData && <Stepper current={2} />}
+
+        {/* Selected league card */}
+        {leagueData && leagueId && (
+          <div className="mb-5 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+            <div className="flex items-center justify-between border-b border-border/60 bg-muted/50 px-5 py-3">
+              <div className="flex items-center gap-2">
+                <TennisBall className="size-4 shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Your Selected League
+                </span>
+              </div>
+              <Link
+                to="/leagues/$leagueId"
+                params={{ leagueId }}
+                className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
+              >
+                Change
+              </Link>
+            </div>
+            <div className="flex items-start justify-between gap-4 px-5 py-4">
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold leading-tight text-foreground">
+                  {leagueData.name}
+                </h3>
+                <span className="mt-1.5 inline-block rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
+                  {FORMAT_LABELS[leagueData.format]}
+                </span>
+                <div className="mt-2.5 flex flex-col gap-1.5 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <CalendarDays className="size-3.5 shrink-0 text-primary" />
+                    {leagueData.scheduleDay}s at {leagueData.scheduleTime}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="size-3.5 shrink-0 text-primary" />
+                    {leagueData.venue}
+                  </span>
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+                  League Fee
+                </p>
+                <p className="mt-1 font-display text-3xl font-bold text-primary">
+                  {formatMoney(leagueData.feeCents)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Signup card */}
+        <div className="rounded-2xl border border-border bg-card p-7 shadow-[var(--shadow-card)] sm:p-8">
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {leagueData ? "Create your account" : "Create a player profile"}
+            </h1>
+            {leagueData && (
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                Join{" "}
+                <strong className="font-semibold text-foreground">
+                  {leagueData.name}
+                </strong>{" "}
+                and start playing.
+              </p>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Name */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="firstName" className="mb-1 block text-sm font-medium text-foreground">
+                  First Name
+                </label>
+                <input
+                  id="firstName"
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="block w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div>
+                <label htmlFor="lastName" className="mb-1 block text-sm font-medium text-foreground">
+                  Last Name
+                </label>
+                <input
+                  id="lastName"
+                  required
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="block w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+
+            {/* Email */}
             <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-foreground">First Name</label>
+              <label htmlFor="email" className="mb-1 block text-sm font-medium text-foreground">
+                Email address
+              </label>
               <input
-                id="firstName"
+                id="email"
+                type="email"
                 required
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="block w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
+
+            {/* Phone + City */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="phone" className="mb-1 block text-sm font-medium text-foreground">
+                  Phone Number
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="block w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div>
+                <label htmlFor="city" className="mb-1 block text-sm font-medium text-foreground">
+                  City (Metro ATL)
+                </label>
+                <input
+                  id="city"
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="block w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+
+            {/* NTRP */}
             <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-foreground">Last Name</label>
-              <input
-                id="lastName"
-                required
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
+              <label className="mb-2 block text-sm font-medium text-foreground">
+                Skill Level (NTRP)
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {SKILL_LEVELS.map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setNtrp(level as SkillLevel)}
+                    className={`rounded-lg py-2.5 text-sm font-semibold transition-all ${
+                      ntrp === level
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                    }`}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-foreground">Email address</label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-foreground">Phone Number</label>
-              <input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div>
-              <label htmlFor="city" className="block text-sm font-medium text-foreground">City (Metro ATL)</label>
-              <input
-                id="city"
-                type="text"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Skill Level (NTRP)</label>
-            <div className="grid grid-cols-5 gap-2">
-              {SKILL_LEVELS.map(level => (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => setNtrp(level as SkillLevel)}
-                  className={`rounded-md py-2.5 text-sm font-semibold transition-all ${
-                    ntrp === level
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                  }`}
-                >
-                  {level}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <Button type="submit" className="w-full rounded-full" disabled={loading}>
-              {loading ? "Creating..." : "Create Account"}
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full rounded-full"
+              disabled={loading}
+            >
+              {loading
+                ? "Creating account…"
+                : leagueData
+                ? "Create account & continue to payment →"
+                : "Create Account"}
             </Button>
-          </div>
-          
-          <div className="text-center text-sm">
+          </form>
+
+          <p className="mt-5 text-center text-sm">
             <span className="text-muted-foreground">Already have an account? </span>
-            <Link to="/login" className="font-semibold text-primary hover:underline">
+            <Link
+              to="/login"
+              search={{ leagueId: leagueId ?? undefined }}
+              className="font-semibold text-primary hover:underline"
+            >
               Log in
             </Link>
+          </p>
+        </div>
+
+        {/* Safety note */}
+        {leagueData && (
+          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground shadow-sm">
+            <Lock className="mt-px size-3.5 shrink-0 text-primary" />
+            <p>
+              Your selected league will be saved while you create your account.
+              You can complete your registration right after.
+            </p>
           </div>
-        </form>
+        )}
       </div>
     </div>
   );

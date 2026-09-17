@@ -33,6 +33,8 @@ export interface League {
   playerLimit: number;
   registrationOpen: boolean;
   description: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface Player {
@@ -84,9 +86,9 @@ export const formatDateRange = (a: string, b: string) =>
 /* ------------------------------- mock data ------------------------------- */
 
 export const SEED_SEASONS: Season[] = [
-  { id: "s-fall-26", name: "Fall 2026 Metro Season", startDate: "2026-09-14", endDate: "2026-11-22", status: "active" },
-  { id: "s-winter-27", name: "Winter 2027 Indoor Season", startDate: "2027-01-11", endDate: "2027-03-21", status: "upcoming" },
-  { id: "s-summer-26", name: "Summer 2026 Peachtree Season", startDate: "2026-06-01", endDate: "2026-08-16", status: "closed" },
+  { id: "s-fall-26", name: "Fall 2026 Metro Season", startDate: "2026-10-06", endDate: "2026-12-19", status: "active" },
+  { id: "s-winter-27", name: "Winter 2027 Indoor Season", startDate: "2026-11-16", endDate: "2027-02-12", status: "upcoming" },
+  { id: "s-spring-27", name: "Spring 2027 Premier Season", startDate: "2027-01-12", endDate: "2027-03-23", status: "upcoming" },
 ];
 
 export const SEED_LEAGUES: League[] = [
@@ -96,7 +98,7 @@ export const SEED_LEAGUES: League[] = [
     name: "Midtown Tuesday Singles",
     format: "senior-singles",
     skillLevel: "3.5",
-    feeCents: 12000,
+    feeCents: 3500,
     scheduleDay: "Tuesday",
     scheduleTime: "6:30 PM",
     venue: "Piedmont Park Courts, Midtown",
@@ -104,6 +106,8 @@ export const SEED_LEAGUES: League[] = [
     registrationOpen: true,
     description:
       "Ten weeks of competitive 3.5 singles under the Midtown lights. Weekly match assignments, live standings and an end-of-season playoff for the top eight.",
+    startDate: "2026-10-06",
+    endDate: "2026-12-15",
   },
   {
     id: "l-2",
@@ -111,7 +115,7 @@ export const SEED_LEAGUES: League[] = [
     name: "Buckhead Mixed Doubles",
     format: "mixed-doubles",
     skillLevel: "4.0",
-    feeCents: 14500,
+    feeCents: 4500,
     scheduleDay: "Thursday",
     scheduleTime: "7:00 PM",
     venue: "Bitsy Grant Tennis Center, Buckhead",
@@ -119,6 +123,8 @@ export const SEED_LEAGUES: League[] = [
     registrationOpen: true,
     description:
       "Fast, social and genuinely competitive mixed doubles. Bring a partner or get matched by the organizers during week one.",
+    startDate: "2026-10-15",
+    endDate: "2026-12-17",
   },
   {
     id: "l-3",
@@ -126,7 +132,7 @@ export const SEED_LEAGUES: League[] = [
     name: "Decatur Junior Singles",
     format: "junior-singles",
     skillLevel: "3.0",
-    feeCents: 9000,
+    feeCents: 2500,
     scheduleDay: "Saturday",
     scheduleTime: "9:00 AM",
     venue: "McKoy Park Courts, Decatur",
@@ -134,6 +140,8 @@ export const SEED_LEAGUES: League[] = [
     registrationOpen: true,
     description:
       "A supportive Saturday-morning ladder for juniors aged 12–17 building match experience with coach-supervised play.",
+    startDate: "2026-10-24",
+    endDate: "2026-12-19",
   },
   {
     id: "l-4",
@@ -141,7 +149,7 @@ export const SEED_LEAGUES: League[] = [
     name: "Westside Senior Doubles",
     format: "senior-doubles",
     skillLevel: "3.0",
-    feeCents: 11000,
+    feeCents: 3000,
     scheduleDay: "Wednesday",
     scheduleTime: "10:00 AM",
     venue: "Washington Park Tennis Center",
@@ -149,6 +157,8 @@ export const SEED_LEAGUES: League[] = [
     registrationOpen: false,
     description:
       "Daytime doubles for the 50+ crowd. Relaxed pace, real scorekeeping, and coffee on the deck after every match day.",
+    startDate: "2026-11-04",
+    endDate: "2027-01-13",
   },
   {
     id: "l-5",
@@ -156,7 +166,7 @@ export const SEED_LEAGUES: League[] = [
     name: "Sandy Springs Indoor Singles",
     format: "senior-singles",
     skillLevel: "4.5+",
-    feeCents: 18000,
+    feeCents: 5000,
     scheduleDay: "Monday",
     scheduleTime: "8:00 PM",
     venue: "Sandy Springs Indoor Club",
@@ -164,6 +174,8 @@ export const SEED_LEAGUES: League[] = [
     registrationOpen: true,
     description:
       "Our most competitive flight. Sixteen players, guaranteed indoor courts all winter, and a single-elimination championship night.",
+    startDate: "2026-11-16",
+    endDate: "2027-01-25",
   },
   {
     id: "l-6",
@@ -171,7 +183,7 @@ export const SEED_LEAGUES: League[] = [
     name: "Alpharetta Junior Doubles",
     format: "junior-doubles",
     skillLevel: "2.5",
-    feeCents: 8500,
+    feeCents: 2500,
     scheduleDay: "Sunday",
     scheduleTime: "1:00 PM",
     venue: "Wills Park Recreation Center",
@@ -179,6 +191,8 @@ export const SEED_LEAGUES: League[] = [
     registrationOpen: true,
     description:
       "First-league friendly. Juniors learn doubles positioning and scoring with short-format matches every Sunday afternoon.",
+    startDate: "2026-11-29",
+    endDate: "2027-02-07",
   },
   {
     id: "l-7",
@@ -186,7 +200,7 @@ export const SEED_LEAGUES: League[] = [
     name: "East Atlanta Mixed Doubles",
     format: "mixed-doubles",
     skillLevel: "3.5",
-    feeCents: 13000,
+    feeCents: 3500,
     scheduleDay: "Friday",
     scheduleTime: "6:00 PM",
     venue: "Brownwood Park Courts",
@@ -194,20 +208,25 @@ export const SEED_LEAGUES: League[] = [
     registrationOpen: true,
     description:
       "Friday-night mixed doubles with a rotating partner format so you play alongside everyone in the flight at least once.",
+    startDate: "2026-12-04",
+    endDate: "2027-02-12",
   },
   {
     id: "l-8",
-    seasonId: "s-summer-26",
-    name: "Peachtree Summer Singles",
+    seasonId: "s-spring-27",
+    name: "Peachtree Premier Singles",
     format: "senior-singles",
     skillLevel: "4.0",
-    feeCents: 12500,
+    feeCents: 4000,
     scheduleDay: "Tuesday",
     scheduleTime: "7:00 PM",
     venue: "Chastain Park Tennis Center",
     playerLimit: 24,
-    registrationOpen: false,
-    description: "Completed summer flight. Archived for standings and history.",
+    registrationOpen: true,
+    description:
+      "Championship-level 4.0 singles under the lights at Chastain Park. Ten weeks of top-tier matches leading into the spring tournament.",
+    startDate: "2027-01-12",
+    endDate: "2027-03-23",
   },
 ];
 
@@ -220,10 +239,10 @@ export const SEED_PLAYERS: Player[] = [
 ];
 
 export const SEED_REGISTRATIONS: Registration[] = [
-  { id: "r-1", leagueId: "l-1", playerId: "p-1", createdAt: "2026-08-20", paymentStatus: "paid", amountCents: 12000 },
-  { id: "r-2", leagueId: "l-1", playerId: "p-3", createdAt: "2026-08-21", paymentStatus: "paid", amountCents: 12000 },
-  { id: "r-3", leagueId: "l-2", playerId: "p-2", createdAt: "2026-08-19", paymentStatus: "paid", amountCents: 14500 },
-  { id: "r-4", leagueId: "l-2", playerId: "p-1", createdAt: "2026-08-25", paymentStatus: "paid", amountCents: 14500 },
-  { id: "r-5", leagueId: "l-3", playerId: "p-4", createdAt: "2026-08-27", paymentStatus: "paid", amountCents: 9000 },
-  { id: "r-6", leagueId: "l-5", playerId: "p-5", createdAt: "2026-09-02", paymentStatus: "pending", amountCents: 18000 },
+  { id: "r-1", leagueId: "l-1", playerId: "p-1", createdAt: "2026-10-01", paymentStatus: "paid", amountCents: 3500 },
+  { id: "r-2", leagueId: "l-1", playerId: "p-3", createdAt: "2026-10-02", paymentStatus: "paid", amountCents: 3500 },
+  { id: "r-3", leagueId: "l-2", playerId: "p-2", createdAt: "2026-10-03", paymentStatus: "paid", amountCents: 4500 },
+  { id: "r-4", leagueId: "l-2", playerId: "p-1", createdAt: "2026-10-05", paymentStatus: "paid", amountCents: 4500 },
+  { id: "r-5", leagueId: "l-3", playerId: "p-4", createdAt: "2026-10-08", paymentStatus: "paid", amountCents: 2500 },
+  { id: "r-6", leagueId: "l-5", playerId: "p-5", createdAt: "2026-10-12", paymentStatus: "pending", amountCents: 5000 },
 ];

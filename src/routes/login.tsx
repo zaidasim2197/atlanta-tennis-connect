@@ -1,82 +1,303 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
+import { FORMAT_LABELS, formatMoney } from "@/lib/tennis";
+import { TennisBall } from "@/components/tennis-ball";
+import {
+  MapPin,
+  CalendarDays,
+  Eye,
+  EyeOff,
+  Lock,
+  AlertCircle,
+  KeyRound,
+} from "lucide-react";
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    leagueId:
+      typeof search["leagueId"] === "string"
+        ? (search["leagueId"] as string)
+        : undefined,
+  }),
   component: Login,
 });
 
-function Login() {
-  const { login } = useStore();
-  const navigate = useNavigate();
-  
-  const [role, setRole] = useState<"player" | "organizer">("player");
-  const [email, setEmail] = useState("player@example.com");
-  const [loading, setLoading] = useState(false);
+// ─── Hardcoded demo credentials ─────────────────────────────────────────────
+const DEMO_CREDENTIALS = {
+  player: {
+    email: "player@baselineatl.com",
+    password: "player123",
+  },
+  organizer: {
+    email: "organizer@baselineatl.com",
+    password: "organizer123",
+  },
+} as const;
 
-  const handleRoleChange = (newRole: "player" | "organizer") => {
-    setRole(newRole);
-    if (newRole === "organizer") {
-      setEmail("admin@baselineatl.com");
-    } else {
-      setEmail("player@example.com");
-    }
+// ─── Step indicator ─────────────────────────────────────────────────────────
+const STEPS = ["League", "Sign in", "Payment", "Confirmed"] as const;
+
+function Stepper({ current }: { current: number }) {
+  return (
+    <div className="mb-8 flex items-start justify-center">
+      {STEPS.map((label, i) => {
+        const n = i + 1;
+        const done = n < current;
+        const active = n === current;
+        return (
+          <div key={label} className="flex items-start">
+            <div className="flex flex-col items-center gap-1.5">
+              <div
+                className={`flex size-8 items-center justify-center rounded-full text-xs font-bold ring-2 transition-all ${
+                  done || active
+                    ? "bg-primary text-primary-foreground ring-primary"
+                    : "bg-background text-muted-foreground ring-border"
+                }`}
+              >
+                {done ? (
+                  <svg
+                    className="size-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                ) : (
+                  n
+                )}
+              </div>
+              <span
+                className={`whitespace-nowrap text-[10px] font-semibold ${
+                  active
+                    ? "text-primary"
+                    : done
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div
+                className={`mx-1.5 mt-4 h-0.5 w-10 shrink-0 rounded-full transition-all sm:w-14 ${
+                  done ? "bg-primary" : "bg-border"
+                }`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+function Login() {
+  const { login, leagueById } = useStore();
+  const navigate = useNavigate();
+  const { leagueId } = Route.useSearch();
+  const leagueData = leagueId ? leagueById(leagueId) : undefined;
+
+  const [role, setRole] = useState<"player" | "organizer">("player");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  const clearErrors = () => {
+    setEmailError("");
+    setPasswordError("");
+  };
+
+  const handleRoleChange = (r: "player" | "organizer") => {
+    setRole(r);
+    setEmail("");
+    setPassword("");
+    clearErrors();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    clearErrors();
+
+    const creds = DEMO_CREDENTIALS[role];
+    let hasError = false;
+
+    // Validate email
+    if (email.toLowerCase() !== creds.email) {
+      setEmailError(
+        `No ${role} account found with that email address.`
+      );
+      hasError = true;
+    }
+
+    // Validate password (only check if email was fine, for better UX)
+    if (!hasError && password !== creds.password) {
+      setPasswordError("Incorrect password. Please try again.");
+      hasError = true;
+    }
+
+    if (hasError) return;
+
     setLoading(true);
-    
-    // Simulate network delay for realistic prototype feel
     setTimeout(() => {
       login(role, email);
-      navigate({ to: role === "organizer" ? "/organizer" : "/dashboard" });
-    }, 600);
+      if (leagueId && role === "player") {
+        navigate({ to: "/register/$leagueId", params: { leagueId } });
+      } else {
+        navigate({ to: role === "organizer" ? "/organizer" : "/dashboard" });
+      }
+    }, 700);
   };
 
+  const creds = DEMO_CREDENTIALS[role];
+
   return (
-    <div className="flex min-h-[80vh] items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 rounded-2xl border border-border bg-card p-8 shadow-xl">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-foreground">
-            Sign in to your account
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Select a demo role to experience the prototype.
-          </p>
-        </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-6">
-            {/* Modern Role Selector */}
-            <div className="flex rounded-lg bg-muted p-1">
-              <button
-                type="button"
-                onClick={() => handleRoleChange("player")}
-                className={`flex-1 rounded-md py-2.5 text-sm font-semibold transition-all ${
-                  role === "player"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+    <div className="min-h-[90vh] bg-background px-4 py-10 sm:px-6">
+      <div className="mx-auto max-w-lg">
+        {/* Progress stepper */}
+        {leagueData && <Stepper current={2} />}
+
+        {/* Selected league card */}
+        {leagueData && leagueId && (
+          <div className="mb-5 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+            <div className="flex items-center justify-between border-b border-border/60 bg-muted/50 px-5 py-3">
+              <div className="flex items-center gap-2">
+                <TennisBall className="size-4 shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Your Selected League
+                </span>
+              </div>
+              <Link
+                to="/leagues/$leagueId"
+                params={{ leagueId }}
+                className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
               >
-                Player
-              </button>
-              <button
-                type="button"
-                onClick={() => handleRoleChange("organizer")}
-                className={`flex-1 rounded-md py-2.5 text-sm font-semibold transition-all ${
-                  role === "organizer"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Organizer
-              </button>
+                Change
+              </Link>
+            </div>
+            <div className="flex items-start justify-between gap-4 px-5 py-4">
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold leading-tight text-foreground">
+                  {leagueData.name}
+                </h3>
+                <span className="mt-1.5 inline-block rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
+                  {FORMAT_LABELS[leagueData.format]}
+                </span>
+                <div className="mt-2.5 flex flex-col gap-1.5 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <CalendarDays className="size-3.5 shrink-0 text-primary" />
+                    {leagueData.scheduleDay}s at {leagueData.scheduleTime}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="size-3.5 shrink-0 text-primary" />
+                    {leagueData.venue}
+                  </span>
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+                  League Fee
+                </p>
+                <p className="mt-1 font-display text-3xl font-bold text-primary">
+                  {formatMoney(leagueData.feeCents)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Auth card */}
+        <div className="rounded-2xl border border-border bg-card p-7 shadow-[var(--shadow-card)] sm:p-8">
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              {leagueData ? "Sign in to continue" : "Sign in to your account"}
+            </h1>
+            {leagueData && (
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                Use your account to continue your registration for{" "}
+                <strong className="font-semibold text-foreground">
+                  {leagueData.name}
+                </strong>
+                .
+              </p>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Role toggle */}
+            <div className="flex rounded-lg border border-border bg-muted p-1">
+              {(["player", "organizer"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => handleRoleChange(r)}
+                  className={`flex-1 rounded-md py-2 text-sm font-semibold capitalize transition-all ${
+                    role === r
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {r === "player" ? "Player" : "Organizer"}
+                </button>
+              ))}
             </div>
 
+            {/* Demo credentials hint */}
+            <div className="flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/5 px-3.5 py-3">
+              <KeyRound className="mt-0.5 size-4 shrink-0 text-primary" />
+              <div className="text-xs leading-relaxed text-muted-foreground">
+                <span className="font-semibold text-foreground">
+                  Demo credentials
+                </span>{" "}
+                for{" "}
+                <span className="font-semibold capitalize text-primary">
+                  {role}
+                </span>
+                :
+                <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 font-mono text-[11px]">
+                  <span className="text-muted-foreground">Email</span>
+                  <button
+                    type="button"
+                    onClick={() => { setEmail(creds.email); clearErrors(); }}
+                    className="truncate text-left font-semibold text-primary underline-offset-2 hover:underline"
+                    title="Click to auto-fill"
+                  >
+                    {creds.email}
+                  </button>
+                  <span className="text-muted-foreground">Password</span>
+                  <button
+                    type="button"
+                    onClick={() => { setPassword(creds.password); clearErrors(); }}
+                    className="text-left font-semibold text-primary underline-offset-2 hover:underline"
+                    title="Click to auto-fill"
+                  >
+                    {creds.password}
+                  </button>
+                </div>
+                <p className="mt-1.5 text-[10px] text-muted-foreground/70">
+                  Click email or password above to auto-fill.
+                </p>
+              </div>
+            </div>
+
+            {/* Email field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-foreground">
+              <label
+                htmlFor="email"
+                className="mb-1 block text-sm font-medium text-foreground"
+              >
                 Email address
               </label>
               <input
@@ -84,40 +305,115 @@ function Login() {
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="you@example.com"
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (emailError) setEmailError("");
+                }}
+                placeholder={creds.email}
+                className={`block w-full rounded-lg border bg-background px-3.5 py-2.5 text-sm shadow-sm transition focus:outline-none focus:ring-2 ${
+                  emailError
+                    ? "border-destructive focus:border-destructive focus:ring-destructive/20"
+                    : "border-input focus:border-primary focus:ring-primary/20"
+                }`}
               />
+              {emailError && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-destructive">
+                  <AlertCircle className="size-3.5 shrink-0" />
+                  {emailError}
+                </p>
+              )}
             </div>
 
+            {/* Password field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-foreground">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value="mockpassword"
-                readOnly
-                className="mt-1 block w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground shadow-sm focus:outline-none"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">Any password works in this demo.</p>
+              <div className="mb-1 flex items-center justify-between">
+                <label
+                  htmlFor="password"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Password
+                </label>
+                <a
+                  href="#"
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
+                  Forgot password?
+                </a>
+              </div>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (passwordError) setPasswordError("");
+                  }}
+                  placeholder="Enter your password"
+                  className={`block w-full rounded-lg border bg-background py-2.5 pl-9 pr-10 text-sm shadow-sm transition focus:outline-none focus:ring-2 ${
+                    passwordError
+                      ? "border-destructive focus:border-destructive focus:ring-destructive/20"
+                      : "border-input focus:border-primary focus:ring-primary/20"
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-foreground"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-4" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
+                </button>
+              </div>
+              {passwordError && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-destructive">
+                  <AlertCircle className="size-3.5 shrink-0" />
+                  {passwordError}
+                </p>
+              )}
             </div>
-          </div>
 
-          <div>
-            <Button type="submit" className="w-full rounded-full text-md h-11" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full rounded-full"
+              disabled={loading}
+            >
+              {loading
+                ? "Signing in…"
+                : leagueData
+                ? "Sign in & continue to payment →"
+                : "Sign in"}
             </Button>
-          </div>
-          
-          <div className="text-center text-sm text-muted-foreground mt-4">
+          </form>
+
+          <p className="mt-5 text-center text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <a href="/signup" className="font-semibold text-primary hover:underline">
+            <a
+              href={leagueId ? `/signup?leagueId=${leagueId}` : "/signup"}
+              className="font-semibold text-primary hover:underline"
+            >
               Create one
             </a>
+          </p>
+        </div>
+
+        {/* Safety note */}
+        {leagueData && (
+          <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground shadow-sm">
+            <Lock className="mt-px size-3.5 shrink-0 text-primary" />
+            <p>
+              Your selected league will be saved while you sign in. You can
+              complete your registration right after.
+            </p>
           </div>
-        </form>
+        )}
       </div>
     </div>
   );

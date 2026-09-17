@@ -70,6 +70,7 @@ export function SiteFooter() {
               <li>
                 <Link
                   to="/login"
+                  search={{ leagueId: undefined }}
                   className="transition-colors hover:text-accent"
                 >
                   Sign in

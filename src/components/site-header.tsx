@@ -28,7 +28,7 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-1 lg:flex">
           {navItems.map((item) => (
             <Link
               key={item.to}
@@ -43,7 +43,7 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           {user ? (
             <>
               <Button asChild variant="ghost" size="sm">
@@ -63,10 +63,10 @@ export function SiteHeader() {
           ) : (
             <>
               <Button asChild variant="ghost" size="sm">
-                <Link to="/login">Sign in</Link>
+                <Link to="/login" search={{ leagueId: undefined }}>Sign in</Link>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <Link to="/signup">Sign up</Link>
+                <Link to="/signup" search={{ leagueId: undefined }}>Sign up</Link>
               </Button>
               <Button asChild size="sm">
                 <Link to="/leagues">Find a league</Link>
@@ -76,7 +76,7 @@ export function SiteHeader() {
         </div>
 
         <button
-          className="inline-flex size-10 items-center justify-center rounded-full border border-border md:hidden"
+          className="inline-flex size-10 items-center justify-center rounded-full border border-border lg:hidden"
           aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
@@ -86,7 +86,7 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <div className="animate-rise border-t border-border bg-background md:hidden">
+        <div className="animate-rise border-t border-border bg-background lg:hidden">
           <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3">
             {navItems.map((item) => (
               <Link
@@ -123,10 +123,10 @@ export function SiteHeader() {
                     <Link to="/leagues">Find a league</Link>
                   </Button>
                   <Button asChild variant="outline" onClick={() => setOpen(false)}>
-                    <Link to="/signup">Sign up</Link>
+                    <Link to="/signup" search={{ leagueId: undefined }}>Sign up</Link>
                   </Button>
                   <Button asChild variant="ghost" onClick={() => setOpen(false)}>
-                    <Link to="/login">Sign in</Link>
+                    <Link to="/login" search={{ leagueId: undefined }}>Sign in</Link>
                   </Button>
                 </>
               )}

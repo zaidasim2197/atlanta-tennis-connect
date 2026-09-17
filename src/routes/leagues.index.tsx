@@ -8,6 +8,7 @@ import { LeagueCard, LeagueCardSkeleton } from "@/components/league-card";
 import { useStore } from "@/lib/store";
 import { FORMAT_LABELS, SKILL_LEVELS, type LeagueFormat, type SkillLevel } from "@/lib/tennis";
 import { cn } from "@/lib/utils";
+import { DemoBanner } from "@/components/demo-banner";
 
 export const Route = createFileRoute("/leagues/")({
   head: () => ({
@@ -189,7 +190,12 @@ function BrowseLeagues() {
           </div>
         </Reveal>
 
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+        <DemoBanner
+          message="All leagues, schedules, venues and fees shown are fictional and for prototype demonstration only."
+          className="mt-6"
+        />
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground" aria-live="polite">
             {status === "ready" ? `${results.length} league${results.length === 1 ? "" : "s"} found` : "Loading leagues…"}
           </p>

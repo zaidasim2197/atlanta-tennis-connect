@@ -9,8 +9,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatMoney, type LeagueFormat, type SkillLevel } from "@/lib/tennis";
+import { formatDateRange, formatMoney, type LeagueFormat, type SkillLevel } from "@/lib/tennis";
 import { Lock, Unlock, Plus, Users } from "lucide-react";
+import { DemoBanner } from "@/components/demo-banner";
 
 export const Route = createFileRoute("/organizer")({
   component: OrganizerHub,
@@ -36,7 +37,7 @@ function OrganizerHub() {
 
   useEffect(() => {
     if (!user) {
-      navigate({ to: "/login" });
+      navigate({ to: "/login", search: { leagueId: undefined } });
     } else if (user.role !== "organizer") {
       navigate({ to: "/dashboard" });
     }
@@ -75,6 +76,10 @@ function OrganizerHub() {
         <p className="mt-2 text-muted-foreground">
           Manage seasons, leagues, and player registrations.
         </p>
+        <DemoBanner
+          message="All league data, player registrations and statistics shown here are simulated for this prototype."
+          className="mt-4"
+        />
       </div>
 
       <div className="mb-8 flex gap-4 border-b border-border">
@@ -129,7 +134,14 @@ function OrganizerHub() {
                     return (
                       <tr key={league.id} className="hover:bg-muted/50 transition-colors">
                         <td className="px-6 py-4 font-medium text-foreground">{league.name}</td>
-                        <td className="px-6 py-4">{season?.name}</td>
+                        <td className="px-6 py-4">
+                          <div>{season?.name}</div>
+                          {league.startDate && league.endDate && (
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              {formatDateRange(league.startDate, league.endDate)}
+                            </div>
+                          )}
+                        </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1">
                             <Users className="size-4" />

@@ -37,7 +37,11 @@ export function LeagueCard({
           <CalendarDays className="size-4 shrink-0 text-primary" />
           <dd>
             {league.scheduleDay}s · {league.scheduleTime}
-            {season ? ` · ${formatDateRange(season.startDate, season.endDate)}` : ""}
+            {league.startDate && league.endDate
+              ? ` · ${formatDateRange(league.startDate, league.endDate)}`
+              : season
+                ? ` · ${formatDateRange(season.startDate, season.endDate)}`
+                : ""}
           </dd>
         </div>
         <div className="flex items-center gap-2.5">

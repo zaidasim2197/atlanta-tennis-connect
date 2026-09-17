@@ -9,6 +9,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { DemoBanner } from "@/components/demo-banner";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -95,7 +96,13 @@ function Index() {
               <Link to="/leagues">View all leagues</Link>
             </Button>
           </div>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+
+          <DemoBanner
+            message="Featured leagues shown here are sample data for demonstration purposes only."
+            className="mt-6"
+          />
+
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {featuredLeagues.map((league) => (
               <LeagueCard
                 key={league.id}
@@ -164,7 +171,7 @@ function Index() {
           </p>
           <div className="mt-8 flex justify-center gap-4">
             <Button asChild size="lg" className="rounded-full">
-              <Link to="/signup">Create account</Link>
+              <Link to="/signup" search={{ leagueId: undefined }}>Create account</Link>
             </Button>
           </div>
         </div>
