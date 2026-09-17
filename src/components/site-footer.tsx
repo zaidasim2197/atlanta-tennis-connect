@@ -83,14 +83,13 @@ export function SiteFooter() {
 
       <div className="border-t border-white/10">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          {/* Demo disclaimer */}
+          {/* Demo disclaimer — single line, white */}
           <p className="overflow-hidden whitespace-nowrap border-b border-white/10 py-3 text-center text-[10px] leading-relaxed text-white">
-            Demo Notice: All content and data shown are for demonstration
-            purposes only.
+            Demo Notice: This website is an MVP demonstration. All leagues, dates, prices, locations, availability, and other content shown are for demonstration purposes only and do not represent live data.
           </p>
 
           {/* Copyright + Powered by */}
-          <div className="flex flex-col items-center gap-3 pt-6 pb-4 sm:flex-row sm:justify-between sm:gap-0">
+          <div className="flex flex-col items-center gap-3 pt-8 pb-5 sm:flex-row sm:justify-between sm:gap-0">
             <p className="text-xs text-white">
               © {new Date().getFullYear()} Baseline ATL. Atlanta, Georgia.
             </p>

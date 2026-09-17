@@ -20,6 +20,13 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Backend env (contains real credentials – never commit)
+backend/.env
+api/_lib/handler.js
+
+# k6 test results
+backend/tests/load/results/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
