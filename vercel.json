@@ -10,7 +10,7 @@
     { "source": "/api/(.*)", "destination": "/api/$1" }
   ],
   "crons": [
-    { "path": "/api/cron/expire",     "schedule": "*/2 * * * *" },
-    { "path": "/api/cron/reconcile",  "schedule": "*/5 * * * *" }
+    { "path": "/api/cron/expire",     "schedule": "0 * * * *" },
+    { "path": "/api/cron/reconcile",  "schedule": "0 * * * *" }
   ]
 }
