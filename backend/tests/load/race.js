@@ -48,7 +48,9 @@ let successCount = 0;
 
 export default function () {
   const vu    = __VU;
-  const email = playerEmail(400 + vu); // offset to avoid overlap with register.js VUs
+  // VUs 1-3 map to players 450, 451, 452 – well within the seeded range.
+  // These players are NOT pre-registered in l-hot (seed never registers in l-hot).
+  const email = playerEmail(450 + (vu - 1)); // offset to avoid overlap with register.js VUs
 
   const payload = JSON.stringify({ leagueId: HOT_LEAGUE, playerEmail: email });
 

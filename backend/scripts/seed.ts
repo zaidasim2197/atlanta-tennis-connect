@@ -170,18 +170,14 @@ function randomItem<T>(arr: readonly T[]): T {
 
 function generatePlayers(count: number) {
   const players = [];
-  const usedEmails = new Set<string>();
 
   for (let i = 0; i < count; i++) {
-    const first = randomItem(FIRST_NAMES);
-    const last  = randomItem(LAST_NAMES);
-    let email   = `${first.toLowerCase()}.${last.toLowerCase()}${i}@loadtest.atl`;
+    const first = FIRST_NAMES[i % FIRST_NAMES.length];
+    const last  = LAST_NAMES[i % LAST_NAMES.length];
 
-    // guarantee uniqueness
-    while (usedEmails.has(email)) {
-      email = `${first.toLowerCase()}.${last.toLowerCase()}${i}_${Math.floor(Math.random()*1000)}@loadtest.atl`;
-    }
-    usedEmails.add(email);
+    // Deterministic email: player0000@loadtest.atl … player0499@loadtest.atl
+    // k6 config.js uses the exact same pattern so VU emails always exist in the DB.
+    const email = `player${String(i).padStart(4, "0")}@loadtest.atl`;
 
     players.push({
       slug:      `p-seed-${i.toString().padStart(4, "0")}`,

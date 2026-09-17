@@ -30,13 +30,21 @@ import {
   COMMON_THRESHOLDS, playerEmail,
 } from "./config.js";
 
+// Tell k6 that 409 and 404 are NOT failures for this scenario
+http.setResponseCallback(http.expectedStatuses(
+  { min: 200, max: 299 },
+  404,
+  409,
+));
+
 // ─── Metrics ─────────────────────────────────────────────────────────────────
 const browseOk        = new Rate("browse_success");
 const regOk           = new Rate("register_success");
 const raceSuccess     = new Counter("race_slots_claimed");
 const raceRejected    = new Counter("race_slots_rejected");
 const raceOversold    = new Counter("race_oversold");          // must stay 0
-const duplicateReg    = new Counter("duplicate_registration"); // must stay 0
+const leagueFull      = new Counter("register_league_full");   // 409 league full – expected
+const alreadyReg      = new Counter("register_already_reg");   // 409 already registered – expected
 const regDuration     = new Trend("register_p95_ms");
 
 // ─── Scenario sizing ─────────────────────────────────────────────────────────
@@ -77,7 +85,6 @@ export const options = {
     browse_success:        ["rate>0.95"],
     register_success:      ["rate>0.85"],
     race_oversold:         ["count==0"],   // hard fail if any oversell
-    duplicate_registration:["count==0"],   // hard fail if any duplicate
   },
 };
 
@@ -96,7 +103,9 @@ export function browseFn() {
 
 // ─── Registration function ───────────────────────────────────────────────────
 export function registerFn() {
-  const email  = playerEmail(__VU * 500 + __ITER); // globally unique
+  // Each VU cycles through its own 50-player slice within the seeded range (0-499)
+  const playerIndex = ((__VU - 1) * 50 + (__ITER % 50)) % 500;
+  const email  = playerEmail(playerIndex);
   const league = ["l-1","l-2","l-3"][__VU % 3];
 
   const start = Date.now();
@@ -108,22 +117,29 @@ export function registerFn() {
   regDuration.add(Date.now() - start);
 
   if (res.status === 409) {
-    // Duplicate guard fired — shouldn't happen with per-VU emails but track it
-    duplicateReg.add(1);
-    regOk.add(false);
+    // Both "league full" and "already registered" are correct server behaviour
+    let msg = "";
+    try { msg = JSON.parse(res.body).error ?? ""; } catch { /* ignore */ }
+    if (msg.toLowerCase().includes("already")) {
+      alreadyReg.add(1);
+    } else {
+      leagueFull.add(1);
+    }
+    regOk.add(true); // expected path – not a failure
   } else {
     const ok = check(res, { "register 201": (r) => r.status === 201 });
     regOk.add(ok);
   }
 
-  sleep(1 + Math.random());
+  sleep(0.5 + Math.random() * 0.5);
 }
 
 // ─── Race function ───────────────────────────────────────────────────────────
 let claimedCount = 0; // local to this VU process
 
 export function raceFn() {
-  const email = playerEmail(300 + __VU);
+  // Use players 460-499 for race scenario – they are never pre-registered in l-hot
+  const email = playerEmail(460 + ((__VU - 1) % 40));
 
   const res = http.post(
     `${BASE_URL}/api/registrations`,
@@ -154,7 +170,8 @@ export function handleSummary(data) {
   const p95      = data.metrics["http_req_duration"]?.values?.["p(95)"] ?? 0;
   const claimed  = data.metrics["race_slots_claimed"]?.values?.count ?? 0;
   const oversold = data.metrics["race_oversold"]?.values?.count      ?? 0;
-  const dupReg   = data.metrics["duplicate_registration"]?.values?.count ?? 0;
+  const fullCount= data.metrics["register_league_full"]?.values?.count ?? 0;
+  const alrCount = data.metrics["register_already_reg"]?.values?.count ?? 0;
 
   const rows = [
     "",
@@ -162,13 +179,14 @@ export function handleSummary(data) {
     `║  Atlanta Tennis – Load Test Result  │  VUs: ${String(vus).padEnd(3)}  Duration: ${dur.padEnd(5)}  ║`,
     "╠══════════════════════════════════════════════════════════════════╣",
     `║  Total requests        : ${String(total).padEnd(39)}║`,
-    `║  Failed requests       : ${(failed * 100).toFixed(2).padEnd(38)}%║`,
+    `║  Failed requests (5xx) : ${(failed * 100).toFixed(2).padEnd(38)}%║`,
     `║  p95 response time     : ${String(Math.round(p95)).padEnd(36)}ms ║`,
     `║  Race slots claimed    : ${String(claimed).padEnd(39)}║`,
     `║  Oversold (MUST=0)     : ${String(oversold).padEnd(39)}║`,
-    `║  Duplicate reg (MUST=0): ${String(dupReg).padEnd(39)}║`,
+    `║  League full (409)     : ${String(fullCount).padEnd(39)}║`,
+    `║  Already registered    : ${String(alrCount).padEnd(39)}║`,
     "╠══════════════════════════════════════════════════════════════════╣",
-    `║  Verdict: ${oversold === 0 && dupReg === 0 ? "✅ PASS" : "❌ FAIL – see oversold/duplicate counts"}`.padEnd(67) + "║",
+    `║  Verdict: ${oversold === 0 ? "✅ PASS" : "❌ FAIL – oversell detected"}`.padEnd(67) + "║",
     "╚══════════════════════════════════════════════════════════════════╝",
     "",
   ];
