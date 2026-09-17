@@ -3,7 +3,10 @@
  * Runs locally with `npm run dev`.
  * For Vercel: each api/*.ts file imports the app and re-exports a handler.
  */
-import "dotenv/config";
+// dotenv only needed in local dev – Vercel injects env vars natively
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+}
 import express from "express";
 import cors from "cors";
 

@@ -1,55 +1,16 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": null,
   "functions": {
     "api/**/*.ts": {
-      "runtime": "@vercel/node@3.2.7",
+      "runtime": "@vercel/node@5.2.1",
       "maxDuration": 30
     }
   },
-  "routes": [
-    {
-      "src": "/api/health",
-      "dest": "/api/health.ts"
-    },
-    {
-      "src": "/api/leagues(.*)",
-      "dest": "/api/leagues.ts"
-    },
-    {
-      "src": "/api/registrations(.*)",
-      "dest": "/api/registrations.ts"
-    },
-    {
-      "src": "/api/payments(.*)",
-      "dest": "/api/payments.ts"
-    },
-    {
-      "src": "/api/players(.*)",
-      "dest": "/api/players.ts"
-    },
-    {
-      "src": "/api/cron/expire",
-      "dest": "/api/cron/expire.ts"
-    },
-    {
-      "src": "/api/cron/reconcile",
-      "dest": "/api/cron/reconcile.ts"
-    }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" }
   ],
   "crons": [
-    {
-      "path": "/api/cron/expire",
-      "schedule": "*/2 * * * *"
-    },
-    {
-      "path": "/api/cron/reconcile",
-      "schedule": "*/5 * * * *"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+    { "path": "/api/cron/expire",     "schedule": "*/2 * * * *" },
+    { "path": "/api/cron/reconcile",  "schedule": "*/5 * * * *" }
+  ]
 }
