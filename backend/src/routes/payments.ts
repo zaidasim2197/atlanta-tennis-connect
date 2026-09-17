@@ -53,7 +53,11 @@ router.post("/webhook", async (req: Request, res: Response) => {
 router.get(
   "/status/:reservationId",
   wrap(async (req, res) => {
-    const reservation = await Reservation.findById(req.params.reservationId).lean();
+    const rawId = req.params.reservationId;
+    const reservationId = Array.isArray(rawId) ? rawId[0] : rawId;
+    if (!reservationId) return err(res, "reservationId is required", 400);
+
+    const reservation = await Reservation.findById(reservationId).lean();
     if (!reservation) return err(res, "Reservation not found", 404);
 
     ok(res, {
@@ -71,7 +75,8 @@ router.get(
 
 // POST /api/payments/:reservationId/reconcile
 const handleReconcile = wrap(async (req, res) => {
-  const reservationId = req.params.reservationId;
+  const rawId = req.params.reservationId;
+  const reservationId = Array.isArray(rawId) ? rawId[0] : rawId;
   if (!reservationId) return err(res, "reservationId is required", 400);
 
   const updated = await reconcileReservation(reservationId);
@@ -83,7 +88,8 @@ router.post("/reconcile/:reservationId", handleReconcile);
 
 // POST /api/payments/:reservationId/cancel
 const handleCancel = wrap(async (req, res) => {
-  const reservationId = req.params.reservationId;
+  const rawId = req.params.reservationId;
+  const reservationId = Array.isArray(rawId) ? rawId[0] : rawId;
   if (!reservationId) return err(res, "reservationId is required", 400);
 
   const result = await cancelReservation(reservationId);
