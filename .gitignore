@@ -37,3 +37,4 @@ backend/tests/load/results/
 *.njsproj
 *.sln
 *.sw?
+.vercel
