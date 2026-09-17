@@ -43,7 +43,7 @@ export class StripeProvider implements PaymentProvider {
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) throw new Error("STRIPE_SECRET_KEY is not set");
     this.webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
-    this.client = new Stripe(key, { apiVersion: "2024-06-20" });
+    this.client = new Stripe(key, { apiVersion: "2026-08-26.dahlia" as Stripe.LatestApiVersion });
   }
 
   async createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult> {
