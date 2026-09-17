@@ -65,7 +65,7 @@ router.get(
   "/:email",
   wrap(async (req, res) => {
     const player = await Player.findOne({
-      email: decodeURIComponent(req.params.email).toLowerCase(),
+      email: decodeURIComponent(req.params.email as string).toLowerCase(),
     });
     if (!player) return err(res, "Player not found", 404);
     ok(res, playerToFrontend(player));

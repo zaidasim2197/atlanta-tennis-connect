@@ -36,7 +36,11 @@ router.post("/webhook", async (req: Request, res: Response) => {
   }
 
   try {
-    await confirmPayment(event.paymentIntentId, event.status, event.eventId);
+    await confirmPayment(
+      event.paymentIntentId,
+      event.status as import("../models/Reservation").ReservationStatus,
+      event.eventId,
+    );
   } catch (e) {
     console.error("confirmPayment error", e);
     // Still return 200 – we don't want Stripe to retry a bad event
