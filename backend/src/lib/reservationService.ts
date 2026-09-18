@@ -10,6 +10,7 @@ import mongoose from "mongoose";
 import { League } from "../models/League";
 import { Player } from "../models/Player";
 import { Reservation, type IReservation, type ReservationStatus } from "../models/Reservation";
+import { TournamentHistory } from "../models/TournamentHistory";
 import { AuditLog } from "../models/AuditLog";
 import { getPaymentProvider } from "../payment";
 import { expireReservations } from "../jobs/expireReservations";
@@ -30,6 +31,8 @@ export interface ReservationDTO {
   clientSecret?: string;
   status: ReservationStatus;
   expiresAt: string;
+  flaggedForReview?: boolean;
+  reviewReason?: string;
 }
 
 function toDTO(r: IReservation): ReservationDTO {
@@ -43,6 +46,8 @@ function toDTO(r: IReservation): ReservationDTO {
     paymentIntentId: r.paymentIntentId,
     status: r.status,
     expiresAt: r.expiresAt.toISOString(),
+    flaggedForReview: r.flaggedForReview,
+    reviewReason: r.reviewReason,
   };
 }
 
@@ -98,6 +103,27 @@ export async function createReservation(
     if (partner) partnerSlug = partner.slug;
   }
 
+  // 3b. Historical Winner check (Phase 4: Flag only, no hardcoded blocking decision)
+  // Rule: Player who was Champion or Finalist in the same skill level/division within the last 2 years is flagged for organizer review
+  const currentYear = new Date().getFullYear();
+  const priorHistory = await TournamentHistory.findOne({
+    playerEmail: player.email.toLowerCase(),
+    skillLevel: league.skillLevel,
+    finish: { $in: ["champion", "finalist"] },
+    year: { $gte: currentYear - 2 },
+  }).sort({ year: -1 });
+
+  const flaggedForReview = Boolean(priorHistory);
+  const reviewReason = priorHistory
+    ? `Prior ${priorHistory.finish.toUpperCase()} in ${priorHistory.tournamentName} (${priorHistory.division}, ${priorHistory.year}) – Flagged for organizer review`
+    : undefined;
+
+  if (flaggedForReview) {
+    console.log(
+      `[HISTORICAL_WINNER_FLAG] Player ${player.email} flagged for organizer review for league ${league.slug}: ${reviewReason}`,
+    );
+  }
+
   // 4. Create the Reservation document
   const now = new Date();
   const expiresAt = new Date(now.getTime() + TTL_MS());
@@ -116,6 +142,8 @@ export async function createReservation(
       idempotencyKey,
       heldAt: now,
       expiresAt,
+      flaggedForReview,
+      reviewReason,
     });
   } catch (err: unknown) {
     // Unique-constraint violation: player already has an active reservation
@@ -141,7 +169,12 @@ export async function createReservation(
     playerEmail: player.email,
     action: "reservation.created",
     actor: "player",
-    meta: { spotsRemaining: league.spotsRemaining, provider: provider.name },
+    meta: {
+      spotsRemaining: league.spotsRemaining,
+      provider: provider.name,
+      flaggedForReview,
+      reviewReason,
+    },
   });
 
   // 6. Initiate payment immediately

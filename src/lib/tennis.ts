@@ -83,15 +83,19 @@ export const formatDate = (iso: string) =>
 export const formatDateRange = (a: string, b: string) =>
   `${new Date(a + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${formatDate(b)}`;
 
-/* ------------------------------- mock data ------------------------------- */
+/* ----------------------- FALLBACK MOCK DATA (Fallback Only) -----------------------
+ * This data is used STRICTLY as an offline fallback when the backend database/API
+ * is unreachable. Primary data fetching must always query the MongoDB API first.
+ */
 
-export const SEED_SEASONS: Season[] = [
+export const FALLBACK_MOCK_SEASONS: Season[] = [
   { id: "s-fall-26", name: "Fall 2026 Metro Season", startDate: "2026-10-06", endDate: "2026-12-19", status: "active" },
   { id: "s-winter-27", name: "Winter 2027 Indoor Season", startDate: "2026-11-16", endDate: "2027-02-12", status: "upcoming" },
   { id: "s-spring-27", name: "Spring 2027 Premier Season", startDate: "2027-01-12", endDate: "2027-03-23", status: "upcoming" },
 ];
+export const SEED_SEASONS = FALLBACK_MOCK_SEASONS;
 
-export const SEED_LEAGUES: League[] = [
+export const FALLBACK_MOCK_LEAGUES: League[] = [
   {
     id: "l-1",
     seasonId: "s-fall-26",
@@ -229,16 +233,18 @@ export const SEED_LEAGUES: League[] = [
     endDate: "2027-03-23",
   },
 ];
+export const SEED_LEAGUES = FALLBACK_MOCK_LEAGUES;
 
-export const SEED_PLAYERS: Player[] = [
+export const FALLBACK_MOCK_PLAYERS: Player[] = [
   { id: "p-1", firstName: "Jordan", lastName: "Ellis", email: "jordan@example.com", phone: "(404) 555-0142", ntrp: "3.5", city: "Atlanta" },
   { id: "p-2", firstName: "Maya", lastName: "Robinson", email: "maya@example.com", phone: "(404) 555-0119", ntrp: "4.0", city: "Decatur" },
   { id: "p-3", firstName: "Chris", lastName: "Nguyen", email: "chris@example.com", phone: "(678) 555-0187", ntrp: "3.5", city: "Smyrna" },
   { id: "p-4", firstName: "Tasha", lastName: "Bell", email: "tasha@example.com", phone: "(770) 555-0165", ntrp: "3.0", city: "Marietta" },
   { id: "p-5", firstName: "Andre", lastName: "Cole", email: "andre@example.com", phone: "(404) 555-0173", ntrp: "4.5+", city: "Sandy Springs" },
 ];
+export const SEED_PLAYERS = FALLBACK_MOCK_PLAYERS;
 
-export const SEED_REGISTRATIONS: Registration[] = [
+export const FALLBACK_MOCK_REGISTRATIONS: Registration[] = [
   { id: "r-1", leagueId: "l-1", playerId: "p-1", createdAt: "2026-10-01", paymentStatus: "paid", amountCents: 3500 },
   { id: "r-2", leagueId: "l-1", playerId: "p-3", createdAt: "2026-10-02", paymentStatus: "paid", amountCents: 3500 },
   { id: "r-3", leagueId: "l-2", playerId: "p-2", createdAt: "2026-10-03", paymentStatus: "paid", amountCents: 4500 },
@@ -246,3 +252,4 @@ export const SEED_REGISTRATIONS: Registration[] = [
   { id: "r-5", leagueId: "l-3", playerId: "p-4", createdAt: "2026-10-08", paymentStatus: "paid", amountCents: 2500 },
   { id: "r-6", leagueId: "l-5", playerId: "p-5", createdAt: "2026-10-12", paymentStatus: "pending", amountCents: 5000 },
 ];
+export const SEED_REGISTRATIONS = FALLBACK_MOCK_REGISTRATIONS;

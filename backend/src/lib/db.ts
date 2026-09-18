@@ -16,12 +16,13 @@ export async function connectDB(): Promise<typeof mongoose> {
   const uri = process.env.MONGODB_URI;
   if (!uri) throw new Error("MONGODB_URI is not set");
 
+  const poolSize = parseInt(process.env.DB_POOL_SIZE || "30", 10);
+
   global.__mongooseConn = mongoose.connect(uri, {
-    // Keep the pool small – Vercel spins up many concurrent functions
-    maxPoolSize: 5,
-    minPoolSize: 1,
+    maxPoolSize: poolSize,
+    minPoolSize: 5,
     serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 10000,
+    socketTimeoutMS: 15000,
   });
 
   return global.__mongooseConn;

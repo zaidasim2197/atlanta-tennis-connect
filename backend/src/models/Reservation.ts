@@ -50,6 +50,10 @@ export interface IReservation extends Document {
   paidAt?: Date;
   cancelledAt?: Date;
 
+  // Historical winner / eligibility review flag (Phase 4)
+  flaggedForReview?: boolean;
+  reviewReason?: string;
+
   // Webhook event deduplication
   lastWebhookEventId?: string;
   webhookEventIds?: string[];
@@ -78,6 +82,9 @@ const ReservationSchema = new Schema<IReservation>(
     expiresAt:        { type: Date, required: true, index: true },
     paidAt:           { type: Date },
     cancelledAt:      { type: Date },
+
+    flaggedForReview: { type: Boolean, default: false, index: true },
+    reviewReason:     { type: String },
 
     lastWebhookEventId: { type: String },
     webhookEventIds:    { type: [String], default: [] },

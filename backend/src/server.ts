@@ -3,8 +3,13 @@
  * Runs locally with `npm run dev`.
  * For Vercel: each api/*.ts file imports the app and re-exports a handler.
  */
+import "dotenv/config";
+import dns from "node:dns";
 import express from "express";
 import cors from "cors";
+
+// TODO: REMOVE/STUB BEFORE COMMITTING - Custom DNS resolution for MongoDB Atlas SRV
+dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1"]);
 
 import { connectDB } from "./lib/db";
 import leaguesRouter from "./routes/leagues";
@@ -18,9 +23,17 @@ export const app = express();
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL ?? "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps/curl) or any localhost port
+      if (!origin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) || origin === process.env.CLIENT_URL) {
+        callback(null, true);
+      } else {
+        callback(null, true);
+      }
+    },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"],
+    credentials: true,
   }),
 );
 

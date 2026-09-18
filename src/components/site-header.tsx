@@ -12,7 +12,7 @@ const navItems = [
 ] as const;
 
 export function SiteHeader() {
-  const { user, logout } = useStore();
+  const { user, logout, dbConnected, fallbackActive } = useStore();
   const [open, setOpen] = React.useState(false);
   const navigate = useNavigate();
 
@@ -21,12 +21,25 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link to="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
-          <TennisBall className="size-7" />
-          <span className="font-display text-lg font-bold tracking-tight text-primary">
-            Baseline<span className="text-muted-foreground font-medium"> ATL</span>
+        <div className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
+            <TennisBall className="size-7" />
+            <span className="font-display text-lg font-bold tracking-tight text-primary">
+              Baseline<span className="text-muted-foreground font-medium"> ATL</span>
+            </span>
+          </Link>
+          <span
+            className={`hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${
+              dbConnected
+                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                : "bg-amber-500/10 text-amber-600 border-amber-500/30"
+            }`}
+            title={dbConnected ? "Connected to MongoDB backend" : "Offline fallback active (using mock data)"}
+          >
+            <span className={`size-1.5 rounded-full ${dbConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
+            {dbConnected ? "DB: Live" : "DB: Fallback"}
           </span>
-        </Link>
+        </div>
 
         <nav className="hidden items-center gap-1 lg:flex">
           {navItems.map((item) => (

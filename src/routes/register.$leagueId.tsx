@@ -26,6 +26,13 @@ interface ActiveReservation {
   amountCents: number;
 }
 
+const getApiUrl = (path: string) => {
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    return `http://localhost:3001${path}`;
+  }
+  return path;
+};
+
 function RegisterLeague() {
   const { leagueId } = Route.useParams();
   const { user, leagues, seasons, players, registerPlayer, spotsLeft } = useStore();
@@ -61,7 +68,7 @@ function RegisterLeague() {
     const partner = partnerId ? players.find((p) => p.id === partnerId) : undefined;
 
     try {
-      const res = await fetch("/api/registrations", {
+      const res = await fetch(getApiUrl("/api/registrations"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -122,7 +129,7 @@ function RegisterLeague() {
 
     try {
       // Reconcile server-side with Stripe
-      await fetch(`/api/payments/${reservation.id}/reconcile`, { method: "POST" });
+      await fetch(getApiUrl(`/api/payments/${reservation.id}/reconcile`), { method: "POST" });
 
       registerPlayer({
         leagueId: league.id,
@@ -149,7 +156,7 @@ function RegisterLeague() {
   const handleCancelReservation = async () => {
     if (!reservation) return;
     try {
-      await fetch(`/api/payments/${reservation.id}/cancel`, { method: "POST" });
+      await fetch(getApiUrl(`/api/payments/${reservation.id}/cancel`), { method: "POST" });
       toast.info("Reservation cancelled. The held spot has been released.");
     } catch {
       /* ignore cancel error */

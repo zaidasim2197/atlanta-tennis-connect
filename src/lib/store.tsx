@@ -1,9 +1,9 @@
 import * as React from "react";
 import {
-  SEED_LEAGUES,
-  SEED_PLAYERS,
-  SEED_REGISTRATIONS,
-  SEED_SEASONS,
+  FALLBACK_MOCK_LEAGUES,
+  FALLBACK_MOCK_PLAYERS,
+  FALLBACK_MOCK_REGISTRATIONS,
+  FALLBACK_MOCK_SEASONS,
   type AuthUser,
   type League,
   type Player,
@@ -17,10 +17,13 @@ interface DataState {
   players: Player[];
   registrations: Registration[];
   user: AuthUser | null;
+  dbConnected: boolean;
+  fallbackActive: boolean;
 }
 
 interface StoreValue extends DataState {
   hydrated: boolean;
+  refreshFromDb: () => Promise<void>;
   login: (role: "player" | "organizer", email: string) => AuthUser;
   logout: () => void;
   createSeason: (input: Omit<Season, "id">) => Season;
@@ -41,35 +44,108 @@ interface StoreValue extends DataState {
 const STORAGE_KEY = "atl-tennis-league-state-v4";
 
 const initial: DataState = {
-  seasons: SEED_SEASONS,
-  leagues: SEED_LEAGUES,
-  players: SEED_PLAYERS,
-  registrations: SEED_REGISTRATIONS,
+  seasons: FALLBACK_MOCK_SEASONS,
+  leagues: FALLBACK_MOCK_LEAGUES,
+  players: FALLBACK_MOCK_PLAYERS,
+  registrations: FALLBACK_MOCK_REGISTRATIONS,
   user: null,
+  dbConnected: false,
+  fallbackActive: false,
 };
 
 const StoreContext = React.createContext<StoreValue | null>(null);
 
 const uid = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 
+const getApiUrl = (path: string) => {
+  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+    return `http://localhost:3001${path}`;
+  }
+  return path;
+};
+
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = React.useState<DataState>(initial);
   const [hydrated, setHydrated] = React.useState(false);
 
+  // DB-first initialization with explicit fallback
+  const fetchDbData = React.useCallback(async () => {
+    try {
+      const url = getApiUrl("/api/leagues");
+      const res = await fetch(url, { method: "GET" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      const json = await res.json();
+      if (!json.ok || !Array.isArray(json.data)) throw new Error("Invalid API response format");
+
+      const dbLeagues: League[] = json.data.map((l: any) => ({
+        id: l.id || l.slug,
+        seasonId: l.seasonId || l.seasonSlug,
+        name: l.name,
+        format: l.format,
+        skillLevel: l.skillLevel,
+        feeCents: l.feeCents,
+        scheduleDay: l.scheduleDay,
+        scheduleTime: l.scheduleTime,
+        venue: l.venue,
+        playerLimit: l.playerLimit,
+        spotsRemaining: l.spotsRemaining,
+        registrationOpen: l.registrationOpen,
+        description: l.description,
+        startDate: l.startDate,
+        endDate: l.endDate,
+      }));
+
+      console.info("🎾 [DB_CONNECTED] Successfully loaded live leagues from MongoDB backend.");
+
+      setState((prev) => ({
+        ...prev,
+        leagues: dbLeagues,
+        dbConnected: true,
+        fallbackActive: false,
+      }));
+    } catch (err) {
+      console.warn(
+        "⚠️ [FALLBACK_TRIGGERED] Failed to reach backend API. Using local mock fallback data.",
+        err,
+      );
+      setState((prev) => ({
+        ...prev,
+        dbConnected: false,
+        fallbackActive: true,
+      }));
+    }
+  }, []);
+
   React.useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) setState({ ...initial, ...(JSON.parse(raw) as DataState) });
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<DataState>;
+        // Do not persist connection flags across reloads
+        delete parsed.dbConnected;
+        delete parsed.fallbackActive;
+        setState((prev) => ({ ...prev, ...parsed }));
+      }
     } catch {
       /* ignore corrupt storage */
     }
     setHydrated(true);
-  }, []);
+    fetchDbData();
+  }, [fetchDbData]);
 
   React.useEffect(() => {
     if (!hydrated) return;
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          seasons: state.seasons,
+          leagues: state.leagues,
+          players: state.players,
+          registrations: state.registrations,
+          user: state.user,
+        }),
+      );
     } catch {
       /* storage full or unavailable */
     }
@@ -79,6 +155,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return {
       ...state,
       hydrated,
+      refreshFromDb: fetchDbData,
       login: (role, email) => {
         const existingPlayer = state.players.find((p) => p.email === email);
         const user: AuthUser = {
@@ -124,7 +201,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           playerId: saved.id,
           createdAt: new Date().toISOString().slice(0, 10),
           paymentStatus: "paid",
-          amountCents: league.feeCents,
+          amountCents: league ? league.feeCents : 3500,
           ...(partnerId ? { partnerId } : {}),
         };
         setState((s) => ({
@@ -146,10 +223,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       spotsLeft: (leagueId) => {
         const league = state.leagues.find((l) => l.id === leagueId);
         if (!league) return 0;
+        // If live spotsRemaining exists from DB, use it directly
+        if (typeof (league as any).spotsRemaining === "number") {
+          return (league as any).spotsRemaining;
+        }
         return Math.max(0, league.playerLimit - state.registrations.filter((r) => r.leagueId === leagueId).length);
       },
     };
-  }, [state, hydrated]);
+  }, [state, hydrated, fetchDbData]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
