@@ -61,7 +61,9 @@ const getApiUrl = (path: string) => {
   if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
     return `http://localhost:3001${path}`;
   }
-  return path;
+  // In production, use the dedicated backend API URL
+  const apiBase = import.meta.env.VITE_API_URL || "";
+  return `${apiBase}${path}`;
 };
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {

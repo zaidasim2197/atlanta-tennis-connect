@@ -28,17 +28,6 @@ export function SiteHeader() {
               Baseline<span className="text-muted-foreground font-medium"> ATL</span>
             </span>
           </Link>
-          <span
-            className={`hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${
-              dbConnected
-                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                : "bg-amber-500/10 text-amber-600 border-amber-500/30"
-            }`}
-            title={dbConnected ? "Connected to MongoDB backend" : "Offline fallback active (using mock data)"}
-          >
-            <span className={`size-1.5 rounded-full ${dbConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
-            {dbConnected ? "DB: Live" : "DB: Fallback"}
-          </span>
         </div>
 
         <nav className="hidden items-center gap-1 lg:flex">
