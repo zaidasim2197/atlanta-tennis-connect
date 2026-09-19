@@ -85,15 +85,21 @@ export async function createReservation(
     });
   }
 
-  // 2. Resolve player by email
-  const player = await Player.findOne({ email: input.playerEmail.toLowerCase() });
+  // 2. Resolve player by email (auto-provisioning if signing up/reserving directly)
+  let player = await Player.findOne({ email: input.playerEmail.toLowerCase() });
   if (!player) {
-    // Roll back the decrement before throwing
-    await League.findOneAndUpdate(
-      { slug: input.leagueSlug },
-      { $inc: { spotsRemaining: 1 } },
-    );
-    throw Object.assign(new Error("Player not found"), { statusCode: 404 });
+    const emailPrefix = input.playerEmail.split("@")[0] || "Player";
+    const slug = `p-${Math.random().toString(36).slice(2, 9)}`;
+    player = await Player.create({
+      slug,
+      firstName: emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1),
+      lastName: "Member",
+      email: input.playerEmail.toLowerCase(),
+      phone: "",
+      ntrp: league.skillLevel || "3.5",
+      city: "Atlanta",
+      zipCode: "30309",
+    });
   }
 
   // 3. Resolve optional partner

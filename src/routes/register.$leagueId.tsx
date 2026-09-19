@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { useStore } from "@/lib/store";
+import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -26,12 +26,6 @@ interface ActiveReservation {
   amountCents: number;
 }
 
-const getApiUrl = (path: string) => {
-  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
-    return `http://localhost:3001${path}`;
-  }
-  return path;
-};
 
 function RegisterLeague() {
   const { leagueId } = Route.useParams();
@@ -40,7 +34,7 @@ function RegisterLeague() {
 
   const league = leagues.find((l) => l.id === leagueId);
   const season = seasons.find((s) => s.id === league?.seasonId);
-  const player = players.find((p) => p.id === user?.playerId);
+  const player = players.find((p) => p.id === user?.playerId || (user?.email && p.email.toLowerCase() === user.email.toLowerCase()));
 
   const [partnerId, setPartnerId] = useState("");
   const [loading, setLoading] = useState(false);

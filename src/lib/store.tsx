@@ -35,6 +35,7 @@ interface StoreValue extends DataState {
     partnerId?: string;
   }) => { registration: Registration; player: Player };
   updatePlayer: (playerId: string, patch: Partial<Omit<Player, "id">>) => void;
+  upsertPlayer: (player: Player) => void;
   leagueById: (id: string) => League | undefined;
   seasonById: (id: string) => Season | undefined;
   registrationsForLeague: (leagueId: string) => Registration[];
@@ -57,12 +58,12 @@ const StoreContext = React.createContext<StoreValue | null>(null);
 
 const uid = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 
-const getApiUrl = (path: string) => {
+export const getApiUrl = (path: string) => {
   if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
     return `http://localhost:3001${path}`;
   }
   // In production, use the dedicated backend API URL
-  const apiBase = import.meta.env.VITE_API_URL || "";
+  const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
   return `${apiBase}${path}`;
 };
 
@@ -159,18 +160,36 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       hydrated,
       refreshFromDb: fetchDbData,
       login: (role, email) => {
-        const existingPlayer = state.players.find((p) => p.email === email);
+        const normalized = email.trim().toLowerCase();
+        let existingPlayer = state.players.find((p) => p.email.toLowerCase() === normalized);
+        
+        let playerId = existingPlayer?.id;
+        if (role === "player" && !existingPlayer) {
+          const newPlayer: Player = {
+            id: uid("p"),
+            firstName: email.split("@")[0] || "Player",
+            lastName: "",
+            email: normalized,
+            phone: "",
+            ntrp: "3.5",
+            city: "Atlanta",
+          };
+          playerId = newPlayer.id;
+          existingPlayer = newPlayer;
+          setState((s) => ({ ...s, players: [...s.players, newPlayer] }));
+        }
+
         const user: AuthUser = {
           id: uid("u"),
           role,
-          email,
+          email: normalized,
           name:
             role === "organizer"
               ? "Dana Whitfield"
-              : existingPlayer
-                ? `${existingPlayer.firstName} ${existingPlayer.lastName}`
+              : existingPlayer && (existingPlayer.firstName || existingPlayer.lastName)
+                ? `${existingPlayer.firstName} ${existingPlayer.lastName}`.trim()
                 : (email.split("@")[0] ?? email),
-          playerId: role === "player" ? (existingPlayer?.id ?? state.players[0]?.id) : undefined,
+          playerId: role === "player" ? playerId : undefined,
         };
         setState((s) => ({ ...s, user }));
         return user;
@@ -219,6 +238,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           ...s,
           players: s.players.map((p) => (p.id === playerId ? { ...p, ...patch } : p)),
         })),
+      upsertPlayer: (player) =>
+        setState((s) => {
+          const exists = s.players.some((p) => p.id === player.id || p.email.toLowerCase() === player.email.toLowerCase());
+          const newPlayers = exists
+            ? s.players.map((p) => (p.id === player.id || p.email.toLowerCase() === player.email.toLowerCase() ? player : p))
+            : [...s.players, player];
+          return {
+            ...s,
+            players: newPlayers,
+            user: s.user && s.user.email.toLowerCase() === player.email.toLowerCase()
+              ? { ...s.user, playerId: player.id, name: `${player.firstName} ${player.lastName}` }
+              : s.user,
+          };
+        }),
       leagueById: (id) => state.leagues.find((l) => l.id === id),
       seasonById: (id) => state.seasons.find((s) => s.id === id),
       registrationsForLeague: (leagueId) => state.registrations.filter((r) => r.leagueId === leagueId),

@@ -131,34 +131,50 @@ function Login() {
     e.preventDefault();
     clearErrors();
 
+    const normalizedEmail = email.trim().toLowerCase();
     const creds = DEMO_CREDENTIALS[role];
+
+    // Check if user is using the demo account
+    const isDemoAccount = normalizedEmail === creds.email.toLowerCase();
+
+    // Check if user has an account registered in this browser
+    let registeredAccount: { password?: string; role?: string } | undefined;
+    try {
+      const registeredUsers = JSON.parse(localStorage.getItem("atl-registered-accounts") || "{}");
+      registeredAccount = registeredUsers[normalizedEmail];
+    } catch {}
+
     let hasError = false;
 
-    // Validate email
-    if (email.toLowerCase() !== creds.email) {
-      setEmailError(
-        `No ${role} account found with that email address.`
-      );
-      hasError = true;
-    }
-
-    // Validate password (only check if email was fine, for better UX)
-    if (!hasError && password !== creds.password) {
-      setPasswordError("Incorrect password. Please try again.");
-      hasError = true;
+    if (isDemoAccount) {
+      if (password !== creds.password) {
+        setPasswordError("Incorrect password. Please try again.");
+        hasError = true;
+      }
+    } else if (registeredAccount) {
+      if (registeredAccount.password && password !== registeredAccount.password) {
+        setPasswordError("Incorrect password. Please try again.");
+        hasError = true;
+      }
+    } else {
+      // If neither demo nor local registered, check password length or accept password for seeded/remote accounts
+      if (password.length < 4) {
+        setPasswordError("Please enter a valid password.");
+        hasError = true;
+      }
     }
 
     if (hasError) return;
 
     setLoading(true);
     setTimeout(() => {
-      login(role, email);
+      login(role, normalizedEmail);
       if (leagueId && role === "player") {
         navigate({ to: "/register/$leagueId", params: { leagueId } });
       } else {
         navigate({ to: role === "organizer" ? "/organizer" : "/dashboard" });
       }
-    }, 700);
+    }, 600);
   };
 
   const creds = DEMO_CREDENTIALS[role];

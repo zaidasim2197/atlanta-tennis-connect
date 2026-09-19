@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useStore } from "@/lib/store";
+import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { SKILL_LEVELS, FORMAT_LABELS, formatMoney, type SkillLevel } from "@/lib/tennis";
 import { TennisBall } from "@/components/tennis-ball";
-import { MapPin, CalendarDays, Lock } from "lucide-react";
+import { MapPin, CalendarDays, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/signup")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -80,7 +80,7 @@ function Stepper({ current }: { current: number }) {
 }
 
 function Signup() {
-  const { login, updatePlayer, leagueById } = useStore();
+  const { login, upsertPlayer, updatePlayer, leagueById } = useStore();
   const navigate = useNavigate();
   const { leagueId } = Route.useSearch();
   const leagueData = leagueId ? leagueById(leagueId) : undefined;
@@ -88,25 +88,102 @@ function Signup() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("Atlanta");
   const [ntrp, setNtrp] = useState<SkillLevel>("3.0");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      const user = login("player", email);
-      if (user.playerId) {
-        updatePlayer(user.playerId, { firstName, lastName, phone, city, ntrp });
+
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      // 1. Persist player to backend MongoDB database
+      let backendPlayerId: string | undefined;
+      try {
+        const res = await fetch(getApiUrl("/api/players"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            email: normalizedEmail,
+            phone: phone.trim() || undefined,
+            city: city.trim() || "Atlanta",
+            ntrp,
+          }),
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json.ok && json.data?.id) {
+            backendPlayerId = json.data.id;
+          }
+        }
+      } catch (apiErr) {
+        console.warn("Backend player registration offline or failed, using local store:", apiErr);
       }
+
+      // 2. Save player in local store and localStorage
+      const playerRecord = {
+        id: backendPlayerId || `p-${Math.random().toString(36).slice(2, 9)}`,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: normalizedEmail,
+        phone: phone.trim(),
+        city: city.trim() || "Atlanta",
+        ntrp,
+      };
+
+      upsertPlayer(playerRecord);
+
+      // Save custom registered credentials so the user can log in with their password later
+      try {
+        const registeredUsers = JSON.parse(localStorage.getItem("atl-registered-accounts") || "{}");
+        registeredUsers[normalizedEmail] = {
+          password,
+          role: "player",
+          name: `${firstName.trim()} ${lastName.trim()}`,
+        };
+        localStorage.setItem("atl-registered-accounts", JSON.stringify(registeredUsers));
+      } catch {}
+
+      // 3. Log in user
+      const user = login("player", normalizedEmail);
+      if (user.playerId) {
+        updatePlayer(user.playerId, { firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim(), city, ntrp });
+      }
+
+      // 4. Navigate to registration payment or dashboard
       if (leagueId) {
         navigate({ to: "/register/$leagueId", params: { leagueId } });
       } else {
         navigate({ to: "/dashboard" });
       }
-    }, 600);
+    } catch (err: unknown) {
+      console.error("Signup error:", err);
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -252,6 +329,61 @@ function Signup() {
                 />
               </div>
             </div>
+
+            {/* Password & Confirm Password */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="password" className="mb-1 block text-sm font-medium text-foreground">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 6 characters"
+                    className="block w-full rounded-lg border border-input bg-background py-2.5 pl-9 pr-10 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-foreground"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium text-foreground">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    id="confirmPassword"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repeat password"
+                    className="block w-full rounded-lg border border-input bg-background py-2.5 pl-9 pr-3 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+                <AlertCircle className="size-3.5 shrink-0" />
+                {error}
+              </p>
+            )}
 
             {/* NTRP */}
             <div>

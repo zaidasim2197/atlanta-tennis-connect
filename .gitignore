@@ -40,3 +40,6 @@ backend/tests/load/results/
 .vercel
 powershell.bat
 powershell.cmd
+
+.env
+.env.production
