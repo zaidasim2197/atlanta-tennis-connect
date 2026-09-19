@@ -59,12 +59,13 @@ const StoreContext = React.createContext<StoreValue | null>(null);
 const uid = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 
 export const getApiUrl = (path: string) => {
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
   if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
-    return `http://localhost:3001${path}`;
+    return `http://localhost:3001${cleanPath}`;
   }
   // In production, use the dedicated backend API URL
   const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
-  return `${apiBase}${path}`;
+  return `${apiBase}${cleanPath}`;
 };
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
