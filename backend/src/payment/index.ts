@@ -10,7 +10,11 @@ let _provider: PaymentProvider | null = null;
 export function getPaymentProvider(): PaymentProvider {
   if (_provider) return _provider;
 
-  const name = (process.env.PAYMENT_PROVIDER ?? "mock").toLowerCase();
+  const name = (process.env.PAYMENT_PROVIDER ?? "stripe").toLowerCase();
+  if (name !== "stripe" && name !== "mock") throw new Error("Invalid PAYMENT_PROVIDER");
+  if (name === "mock" && (process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production")) {
+    throw new Error("Mock payments are disabled in production");
+  }
 
   if (name === "stripe") {
     // Lazy-require so Stripe SDK is never imported in mock-only environments

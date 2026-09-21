@@ -64,13 +64,28 @@ export const getApiUrl = (path: string) => {
     return `http://localhost:3001${cleanPath}`;
   }
   // In production, use the dedicated backend API URL
-  const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+  const apiBase = (import.meta.env['VITE_API_URL'] || "").replace(/\/$/, "");
   return `${apiBase}${cleanPath}`;
 };
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = React.useState<DataState>(initial);
   const [hydrated, setHydrated] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!state.user?.email || !state.dbConnected) return;
+    let disposed = false;
+    const email = state.user.email;
+    fetch(getApiUrl(`/api/registrations?email=${encodeURIComponent(email)}`))
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok || !json.ok || !Array.isArray(json.data)) return;
+        if (!disposed) setState((prev) => ({ ...prev, registrations: json.data
+          .filter((r: Registration & { status: string }) => r.status === "registered")
+          .map((r: Registration) => ({ ...r, playerId: prev.user?.playerId || r.playerId })) }));
+      }).catch(() => {});
+    return () => { disposed = true; };
+  }, [state.user?.email, state.dbConnected, state.leagues]);
 
   // DB-first initialization with explicit fallback
   const fetchDbData = React.useCallback(async () => {

@@ -23,6 +23,9 @@ export async function connectDB(): Promise<typeof mongoose> {
     minPoolSize: 5,
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 15000,
+  }).catch((error) => {
+    global.__mongooseConn = undefined;
+    throw error;
   });
 
   return global.__mongooseConn;

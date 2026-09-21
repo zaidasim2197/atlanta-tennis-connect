@@ -38,6 +38,11 @@ router.post(
 
     const { leagueId, playerEmail, partnerEmail } = parsed.data;
 
+    const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY;
+    if (process.env.PAYMENT_PROVIDER !== "mock" && !publishableKey?.startsWith("pk_")) {
+      return err(res, "Stripe checkout is not configured. Please contact the organizer.", 503);
+    }
+
     const result = await createReservation({
       leagueSlug: leagueId,
       playerEmail,
@@ -45,7 +50,7 @@ router.post(
     });
 
     // Return shape the frontend Registration interface expects
-    ok(res, result, 201);
+    ok(res, { ...result, publishableKey }, 201);
   }),
 );
 

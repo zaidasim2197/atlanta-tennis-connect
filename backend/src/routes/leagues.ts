@@ -14,6 +14,7 @@ import { Router } from "express";
 import { League } from "../models/League";
 import { Season } from "../models/Season";
 import { wrap, ok, err } from "../lib/apiResponse";
+import { expireReservations } from "../jobs/expireReservations";
 
 const router = Router();
 
@@ -43,6 +44,7 @@ function leagueToFrontend(l: InstanceType<typeof League>) {
 router.get(
   "/",
   wrap(async (req, res) => {
+    await expireReservations();
     const { format, skillLevel, open, season } = req.query as Record<string, string>;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -1,6 +1,11 @@
 {
   "version": 2,
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+    { "source": "/api/payments/:path+", "destination": "/api/payments" },
+    { "source": "/api/registrations/:path+", "destination": "/api/registrations" }
+  ],
+  "crons": [
+    { "path": "/api/cron/expire", "schedule": "0 0 * * *" },
+    { "path": "/api/cron/reconcile", "schedule": "0 1 * * *" }
   ]
 }

@@ -16,6 +16,9 @@ import leaguesRouter from "./routes/leagues";
 import registrationsRouter from "./routes/registrations";
 import paymentsRouter from "./routes/payments";
 import playersRouter from "./routes/players";
+import { expireReservations } from "./jobs/expireReservations";
+import { reconcilePayments } from "./jobs/reconcilePayments";
+import { wrap, ok, err } from "./lib/apiResponse";
 
 export const app = express();
 
@@ -63,6 +66,14 @@ app.use("/api/leagues", leaguesRouter);
 app.use("/api/registrations", registrationsRouter);
 app.use("/api/payments", paymentsRouter);
 app.use("/api/players", playersRouter);
+app.get("/api/cron/:job", wrap(async (req, res) => {
+  if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+    return err(res, "Unauthorized", 401);
+  }
+  if (req.params.job === "expire") return ok(res, await expireReservations());
+  if (req.params.job === "reconcile") return ok(res, await reconcilePayments());
+  return err(res, "Unknown job", 404);
+}));
 
 // ─── 404 catch-all ──────────────────────────────────────────────────────────
 

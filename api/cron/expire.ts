@@ -11,7 +11,7 @@ import { expireReservations } from "../../backend/src/jobs/expireReservations";
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Vercel passes the secret as "Bearer <CRON_SECRET>"
   const auth = req.headers.authorization ?? "";
-  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ ok: false, error: "Unauthorized" });
   }
 

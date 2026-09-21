@@ -3,7 +3,6 @@ import { Settings, LogOut, CheckCircle } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { formatDateRange, formatMoney, type League } from "@/lib/tennis";
-import { DemoBanner } from "@/components/demo-banner";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: () => {
@@ -68,10 +67,6 @@ function Dashboard() {
         </div>
       </div>
 
-      <DemoBanner
-        message="Your dashboard, registered leagues and payment history are all simulated demo data."
-        className="mt-6"
-      />
 
       <div className="mt-12 grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">

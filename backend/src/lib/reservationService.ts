@@ -1,30 +1,22 @@
-/**
- * reservationService – the single authoritative place for all reservation logic.
- *
- * The atomic slot-decrement pattern (findOneAndUpdate with $gt:0 guard) means
- * it is impossible to oversell even under high concurrency.  If two requests
- * race for the last spot, exactly one wins the decrement; the other receives
- * spotsRemaining=0 and an HTTP 409.
- */
 import mongoose from "mongoose";
 import { League } from "../models/League";
 import { Player } from "../models/Player";
 import { Reservation, type IReservation, type ReservationStatus } from "../models/Reservation";
 import { TournamentHistory } from "../models/TournamentHistory";
-import { AuditLog } from "../models/AuditLog";
+import { AuditLog, type AuditAction } from "../models/AuditLog";
 import { getPaymentProvider } from "../payment";
 import { expireReservations } from "../jobs/expireReservations";
 
-const TTL_MS = () =>
-  parseInt(process.env.RESERVATION_TTL_MINUTES ?? "15", 10) * 60 * 1000;
-
-// ─── Shape returned to the frontend ─────────────────────────────────────────
+const PENDING: ReservationStatus[] = ["held", "payment_pending"];
+const ACTIVE: ReservationStatus[] = [...PENDING, "paid", "registered"];
+const error = (message: string, statusCode = 409) =>
+  Object.assign(new Error(message), { statusCode });
 
 export interface ReservationDTO {
   id: string;
-  leagueId: string;          // league slug – matches frontend "id" field
-  playerId: string;          // player slug
-  createdAt: string;         // ISO
+  leagueId: string;
+  playerId: string;
+  createdAt: string;
   paymentStatus: "paid" | "pending";
   amountCents: number;
   paymentIntentId?: string;
@@ -34,13 +26,12 @@ export interface ReservationDTO {
   flaggedForReview?: boolean;
   reviewReason?: string;
 }
-
 function toDTO(r: IReservation): ReservationDTO {
   return {
     id: r._id.toString(),
     leagueId: r.leagueSlug,
     playerId: r.playerSlug,
-    createdAt: r.heldAt.toISOString().slice(0, 10),
+    createdAt: r.heldAt.toISOString(),
     paymentStatus: ["paid", "registered"].includes(r.status) ? "paid" : "pending",
     amountCents: r.amountCents,
     paymentIntentId: r.paymentIntentId,
@@ -50,422 +41,316 @@ function toDTO(r: IReservation): ReservationDTO {
     reviewReason: r.reviewReason,
   };
 }
-
-// ─── Create reservation (atomic decrement) ──────────────────────────────────
-
 export interface CreateReservationInput {
   leagueSlug: string;
   playerEmail: string;
   partnerEmail?: string;
 }
 
+// External calls stay outside Mongo transactions. The persisted reservation ID is
+// the Stripe idempotency key, so a timeout/crash can safely recover the same intent.
+async function ensurePayment(r: IReservation) {
+  const provider = getPaymentProvider();
+  if (r.paymentProvider !== provider.name)
+    throw error("Reservation uses a different payment provider", 409);
+  const payment = await provider.createPayment({
+    reservationId: r._id.toString(),
+    amountCents: r.amountCents,
+    currency: "usd",
+    description: `${r.leagueSlug} registration`,
+    playerEmail: r.playerEmail,
+    metadata: {
+      reservationId: r._id.toString(),
+      leagueSlug: r.leagueSlug,
+      playerSlug: r.playerSlug,
+    },
+  });
+  await Reservation.updateOne(
+    { _id: r._id, status: { $in: PENDING } },
+    { $set: { paymentIntentId: payment.paymentIntentId, status: "payment_pending" } },
+  );
+  r.paymentIntentId = payment.paymentIntentId;
+  return payment;
+}
+
 export async function createReservation(
   input: CreateReservationInput,
 ): Promise<{ reservation: ReservationDTO; clientSecret?: string }> {
-  // Opportunistic cleanup of expired reservations before reserving
-  await expireReservations().catch(() => {});
-
-  const provider = getPaymentProvider();
-
-  // 1. Atomically decrement spotsRemaining – the only place this happens.
-  //    The $gt:0 guard is the race-condition fence.
-  const league = await League.findOneAndUpdate(
-    {
-      slug: input.leagueSlug,
-      registrationOpen: true,
-      spotsRemaining: { $gt: 0 },
-    },
-    { $inc: { spotsRemaining: -1 } },
-    { new: true },
-  );
-
-  if (!league) {
-    throw Object.assign(new Error("League is full or registration is closed"), {
-      statusCode: 409,
-    });
-  }
-
-  // 2. Resolve player by email (auto-provisioning if signing up/reserving directly)
-  let player = await Player.findOne({ email: input.playerEmail.toLowerCase() });
-  if (!player) {
-    const emailPrefix = input.playerEmail.split("@")[0] || "Player";
-    const slug = `p-${Math.random().toString(36).slice(2, 9)}`;
-    player = await Player.create({
-      slug,
-      firstName: emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1),
-      lastName: "Member",
-      email: input.playerEmail.toLowerCase(),
-      phone: "",
-      ntrp: league.skillLevel || "3.5",
-      city: "Atlanta",
-      zipCode: "30309",
-    });
-  }
-
-  // 3. Resolve optional partner
-  let partnerSlug: string | undefined;
-  if (input.partnerEmail) {
-    const partner = await Player.findOne({ email: input.partnerEmail.toLowerCase() });
-    if (partner) partnerSlug = partner.slug;
-  }
-
-  // 3b. Historical Winner check (Phase 4: Flag only, no hardcoded blocking decision)
-  // Rule: Player who was Champion or Finalist in the same skill level/division within the last 2 years is flagged for organizer review
-  const currentYear = new Date().getFullYear();
-  const priorHistory = await TournamentHistory.findOne({
-    playerEmail: player.email.toLowerCase(),
-    skillLevel: league.skillLevel,
-    finish: { $in: ["champion", "finalist"] },
-    year: { $gte: currentYear - 2 },
-  }).sort({ year: -1 });
-
-  const flaggedForReview = Boolean(priorHistory);
-  const reviewReason = priorHistory
-    ? `Prior ${priorHistory.finish.toUpperCase()} in ${priorHistory.tournamentName} (${priorHistory.division}, ${priorHistory.year}) – Flagged for organizer review`
-    : undefined;
-
-  if (flaggedForReview) {
-    console.log(
-      `[HISTORICAL_WINNER_FLAG] Player ${player.email} flagged for organizer review for league ${league.slug}: ${reviewReason}`,
-    );
-  }
-
-  // 4. Create the Reservation document
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + TTL_MS());
-  const idempotencyKey = `res_${league.slug}_${player.slug}_${now.getTime()}`;
-
-  let reservation: IReservation;
-  try {
-    reservation = await Reservation.create({
-      leagueSlug: league.slug,
-      playerSlug: player.slug,
-      playerEmail: player.email,
-      partnerSlug,
-      status: "held",
-      amountCents: league.feeCents,
-      paymentProvider: provider.name,
-      idempotencyKey,
-      heldAt: now,
-      expiresAt,
-      flaggedForReview,
-      reviewReason,
-    });
-  } catch (err: unknown) {
-    // Unique-constraint violation: player already has an active reservation
-    const mongoErr = err as { code?: number };
-    if (mongoErr.code === 11000) {
-      // Roll back decrement
-      await League.findOneAndUpdate(
-        { slug: input.leagueSlug },
-        { $inc: { spotsRemaining: 1 } },
-      );
-      throw Object.assign(
-        new Error("You already have an active reservation for this league"),
-        { statusCode: 409 },
-      );
+  const provider = getPaymentProvider(); // Validate configuration before taking capacity.
+  await Reservation.init(); // Ensure the active-registration unique index exists.
+  await expireReservations();
+  const email = input.playerEmail.trim().toLowerCase();
+  let reservation = await Reservation.findOne({
+    leagueSlug: input.leagueSlug,
+    playerEmail: email,
+    status: { $in: ACTIVE },
+  });
+  if (reservation && !PENDING.includes(reservation.status))
+    throw error("You are already registered for this league");
+  if (!reservation) {
+    try {
+      await mongoose.connection.transaction(async (session) => {
+        const league = await League.findOneAndUpdate(
+          { slug: input.leagueSlug, registrationOpen: true, spotsRemaining: { $gt: 0 } },
+          { $inc: { spotsRemaining: -1 } },
+          { new: true, session },
+        );
+        if (!league) throw error("League is full or registration is closed");
+        const player = await Player.findOneAndUpdate(
+          { email },
+          {
+            $setOnInsert: {
+              slug: `p-${new mongoose.Types.ObjectId()}`,
+              firstName: email.split("@")[0],
+              lastName: "Member",
+              phone: "",
+              ntrp: league.skillLevel,
+              city: "Atlanta",
+              zipCode: "30309",
+            },
+          },
+          { upsert: true, new: true, session },
+        );
+        let partnerSlug: string | undefined;
+        if (league.format.includes("doubles") && !input.partnerEmail)
+          throw error("Select a doubles partner", 400);
+        if (input.partnerEmail) {
+          if (input.partnerEmail.toLowerCase() === email)
+            throw error("Select a different player as your partner", 400);
+          const partner = await Player.findOne({ email: input.partnerEmail.toLowerCase() }).session(
+            session,
+          );
+          if (!partner) throw error("Partner not found", 400);
+          partnerSlug = partner.slug;
+        }
+        const history = await TournamentHistory.findOne({
+          playerEmail: email,
+          skillLevel: league.skillLevel,
+          finish: { $in: ["champion", "finalist"] },
+          year: { $gte: new Date().getFullYear() - 2 },
+        })
+          .sort({ year: -1 })
+          .session(session);
+        const now = new Date();
+        const id = new mongoose.Types.ObjectId();
+        [reservation] = await Reservation.create(
+          [
+            {
+              _id: id,
+              leagueSlug: league.slug,
+              playerSlug: player.slug,
+              playerEmail: email,
+              partnerSlug,
+              status: "held",
+              amountCents: league.feeCents,
+              paymentProvider: provider.name,
+              idempotencyKey: id.toString(),
+              heldAt: now,
+              expiresAt: new Date(now.getTime() + 15 * 60_000),
+              flaggedForReview: Boolean(history),
+              reviewReason: history
+                ? `Prior ${history.finish} in ${history.tournamentName} (${history.year})`
+                : undefined,
+            },
+          ],
+          { session },
+        );
+        await AuditLog.create(
+          [
+            {
+              reservationId: id,
+              leagueSlug: league.slug,
+              playerEmail: email,
+              action: "reservation.created",
+              actor: "player",
+              meta: { provider: provider.name },
+            },
+          ],
+          { session },
+        );
+      });
+    } catch (e) {
+      // Concurrent retries by one player reuse the winner's reservation.
+      if ((e as { code?: number }).code !== 11000) throw e;
+      reservation = await Reservation.findOne({
+        leagueSlug: input.leagueSlug,
+        playerEmail: email,
+        status: { $in: PENDING },
+      });
+      if (!reservation) throw error("You already have an active registration");
     }
-    throw err;
   }
-
-  // 5. Audit
-  await AuditLog.create({
-    reservationId: reservation._id,
-    leagueSlug: league.slug,
-    playerEmail: player.email,
-    action: "reservation.created",
-    actor: "player",
-    meta: {
-      spotsRemaining: league.spotsRemaining,
-      provider: provider.name,
-      flaggedForReview,
-      reviewReason,
-    },
-  });
-
-  // 6. Initiate payment immediately
-  const payment = await provider.createPayment({
-    reservationId: reservation._id.toString(),
-    amountCents: league.feeCents,
-    currency: "usd",
-    description: `${league.name} registration`,
-    playerEmail: player.email,
-    metadata: {
-      leagueSlug: league.slug,
-      playerSlug: player.slug,
-      reservationId: reservation._id.toString(),
-    },
-  });
-
-  reservation.paymentIntentId = payment.paymentIntentId;
-  reservation.status = payment.status === "paid" ? "paid" : "payment_pending";
-  await reservation.save();
-
-  await AuditLog.create({
-    reservationId: reservation._id,
-    leagueSlug: league.slug,
-    playerEmail: player.email,
-    action: "payment.initiated",
-    actor: "system",
-    meta: { paymentIntentId: payment.paymentIntentId, provider: provider.name },
-  });
-
-  // 7. For mock provider: payment resolves instantly – advance to registered
-  if (provider.name === "mock" && payment.status === "paid") {
-    await advanceToRegistered(reservation);
+  if (!reservation) throw error("Unable to reserve a spot", 503);
+  const payment = await ensurePayment(reservation);
+  if (payment.status === "paid") await confirmPayment(payment.paymentIntentId, "paid");
+  const fresh = await Reservation.findById(reservation._id);
+  if (!fresh || !ACTIVE.includes(fresh.status))
+    throw error("This reservation has ended. Please reserve again.");
+  if (fresh.expiresAt.getTime() <= Date.now() && PENDING.includes(fresh.status)) {
+    await cancelReservation(fresh._id.toString(), "expired");
+    throw error("This reservation has expired. Please reserve again.");
   }
-
-  return {
-    reservation: { ...toDTO(reservation), clientSecret: payment.clientSecret },
-    clientSecret: payment.clientSecret,
-  };
+  return { reservation: toDTO(fresh), clientSecret: payment.clientSecret };
 }
 
-// ─── Confirm payment (called by webhook or polling) ─────────────────────────
+// Status and capacity change in ONE transaction. Conditional transitions prevent
+// stale readers, duplicate webhooks, and concurrent cancellation from double releasing.
+async function transition(
+  r: IReservation,
+  status: "registered" | "cancelled" | "expired" | "failed" | "refunded" | "disputed",
+  eventId?: string,
+): Promise<boolean> {
+  let changed = false;
+  await mongoose.connection.transaction(async (session) => {
+    changed = false;
+    const allowed: ReservationStatus[] =
+      status === "refunded" || status === "disputed" ? ["registered", "paid", "disputed"] : PENDING;
+    const updated = await Reservation.findOneAndUpdate(
+      { _id: r._id, status: { $in: allowed } },
+      {
+        $set: {
+          status,
+          ...(status === "registered" ? { paidAt: new Date() } : { cancelledAt: new Date() }),
+          ...(eventId ? { lastWebhookEventId: eventId } : {}),
+        },
+        ...(eventId ? { $addToSet: { webhookEventIds: eventId } } : {}),
+      },
+      { new: true, session },
+    );
+    if (!updated) return;
+    if (["cancelled", "expired", "failed"].includes(status)) {
+      await League.updateOne({ slug: r.leagueSlug }, { $inc: { spotsRemaining: 1 } }, { session });
+    }
+    const actions: Record<typeof status, AuditAction> = {
+      registered: "registration.confirmed",
+      cancelled: "reservation.cancelled",
+      expired: "reservation.expired",
+      failed: "payment.failed",
+      refunded: "payment.refunded",
+      disputed: "payment.disputed",
+    };
+    await AuditLog.create(
+      [
+        {
+          reservationId: r._id,
+          leagueSlug: r.leagueSlug,
+          playerEmail: r.playerEmail,
+          action: actions[status],
+          actor: "system",
+          meta: { webhookEventId: eventId },
+        },
+      ],
+      { session },
+    );
+    changed = true;
+  });
+  return changed;
+}
 
 export async function confirmPayment(
   paymentIntentId: string,
   incomingStatus: ReservationStatus,
   webhookEventId?: string,
 ): Promise<void> {
-  const reservation = await Reservation.findOne({ paymentIntentId });
-  if (!reservation) return; // already processed or unknown
-
-  // Idempotency: skip if we've already processed this event
-  if (
-    webhookEventId &&
-    (reservation.lastWebhookEventId === webhookEventId ||
-      reservation.webhookEventIds?.includes(webhookEventId))
-  ) {
+  const r = await Reservation.findOne({ paymentIntentId });
+  // Let Stripe retry if creation has not persisted the intent ID yet.
+  if (!r) throw error("Payment reservation not yet available", 503);
+  if (incomingStatus === "refunded" || incomingStatus === "disputed") {
+    await transition(r, incomingStatus, webhookEventId);
     return;
   }
-
-  // Only advance forward – never go backwards in the state machine
-  const terminalStates: ReservationStatus[] = ["registered", "refunded", "disputed", "cancelled", "expired"];
-  if (terminalStates.includes(reservation.status)) return;
-
-  if (incomingStatus === "paid" || incomingStatus === "registered") {
-    await advanceToRegistered(reservation, webhookEventId);
-  } else if (incomingStatus === "failed" || incomingStatus === "cancelled") {
-    await failReservation(reservation, incomingStatus, webhookEventId);
-  } else if (incomingStatus === "refunded") {
-    reservation.status = "refunded";
-    if (webhookEventId) {
-      reservation.lastWebhookEventId = webhookEventId;
-      if (!reservation.webhookEventIds) reservation.webhookEventIds = [];
-      if (!reservation.webhookEventIds.includes(webhookEventId)) reservation.webhookEventIds.push(webhookEventId);
+  // Read current provider state rather than trusting stale/out-of-order events.
+  const provider = getPaymentProvider();
+  let result = await provider.retrievePayment(paymentIntentId);
+  if (result.amountCents !== r.amountCents) throw error("Payment amount mismatch", 409);
+  if (result.status === "authorized") {
+    if (!PENDING.includes(r.status) || r.expiresAt.getTime() <= Date.now()) {
+      await cancelReservation(r._id.toString(), "expired");
+      return;
     }
-    await reservation.save();
-    await AuditLog.create({
-      reservationId: reservation._id,
-      leagueSlug: reservation.leagueSlug,
-      playerEmail: reservation.playerEmail,
-      action: "payment.refunded",
-      actor: "webhook",
-      meta: { webhookEventId },
-    });
-  } else if (incomingStatus === "disputed") {
-    reservation.status = "disputed";
-    if (webhookEventId) {
-      reservation.lastWebhookEventId = webhookEventId;
-      if (!reservation.webhookEventIds) reservation.webhookEventIds = [];
-      if (!reservation.webhookEventIds.includes(webhookEventId)) reservation.webhookEventIds.push(webhookEventId);
+    if (!provider.capturePayment) throw error("Payment capture unavailable", 503);
+    // Stripe serializes capture vs cancellation; only one can win.
+    try {
+      await provider.capturePayment(paymentIntentId);
+    } catch {
+      result = await provider.retrievePayment(paymentIntentId);
+      if (result.status !== "paid" && result.status !== "cancelled")
+        throw error("Payment capture is pending; please retry", 503);
     }
-    await reservation.save();
-    await AuditLog.create({
-      reservationId: reservation._id,
-      leagueSlug: reservation.leagueSlug,
-      playerEmail: reservation.playerEmail,
-      action: "payment.disputed",
-      actor: "webhook",
-      meta: { webhookEventId },
-    });
+    result = await provider.retrievePayment(paymentIntentId);
+  }
+  if (result.status === "paid") {
+    if (["cancelled", "expired", "failed"].includes(r.status))
+      throw error("Paid payment requires manual review: reservation already released", 409);
+    await transition(r, "registered", webhookEventId);
+  } else if (result.status === "cancelled") {
+    await transition(r, "cancelled", webhookEventId);
+  } else if (result.status === "failed" && r.paymentProvider === "mock") {
+    await transition(r, "failed", webhookEventId);
   }
 }
-
-// ─── Internal helpers ────────────────────────────────────────────────────────
-
-async function advanceToRegistered(
-  reservation: IReservation,
-  webhookEventId?: string,
-): Promise<void> {
-  const now = new Date();
-  reservation.status = "registered";
-  reservation.paidAt = now;
-  if (webhookEventId) {
-    reservation.lastWebhookEventId = webhookEventId;
-    if (!reservation.webhookEventIds) reservation.webhookEventIds = [];
-    if (!reservation.webhookEventIds.includes(webhookEventId)) reservation.webhookEventIds.push(webhookEventId);
-  }
-  await reservation.save();
-
-  await AuditLog.create({
-    reservationId: reservation._id,
-    leagueSlug: reservation.leagueSlug,
-    playerEmail: reservation.playerEmail,
-    action: "registration.confirmed",
-    actor: "system",
-    meta: { paidAt: now.toISOString(), webhookEventId },
+async function findReservation(id: string) {
+  const r = await Reservation.findOne({
+    $or: [...(mongoose.isValidObjectId(id) ? [{ _id: id }] : []), { paymentIntentId: id }],
   });
+  if (!r) throw error("Reservation not found", 404);
+  return r;
 }
-
-async function failReservation(
-  reservation: IReservation,
-  status: "failed" | "cancelled",
-  webhookEventId?: string,
-): Promise<void> {
-  reservation.status = status;
-  reservation.cancelledAt = new Date();
-  if (webhookEventId) {
-    reservation.lastWebhookEventId = webhookEventId;
-    if (!reservation.webhookEventIds) reservation.webhookEventIds = [];
-    if (!reservation.webhookEventIds.includes(webhookEventId)) reservation.webhookEventIds.push(webhookEventId);
-  }
-  await reservation.save();
-
-  // Restore the slot
-  await League.findOneAndUpdate(
-    { slug: reservation.leagueSlug },
-    { $inc: { spotsRemaining: 1 } },
-  );
-
-  await AuditLog.create({
-    reservationId: reservation._id,
-    leagueSlug: reservation.leagueSlug,
-    playerEmail: reservation.playerEmail,
-    action: status === "failed" ? "payment.failed" : "reservation.cancelled",
-    actor: "webhook",
-    meta: { webhookEventId },
-  });
-}
-
-// ─── Admin / manual registration (reuses same reservation logic) ─────────────
-
-export async function adminRegister(input: CreateReservationInput): Promise<ReservationDTO> {
-  // Force the payment through as paid immediately regardless of provider
-  const { reservation } = await createReservation(input);
-
-  // If somehow still pending (e.g. Stripe slow), advance manually
-  if (reservation.status !== "registered") {
-    const doc = await Reservation.findById(reservation.id);
-    if (doc) {
-      await advanceToRegistered(doc);
-      await AuditLog.create({
-        reservationId: doc._id,
-        leagueSlug: doc.leagueSlug,
-        playerEmail: doc.playerEmail,
-        action: "admin.manual_registration",
-        actor: "admin",
-        meta: {},
-      });
-      return toDTO(doc);
-    }
-  }
-  return reservation;
-}
-
-// ─── Get reservations for a player ──────────────────────────────────────────
-
-export async function getPlayerReservations(playerEmail: string): Promise<ReservationDTO[]> {
-  const reservations = await Reservation.find({
-    playerEmail: playerEmail.toLowerCase(),
-    status: { $in: ["held", "payment_pending", "paid", "registered"] },
-  }).sort({ heldAt: -1 });
-
-  return reservations.map(toDTO);
-}
-
-// ─── Cancel reservation & release held slot ─────────────────────────────────
-
 export async function cancelReservation(
-  reservationIdOrIntentId: string,
+  id: string,
+  reason: "cancelled" | "expired" = "cancelled",
 ): Promise<{ released: boolean }> {
-  const isObjectId = mongoose.isValidObjectId(reservationIdOrIntentId);
-  const reservation = await Reservation.findOne({
-    $or: [
-      ...(isObjectId ? [{ _id: reservationIdOrIntentId }] : []),
-      { paymentIntentId: reservationIdOrIntentId },
-    ],
-  });
-
-  if (!reservation) {
-    throw Object.assign(new Error("Reservation not found"), { statusCode: 404 });
-  }
-
-  if (["paid", "registered"].includes(reservation.status)) {
-    throw Object.assign(
-      new Error("Payment has already succeeded and cannot be cancelled"),
-      { statusCode: 409 },
-    );
-  }
-
+  const r = await findReservation(id);
+  if (["paid", "registered"].includes(r.status))
+    throw error("Payment has already succeeded; your registration is confirmed");
+  if (!PENDING.includes(r.status)) return { released: true };
   const provider = getPaymentProvider();
-  if (reservation.paymentIntentId && provider.cancelPayment) {
-    try {
-      await provider.cancelPayment(reservation.paymentIntentId);
-    } catch (e) {
-      console.warn("Error cancelling provider payment intent:", e);
-    }
+  // Recover ambiguous creation failures before releasing. Never release a slot
+  // while an associated payment can still succeed.
+  if (!r.paymentIntentId) await ensurePayment(r);
+  if (!provider.cancelPayment) throw error("Payment cancellation unavailable", 503);
+  try {
+    await provider.cancelPayment(r.paymentIntentId!);
+  } catch {
+    const latest = await provider.retrievePayment(r.paymentIntentId!);
+    if (latest.status === "paid") await confirmPayment(r.paymentIntentId!, "paid");
+    if (latest.status !== "cancelled")
+      throw error(
+        "Payment is processing or could not be cancelled. Your spot remains held; please retry.",
+      );
   }
-
-  const updated = await Reservation.findOneAndUpdate(
-    { _id: reservation._id, status: { $in: ["held", "payment_pending"] } },
-    { $set: { status: "cancelled", cancelledAt: new Date() } },
-    { new: true },
-  );
-
-  if (updated) {
-    await League.findOneAndUpdate(
-      { slug: updated.leagueSlug },
-      { $inc: { spotsRemaining: 1 } },
-    );
-
-    await AuditLog.create({
-      reservationId: updated._id,
-      leagueSlug: updated.leagueSlug,
-      playerEmail: updated.playerEmail,
-      action: "reservation.cancelled",
-      actor: "player",
-      meta: { cancelledAt: new Date().toISOString() },
-    });
-
-    return { released: true };
-  }
-
-  return { released: false };
+  const state = await provider.retrievePayment(r.paymentIntentId!);
+  if (state.status !== "cancelled") throw error("Payment is not cancelled; your spot remains held");
+  await transition(r, reason);
+  const fresh = await findReservation(id);
+  return { released: ["cancelled", "expired", "failed"].includes(fresh.status) };
 }
-
-// ─── Reconcile reservation with payment provider ────────────────────────────
-
-export async function reconcileReservation(
-  reservationIdOrIntentId: string,
-): Promise<ReservationDTO> {
-  const isObjectId = mongoose.isValidObjectId(reservationIdOrIntentId);
-  const reservation = await Reservation.findOne({
-    $or: [
-      ...(isObjectId ? [{ _id: reservationIdOrIntentId }] : []),
-      { paymentIntentId: reservationIdOrIntentId },
-    ],
-  });
-
-  if (!reservation) {
-    throw Object.assign(new Error("Reservation not found"), { statusCode: 404 });
+export async function reconcileReservation(id: string): Promise<ReservationDTO> {
+  const r = await findReservation(id);
+  if (PENDING.includes(r.status)) {
+    if (!r.paymentIntentId) await ensurePayment(r);
+    await confirmPayment(r.paymentIntentId!, "payment_pending");
+    const fresh = await findReservation(id);
+    if (PENDING.includes(fresh.status) && fresh.expiresAt.getTime() <= Date.now())
+      await cancelReservation(id, "expired");
   }
-
-  const provider = getPaymentProvider();
-  if (reservation.paymentIntentId) {
-    try {
-      const result = await provider.retrievePayment(reservation.paymentIntentId);
-      if (result.status === "paid") {
-        await advanceToRegistered(reservation);
-      } else if (result.status === "cancelled" || result.status === "failed") {
-        await failReservation(reservation, result.status);
-      }
-    } catch (e) {
-      console.error("Payment reconciliation provider error:", e);
-    }
-  }
-
-  const refreshed = (await Reservation.findById(reservation._id)) ?? reservation;
-  return toDTO(refreshed);
+  return toDTO(await findReservation(id));
+}
+export async function resumeCheckout(id: string) {
+  const reservation = await reconcileReservation(id);
+  if (!PENDING.includes(reservation.status)) return { reservation };
+  const r = await findReservation(id);
+  const payment = await ensurePayment(r);
+  return { reservation, clientSecret: payment.clientSecret };
+}
+export async function getPlayerReservations(email: string): Promise<ReservationDTO[]> {
+  return (
+    await Reservation.find({ playerEmail: email.toLowerCase(), status: { $in: ACTIVE } }).sort({
+      heldAt: -1,
+    })
+  ).map(toDTO);
+}
+export async function adminRegister(input: CreateReservationInput): Promise<ReservationDTO> {
+  // Admin registrations must also complete payment; never fabricate paid status.
+  return (await createReservation(input)).reservation;
 }

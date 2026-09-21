@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,9 +10,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FORMAT_LABELS, formatMoney, formatDateRange } from "@/lib/tennis";
-import { ArrowLeft, CreditCard, Lock, Users, CalendarDays, MapPin, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  CreditCard,
+  Lock,
+  Users,
+  CalendarDays,
+  MapPin,
+  ShieldCheck,
+} from "lucide-react";
 import { toast } from "sonner";
-import { DemoBanner } from "@/components/demo-banner";
 import { StripeCheckoutForm } from "@/components/stripe-checkout-form";
 
 export const Route = createFileRoute("/register/$leagueId")({
@@ -22,19 +29,23 @@ export const Route = createFileRoute("/register/$leagueId")({
 interface ActiveReservation {
   id: string;
   clientSecret?: string;
+  publishableKey: string;
   expiresAt: string;
   amountCents: number;
 }
 
-
 function RegisterLeague() {
   const { leagueId } = Route.useParams();
-  const { user, leagues, seasons, players, registerPlayer, spotsLeft } = useStore();
+  const { user, hydrated, leagues, seasons, players, refreshFromDb, spotsLeft } = useStore();
   const navigate = useNavigate();
 
   const league = leagues.find((l) => l.id === leagueId);
   const season = seasons.find((s) => s.id === league?.seasonId);
-  const player = players.find((p) => p.id === user?.playerId || (user?.email && p.email.toLowerCase() === user.email.toLowerCase()));
+  const player = players.find(
+    (p) =>
+      p.id === user?.playerId ||
+      (user?.email && p.email.toLowerCase() === user.email.toLowerCase()),
+  );
 
   const [partnerId, setPartnerId] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,24 +54,79 @@ function RegisterLeague() {
   const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (hydrated && !user) {
       // Pass leagueId so login/signup pages can show league context and redirect back here.
       navigate({ to: "/login", search: { leagueId } });
     }
-  }, [user, navigate, leagueId]);
+  }, [user, hydrated, navigate, leagueId]);
+
+  const busy = useRef(false);
+  const paying = useRef(false);
+  const completed = useRef(false);
+  const storageKey = `checkout:${leagueId}:${user?.email || ""}`;
+
+  // Restore checkout after refresh without creating another hold or charge.
+  useEffect(() => {
+    if (!user) return;
+    const id = sessionStorage.getItem(storageKey);
+    if (!id) return;
+    let disposed = false;
+    setLoading(true);
+    fetch(getApiUrl(`/api/payments/${id}/checkout`))
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok || !json.ok) throw new Error(json.error || "Could not restore checkout");
+        if (disposed) return;
+        if (json.data.reservation.status === "registered") {
+          completed.current = true;
+          sessionStorage.removeItem(storageKey);
+          setSuccess(true);
+          void refreshFromDb();
+        } else if (json.data.clientSecret) {
+          setReservation({
+            ...json.data.reservation,
+            clientSecret: json.data.clientSecret,
+            publishableKey: json.data.publishableKey,
+          });
+        } else {
+          sessionStorage.removeItem(storageKey);
+          setApiError("Your previous reservation has ended. You can reserve a new spot.");
+        }
+      })
+      .catch((e) => {
+        if (!disposed) setApiError(e.message);
+      })
+      .finally(() => {
+        if (!disposed) setLoading(false);
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [storageKey, user?.email, refreshFromDb]);
+
+  // SPA navigation releases an abandoned checkout promptly. Full refreshes retain
+  // the ID for recovery; closed tabs are reclaimed by the server expiry job.
+  useEffect(() => {
+    if (!reservation) return;
+    completed.current = false;
+    const id = reservation.id;
+    return () => {
+      if (!completed.current && !paying.current) {
+        void fetch(getApiUrl(`/api/payments/${id}/cancel`), { method: "POST", keepalive: true });
+      }
+    };
+  }, [reservation?.id]);
 
   if (!league || !season || !user || !player) {
     return null;
   }
 
-  // Step 1: Reserve slot via POST /api/registrations
-  const handleReserve = async (e?: React.FormEvent, forceMock = false) => {
-    if (e) e.preventDefault();
+  const handleReserve = async () => {
+    if (busy.current) return;
+    busy.current = true;
     setLoading(true);
     setApiError(null);
-
     const partner = partnerId ? players.find((p) => p.id === partnerId) : undefined;
-
     try {
       const res = await fetch(getApiUrl("/api/registrations"), {
         method: "POST",
@@ -71,91 +137,70 @@ function RegisterLeague() {
           ...(partner?.email ? { partnerEmail: partner.email } : {}),
         }),
       });
-
-      const json = await res.json().catch(() => ({}));
-
-      if (!res.ok || !json.ok) {
-        const errorMsg =
-          json.error ||
-          (res.status === 409
-            ? "This league is currently full or you already have an active registration."
-            : "Could not reserve a spot in this league.");
-        setApiError(errorMsg);
-        toast.error(errorMsg);
-        return;
-      }
-
-      const resData = json.data?.reservation || json.data;
-      const clientSecret = json.data?.clientSecret || resData?.clientSecret;
-
-      // If Stripe clientSecret is present and not forced mock, display Stripe Elements
-      if (clientSecret && !forceMock) {
-        setReservation({
-          id: resData.id,
-          clientSecret,
-          expiresAt: resData.expiresAt,
-          amountCents: resData.amountCents || league.feeCents,
-        });
-        toast.success("Spot reserved! Please complete payment below.");
-      } else {
-        // Mock provider or completed: finalize registration immediately
-        registerPlayer({
-          leagueId: league.id,
-          player,
-          ...(partnerId ? { partnerId } : {}),
-        });
-        setSuccess(true);
-        toast.success("Successfully registered for league!");
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Network error. Please try again.";
-      setApiError(msg);
-      toast.error(msg);
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || "Could not reserve a spot.");
+      const data = json.data;
+      if (!data.clientSecret || !data.publishableKey)
+        throw new Error("Stripe checkout is unavailable. Please contact the organizer.");
+      setReservation({
+        ...data.reservation,
+        clientSecret: data.clientSecret,
+        publishableKey: data.publishableKey,
+      });
+      sessionStorage.setItem(storageKey, data.reservation.id);
+      toast.success("Your spot is held for 15 minutes. Complete your payment below.");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not start checkout. Please retry.";
+      setApiError(message);
+      toast.error(message);
     } finally {
+      busy.current = false;
       setLoading(false);
     }
   };
 
-  // Step 2: On successful Stripe payment confirmation
   const handlePaymentSuccess = async () => {
     if (!reservation) return;
-    setLoading(true);
-
-    try {
-      // Reconcile server-side with Stripe
-      await fetch(getApiUrl(`/api/payments/${reservation.id}/reconcile`), { method: "POST" });
-
-      registerPlayer({
-        leagueId: league.id,
-        player,
-        ...(partnerId ? { partnerId } : {}),
-      });
-
-      setSuccess(true);
-      toast.success("Payment confirmed! You're officially registered.");
-    } catch {
-      registerPlayer({
-        leagueId: league.id,
-        player,
-        ...(partnerId ? { partnerId } : {}),
-      });
-      setSuccess(true);
-      toast.success("Registration confirmed!");
-    } finally {
-      setLoading(false);
-    }
+    const res = await fetch(getApiUrl(`/api/payments/${reservation.id}/reconcile`), {
+      method: "POST",
+    });
+    const json = await res.json();
+    if (!res.ok || !json.ok)
+      throw new Error(json.error || "Could not verify payment. Please retry verification.");
+    if (json.data.status !== "registered")
+      throw new Error(
+        "Payment is still pending. Please check payment status again; do not start another payment.",
+      );
+    completed.current = true;
+    sessionStorage.removeItem(storageKey);
+    setSuccess(true);
+    await refreshFromDb();
+    toast.success("Payment confirmed. Your registration is complete.");
   };
 
-  // Cancel reservation and release slot back to league
   const handleCancelReservation = async () => {
-    if (!reservation) return;
+    if (!reservation || busy.current) return;
+    busy.current = true;
+    setLoading(true);
     try {
-      await fetch(getApiUrl(`/api/payments/${reservation.id}/cancel`), { method: "POST" });
-      toast.info("Reservation cancelled. The held spot has been released.");
-    } catch {
-      /* ignore cancel error */
-    } finally {
+      const res = await fetch(getApiUrl(`/api/payments/${reservation.id}/cancel`), {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok || !json.data.released)
+        throw new Error(json.error || "Cancellation is not confirmed. Please retry.");
+      completed.current = true;
+      sessionStorage.removeItem(storageKey);
       setReservation(null);
+      await refreshFromDb();
+      toast.info("Reservation cancelled. Your spot has been released.");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Cancellation failed. Please retry.";
+      setApiError(message);
+      toast.error(message);
+    } finally {
+      busy.current = false;
+      setLoading(false);
     }
   };
 
@@ -164,7 +209,6 @@ function RegisterLeague() {
     return (
       <div className="flex min-h-[85vh] items-center justify-center px-4 py-12">
         <div className="w-full max-w-lg">
-
           {/* Animated check + headline */}
           <div className="flex flex-col items-center text-center mb-10">
             <div className="relative flex size-28 items-center justify-center">
@@ -190,9 +234,8 @@ function RegisterLeague() {
               You're in! 🎾
             </h1>
             <p className="mt-3 max-w-sm text-base text-muted-foreground leading-relaxed">
-              Your spot in{" "}
-              <strong className="text-foreground">{league.name}</strong> is
-              officially confirmed. A receipt has been sent to {user.email}.
+              Your spot in <strong className="text-foreground">{league.name}</strong> is officially
+              confirmed.
             </p>
 
             {/* Spots pill */}
@@ -204,7 +247,6 @@ function RegisterLeague() {
 
           {/* Ticket-style confirmation card */}
           <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-card shadow-[var(--shadow-lift)]">
-
             {/* Ticket header */}
             <div className="bg-primary px-6 py-5">
               <div className="flex items-start justify-between gap-4">
@@ -245,7 +287,9 @@ function RegisterLeague() {
             <div className="px-6 py-5 space-y-3.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Player</span>
-                <span className="font-medium text-foreground">{player.firstName} {player.lastName}</span>
+                <span className="font-medium text-foreground">
+                  {player.firstName} {player.lastName}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">NTRP Rating</span>
@@ -261,14 +305,16 @@ function RegisterLeague() {
                   <span className="font-medium text-foreground">
                     {formatDateRange(
                       league.startDate || season.startDate,
-                      league.endDate || season.endDate
+                      league.endDate || season.endDate,
                     )}
                   </span>
                 </div>
               )}
               <div className="flex justify-between border-t border-dashed border-border pt-3.5 mt-1.5">
                 <span className="font-bold text-foreground">Amount Paid</span>
-                <span className="text-lg font-bold text-primary">{formatMoney(league.feeCents)}</span>
+                <span className="text-lg font-bold text-primary">
+                  {formatMoney(league.feeCents)}
+                </span>
               </div>
             </div>
           </div>
@@ -317,17 +363,23 @@ function RegisterLeague() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Schedule</span>
-                <span className="font-medium text-foreground text-right">{league.scheduleDay}s at {league.scheduleTime}</span>
+                <span className="font-medium text-foreground text-right">
+                  {league.scheduleDay}s at {league.scheduleTime}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Player</span>
-                <span className="font-medium text-foreground text-right">{player.firstName} {player.lastName} (NTRP {player.ntrp})</span>
+                <span className="font-medium text-foreground text-right">
+                  {player.firstName} {player.lastName} (NTRP {player.ntrp})
+                </span>
               </div>
             </div>
 
             <div className="mt-6 border-t border-border pt-4 flex justify-between items-end">
               <span className="font-bold text-foreground">Total Due</span>
-              <span className="text-2xl font-bold text-primary">{formatMoney(league.feeCents)}</span>
+              <span className="text-2xl font-bold text-primary">
+                {formatMoney(league.feeCents)}
+              </span>
             </div>
           </div>
 
@@ -338,18 +390,25 @@ function RegisterLeague() {
                 <h3 className="font-bold text-lg">Doubles Partner</h3>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
-                This is a doubles league. Please select your partner. They must already be registered on the platform.
+                This is a doubles league. Please select your partner. They must already be
+                registered on the platform.
               </p>
-              <Select value={partnerId} onValueChange={setPartnerId}>
+              <Select
+                disabled={Boolean(reservation)}
+                value={partnerId}
+                onValueChange={setPartnerId}
+              >
                 <SelectTrigger className="h-11 px-4 text-sm bg-background">
                   <SelectValue placeholder="Select a partner" />
                 </SelectTrigger>
                 <SelectContent>
-                  {players.filter(p => p.id !== player.id).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.firstName} {p.lastName} (NTRP {p.ntrp})
-                    </SelectItem>
-                  ))}
+                  {players
+                    .filter((p) => p.id !== player.id)
+                    .map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.firstName} {p.lastName} (NTRP {p.ntrp})
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -357,11 +416,12 @@ function RegisterLeague() {
         </div>
 
         <div>
-          <DemoBanner
-            message="Stripe Sandbox & Capacity Test Adapter enabled. Safe test environment."
-            className="mb-5"
-          />
 
+          {apiError && reservation && (
+            <p role="alert" className="mb-4 text-sm text-destructive">
+              {apiError}
+            </p>
+          )}
           {reservation && reservation.clientSecret ? (
             <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
               <div className="flex items-center justify-between mb-5 border-b border-border pb-4">
@@ -375,6 +435,9 @@ function RegisterLeague() {
               </div>
 
               <StripeCheckoutForm
+                key={reservation.id}
+                publishableKey={reservation.publishableKey}
+                busy={loading}
                 clientSecret={reservation.clientSecret}
                 reservationId={reservation.id}
                 amountCents={reservation.amountCents}
@@ -383,6 +446,9 @@ function RegisterLeague() {
                 onSuccess={handlePaymentSuccess}
                 onCancel={handleCancelReservation}
                 onError={(err) => setApiError(err)}
+                onProcessingChange={(value) => {
+                  paying.current = value;
+                }}
               />
             </div>
           ) : (
@@ -392,9 +458,7 @@ function RegisterLeague() {
                   <CreditCard className="size-5" />
                   <h3 className="font-bold text-lg">Reservation & Payment</h3>
                 </div>
-                <span className="text-xs font-semibold text-muted-foreground">
-                  Step 1 of 2
-                </span>
+                <span className="text-xs font-semibold text-muted-foreground">Step 1 of 2</span>
               </div>
 
               {apiError && (
@@ -406,7 +470,8 @@ function RegisterLeague() {
               <div className="space-y-4 text-sm text-muted-foreground">
                 <p>
                   Clicking below atomically reserves your spot in{" "}
-                  <strong className="text-foreground">{league.name}</strong> for 15 minutes while you complete secure payment.
+                  <strong className="text-foreground">{league.name}</strong> for 15 minutes while
+                  you complete secure payment.
                 </p>
                 <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-2 text-xs">
                   <div className="flex justify-between text-foreground">
@@ -430,7 +495,7 @@ function RegisterLeague() {
                   size="lg"
                   className="w-full rounded-full font-bold shadow-md shadow-primary/20"
                   disabled={loading || (league.format.includes("doubles") && !partnerId)}
-                  onClick={(e) => handleReserve(e, false)}
+                  onClick={() => handleReserve()}
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">
@@ -440,26 +505,6 @@ function RegisterLeague() {
                   ) : (
                     `Reserve Spot & Pay ${formatMoney(league.feeCents)}`
                   )}
-                </Button>
-
-                <div className="relative my-2">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-border" />
-                  </div>
-                  <div className="relative flex justify-center text-[10px] uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">or test mode</span>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-xs text-muted-foreground hover:text-foreground"
-                  disabled={loading || (league.format.includes("doubles") && !partnerId)}
-                  onClick={(e) => handleReserve(e, true)}
-                >
-                  Instant Mock Registration (Load Test / Offline Mode)
                 </Button>
               </div>
 

@@ -8,10 +8,7 @@
  */
 import { Reservation } from "../models/Reservation";
 import { getPaymentProvider } from "../payment";
-import { confirmPayment } from "../lib/reservationService";
-
-// Only look back this many minutes to avoid hammering the provider
-const LOOK_BACK_MINUTES = 60;
+import { reconcileReservation } from "../lib/reservationService";
 
 export async function reconcilePayments(): Promise<{ reconciled: number; errors: number }> {
   // Skip reconciliation when using the mock provider – state is always current
@@ -20,13 +17,10 @@ export async function reconcilePayments(): Promise<{ reconciled: number; errors:
     return { reconciled: 0, errors: 0 };
   }
 
-  const cutoff = new Date(Date.now() - LOOK_BACK_MINUTES * 60 * 1000);
-
   const pending = await Reservation.find({
-    status: "payment_pending",
-    paymentIntentId: { $exists: true, $ne: null },
-    heldAt: { $gte: cutoff },
-  });
+    status: { $in: ["held", "payment_pending"] },
+    paymentProvider: provider.name,
+  }).limit(100);
 
   if (pending.length === 0) return { reconciled: 0, errors: 0 };
 
@@ -36,18 +30,8 @@ export async function reconcilePayments(): Promise<{ reconciled: number; errors:
   await Promise.all(
     pending.map(async (reservation) => {
       try {
-        if (!reservation.paymentIntentId) return;
-
-        const result = await provider.retrievePayment(reservation.paymentIntentId);
-
-        // Only act on terminal states – leave "payment_pending" alone
-        if (["paid", "failed", "cancelled", "refunded"].includes(result.status)) {
-          await confirmPayment(
-            reservation.paymentIntentId,
-            result.status as import("../models/Reservation").ReservationStatus,
-          );
-          reconciled++;
-        }
+        await reconcileReservation(reservation._id.toString());
+        reconciled++;
       } catch (e) {
         console.error(`[reconcile-job] Error reconciling ${reservation._id.toString()}:`, e);
         errors++;

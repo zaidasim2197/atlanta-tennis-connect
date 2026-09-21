@@ -7,6 +7,10 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "paths": {
+      "mongoose": ["./node_modules/mongoose"],
+      "stripe": ["./node_modules/stripe"]
+    },
     "outDir": ".vercel/output/functions",
     "rootDir": "."
   },

@@ -11,11 +11,17 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import { getPaymentProvider } from "../payment";
-import { confirmPayment, cancelReservation, reconcileReservation } from "../lib/reservationService";
+import { confirmPayment, cancelReservation, reconcileReservation, resumeCheckout } from "../lib/reservationService";
 import { Reservation } from "../models/Reservation";
 import { wrap, ok, err } from "../lib/apiResponse";
 
 const router = Router();
+
+router.get("/:reservationId/checkout", wrap(async (req, res) => {
+  const id = String(req.params.reservationId);
+  res.setHeader("Cache-Control", "no-store");
+  ok(res, { ...await resumeCheckout(id), publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY });
+}));
 
 // POST /api/payments/webhook
 // express.raw() must be applied BEFORE this route so rawBody is a Buffer
@@ -43,7 +49,7 @@ router.post("/webhook", async (req: Request, res: Response) => {
     );
   } catch (e) {
     console.error("confirmPayment error", e);
-    // Still return 200 – we don't want Stripe to retry a bad event
+    return err(res, "Payment processing failed; retry delivery", 500);
   }
 
   ok(res, { received: true });

@@ -6,6 +6,8 @@ import "dotenv/config";
 import { connectDB } from "../src/lib/db";
 import { app } from "../src/server";
 
+export const config = { api: { bodyParser: false } };
+
 // Ensure DB is connected before handling any request
 let dbReady: Promise<void> | null = null;
 

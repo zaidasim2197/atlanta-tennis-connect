@@ -20,6 +20,8 @@ function stripeStatusToPaymentStatus(status: Stripe.PaymentIntent.Status): Payme
   switch (status) {
     case "succeeded":
       return "paid";
+    case "requires_capture":
+      return "authorized";
     case "processing":
       return "payment_pending";
     case "requires_payment_method":
@@ -55,7 +57,8 @@ export class StripeProvider implements PaymentProvider {
         description: input.description,
         receipt_email: input.playerEmail,
         metadata: input.metadata,
-        automatic_payment_methods: { enabled: true, allow_redirects: "never" },
+        payment_method_types: ["card"],
+        capture_method: "manual",
       },
       { idempotencyKey: input.reservationId },
     );
@@ -80,7 +83,13 @@ export class StripeProvider implements PaymentProvider {
     const intent = await this.client.paymentIntents.retrieve(paymentIntentId);
     if (["requires_payment_method", "requires_confirmation", "requires_action", "requires_capture", "processing"].includes(intent.status)) {
       await this.client.paymentIntents.cancel(paymentIntentId);
+    } else if (intent.status !== "canceled") {
+      throw new Error("Payment cannot be cancelled");
     }
+  }
+
+  async capturePayment(paymentIntentId: string): Promise<void> {
+    await this.client.paymentIntents.capture(paymentIntentId, {}, { idempotencyKey: `capture_${paymentIntentId}` });
   }
 
   async refundPayment(input: RefundPaymentInput): Promise<RefundPaymentResult> {
@@ -101,21 +110,12 @@ export class StripeProvider implements PaymentProvider {
     rawBody: Buffer,
     signature: string,
   ): Promise<WebhookEventResult | null> {
-    if (!this.webhookSecret) {
-      console.warn("STRIPE_WEBHOOK_SECRET not configured – skipping signature check");
-    }
-
-    let event: Stripe.Event;
-    try {
-      event = this.webhookSecret
-        ? this.client.webhooks.constructEvent(rawBody, signature, this.webhookSecret)
-        : (JSON.parse(rawBody.toString()) as Stripe.Event);
-    } catch {
-      return null;
-    }
+    if (!this.webhookSecret) throw new Error("STRIPE_WEBHOOK_SECRET is not configured");
+    const event = this.client.webhooks.constructEvent(rawBody, signature, this.webhookSecret);
 
     const relevantTypes = new Set([
       "payment_intent.succeeded",
+      "payment_intent.amount_capturable_updated",
       "payment_intent.payment_failed",
       "payment_intent.canceled",
       "charge.dispute.created",
@@ -128,6 +128,12 @@ export class StripeProvider implements PaymentProvider {
     let status: PaymentStatus;
 
     switch (event.type) {
+      case "payment_intent.amount_capturable_updated": {
+        const pi = event.data.object as Stripe.PaymentIntent;
+        intentId = pi.id;
+        status = "payment_pending";
+        break;
+      }
       case "payment_intent.succeeded": {
         const pi = event.data.object as Stripe.PaymentIntent;
         intentId = pi.id;
@@ -138,7 +144,8 @@ export class StripeProvider implements PaymentProvider {
       case "payment_intent.canceled": {
         const pi = event.data.object as Stripe.PaymentIntent;
         intentId = pi.id;
-        status = event.type === "payment_intent.canceled" ? "cancelled" : "failed";
+        // A declined attempt can be retried on the same intent. Keep its slot held.
+        status = event.type === "payment_intent.canceled" ? "cancelled" : "payment_pending";
         break;
       }
       case "charge.refunded": {

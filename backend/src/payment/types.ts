@@ -9,6 +9,7 @@ export type PaymentStatus =
   | "available"       // not yet reserved
   | "held"            // slot atomically decremented, awaiting payment initiation
   | "payment_pending" // createPayment called, awaiting confirmation
+  | "authorized"      // card authorized; server must capture before hold deadline
   | "paid"            // payment confirmed
   | "registered"      // paid + registration record written
   | "failed"          // payment failed (card declined etc.)
@@ -70,6 +71,7 @@ export interface PaymentProvider {
 
   /** Cancel an uncompleted payment. */
   cancelPayment?(paymentIntentId: string): Promise<void>;
+  capturePayment?(paymentIntentId: string): Promise<void>;
 
   /** Issue a full or partial refund. */
   refundPayment(input: RefundPaymentInput): Promise<RefundPaymentResult>;

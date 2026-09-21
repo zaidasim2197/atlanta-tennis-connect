@@ -1,291 +1,169 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { loadStripe } from "@stripe/stripe-js";
-import {
-  Elements,
-  PaymentElement,
-  useElements,
-  useStripe,
-} from "@stripe/react-stripe-js";
+import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { Button } from "@/components/ui/button";
-import {
-  Lock,
-  Clock,
-  Clipboard,
-  Check,
-  AlertCircle,
-  ShieldCheck,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
 import { formatMoney } from "@/lib/tennis";
 
-const publishableKey =
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ||
-  "pk_test_placeholder";
-
-const stripePromise = loadStripe(publishableKey);
-
-interface StripeCheckoutFormProps {
+interface Props {
+  publishableKey: string;
   clientSecret: string;
   reservationId: string;
   amountCents: number;
   expiresAt: string;
   leagueName: string;
+  busy: boolean;
   onSuccess: () => Promise<void> | void;
   onCancel: () => Promise<void> | void;
-  onError: (errorMessage: string) => void;
+  onError: (message: string) => void;
+  onProcessingChange: (value: boolean) => void;
 }
-
-const TEST_CARDS = [
-  { label: "Successful Payment", card: "4242 4242 4242 4242", note: "Standard test card" },
-  { label: "3D Secure Required", card: "4000 0000 0000 3063", note: "Prompts 3DS verification modal" },
-  { label: "Generic Decline", card: "4000 0000 0000 0002", note: "Simulates issuer card decline" },
-  { label: "Insufficient Funds", card: "4000 0000 0000 9995", note: "Simulates insufficient balance" },
-];
-
-function InnerPaymentForm({
-  amountCents,
-  expiresAt,
-  leagueName,
-  onSuccess,
-  onCancel,
-  onError,
-}: Omit<StripeCheckoutFormProps, "clientSecret" | "reservationId">) {
+function PaymentForm(props: Props) {
   const stripe = useStripe();
   const elements = useElements();
-
   const [processing, setProcessing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [timeLeft, setTimeLeft] = useState<string>("");
-  const [isExpired, setIsExpired] = useState(false);
-  const [showTestCards, setShowTestCards] = useState(false);
-  const [copiedCard, setCopiedCard] = useState<string | null>(null);
-
-  // Countdown timer for reservation TTL
+  const [submitted, setSubmitted] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
+  const [remaining, setRemaining] = useState(() =>
+    Math.max(0, new Date(props.expiresAt).getTime() - Date.now()),
+  );
+  const expiryRequested = useRef(false);
+  const lock = useRef(false);
   useEffect(() => {
-    const updateTimer = () => {
-      const remaining = new Date(expiresAt).getTime() - Date.now();
-      if (remaining <= 0) {
-        setTimeLeft("00:00");
-        setIsExpired(true);
-        setErrorMessage("Your reservation has expired and the spot has been released.");
-      } else {
-        const minutes = Math.floor(remaining / 60000);
-        const seconds = Math.floor((remaining % 60000) / 1000);
-        setTimeLeft(
-          `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
-        );
-      }
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [expiresAt]);
-
-  const handleCopyCard = async (card: string) => {
-    try {
-      await navigator.clipboard.writeText(card.replace(/\s+/g, ""));
-      setCopiedCard(card);
-      setTimeout(() => setCopiedCard(null), 2000);
-    } catch {
-      /* ignore clipboard permission errors */
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!stripe || !elements || isExpired) {
-      return;
-    }
-
+    const timer = setInterval(
+      () => setRemaining(Math.max(0, new Date(props.expiresAt).getTime() - Date.now())),
+      1000,
+    );
+    return () => clearInterval(timer);
+  }, [props.expiresAt]);
+  useEffect(() => {
+    if (remaining > 0 || processing || submitted || expiryRequested.current) return;
+    expiryRequested.current = true;
+    void props.onCancel();
+  }, [remaining, processing, submitted, props.onCancel]);
+  const verify = async () => {
+    if (lock.current) return;
+    lock.current = true;
     setProcessing(true);
-    setErrorMessage(null);
-
     try {
-      const result = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: window.location.href,
-        },
-        redirect: "if_required",
-      });
-
-      if (result.error) {
-        const msg = result.error.message || "Payment could not be completed.";
-        setErrorMessage(msg);
-        onError(msg);
-      } else if (result.paymentIntent?.status === "succeeded") {
-        await onSuccess();
-      } else if (
-        result.paymentIntent?.status === "requires_action" ||
-        result.paymentIntent?.status === "processing"
-      ) {
-        // Handled via redirect or polling
-        await onSuccess();
-      } else {
-        const msg = "Payment status pending. Please verify your receipt.";
-        setErrorMessage(msg);
-        onError(msg);
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Payment processing error.";
-      setErrorMessage(msg);
-      onError(msg);
+      await props.onSuccess();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Verification failed. Please retry.");
     } finally {
+      lock.current = false;
       setProcessing(false);
     }
   };
-
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements || remaining <= 0 || lock.current || submitted) return;
+    lock.current = true;
+    setProcessing(true);
+    props.onProcessingChange(true);
+    setError("");
+    try {
+      const result = await stripe.confirmPayment({
+        elements,
+        confirmParams: { return_url: window.location.href },
+        redirect: "if_required",
+      });
+      if (result.error)
+        throw new Error(result.error.message || "Payment failed. Please try again.");
+      if (
+        ["succeeded", "processing", "requires_capture"].includes(result.paymentIntent?.status || "")
+      ) {
+        setSubmitted(true);
+        // Keep navigation cleanup from cancelling an uncertain successful charge.
+        await props.onSuccess();
+      } else throw new Error("Payment needs additional action. Please try again.");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Payment could not be completed.";
+      setError(message);
+      props.onError(message);
+    } finally {
+      lock.current = false;
+      setProcessing(false);
+      props.onProcessingChange(false);
+    }
+  };
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Reservation Hold Pill */}
-      <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
-        <div className="flex items-center gap-2 text-primary">
-          <Clock className="size-4 animate-pulse" />
-          <span className="font-semibold">Spot held for you</span>
-        </div>
-        <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-foreground">
-          <span>Expires in:</span>
-          <span
-            className={`rounded px-1.5 py-0.5 ${
-              isExpired ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground"
-            }`}
-          >
-            {timeLeft || "15:00"}
-          </span>
-        </div>
+    <form onSubmit={submit} className="space-y-5">
+      <div className="flex justify-between rounded-xl bg-primary/5 p-4 text-sm" aria-live="off">
+        <span>{remaining > 0 ? "Your spot is reserved" : "Reservation time has ended"}</span>
+        <span className="font-mono">
+          {String(Math.floor(remaining / 60000)).padStart(2, "0")}:
+          {String(Math.floor((remaining % 60000) / 1000)).padStart(2, "0")}
+        </span>
       </div>
-
-      {/* Stripe Payment Element */}
-      <div className="rounded-xl border border-border bg-background p-4 shadow-sm">
-        <PaymentElement
-          options={{
-            layout: "tabs",
-          }}
-        />
-      </div>
-
-      {/* Test Card Quick-Helper Toggle */}
-      <div className="rounded-xl border border-border bg-muted/40 p-3.5 text-xs">
-        <button
-          type="button"
-          onClick={() => setShowTestCards((open) => !open)}
-          className="flex w-full items-center justify-between font-semibold text-foreground hover:text-primary transition-colors"
-        >
-          <span className="flex items-center gap-1.5">
-            <ShieldCheck className="size-4 text-primary" />
-            Stripe Sandbox Test Cards (Test Mode)
-          </span>
-          {showTestCards ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-        </button>
-
-        {showTestCards && (
-          <div className="mt-3 space-y-2 pt-2 border-t border-border">
-            <p className="text-muted-foreground text-[11px]">
-              Use any future expiration date (e.g. 12/28) and any 3-digit CVC.
-            </p>
-            <div className="grid gap-1.5 sm:grid-cols-2">
-              {TEST_CARDS.map(({ label, card, note }) => (
-                <button
-                  type="button"
-                  key={card}
-                  onClick={() => handleCopyCard(card)}
-                  className="flex items-center justify-between rounded-lg border border-border bg-card p-2 text-left transition hover:border-primary hover:bg-accent/40"
-                >
-                  <div>
-                    <p className="font-semibold text-foreground text-xs">{label}</p>
-                    <p className="font-mono text-[11px] text-muted-foreground">{card}</p>
-                    <p className="text-[10px] text-muted-foreground/80">{note}</p>
-                  </div>
-                  <div className="ml-2 shrink-0 text-muted-foreground">
-                    {copiedCard === card ? (
-                      <Check className="size-3.5 text-emerald-600" />
-                    ) : (
-                      <Clipboard className="size-3.5" />
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Error alert */}
-      {errorMessage && (
-        <div className="flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-sm text-destructive">
-          <AlertCircle className="size-4 shrink-0 mt-0.5" />
-          <div className="flex-1 text-xs leading-relaxed">{errorMessage}</div>
-        </div>
+      {props.publishableKey.startsWith("pk_test_") && (
+        <p className="text-sm text-muted-foreground">
+          Stripe test mode — no real money is charged.
+        </p>
       )}
-
-      {/* Actions */}
-      <div className="space-y-2 pt-2">
+      {!submitted && (
+        <PaymentElement
+          onReady={() => setReady(true)}
+          onLoadError={() =>
+            setError(
+              "Stripe could not load. Check your connection and refresh, or cancel your reservation.",
+            )
+          }
+        />
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      {submitted ? (
+        <Button
+          type="button"
+          className="w-full"
+          disabled={processing || props.busy}
+          onClick={verify}
+        >
+          {processing ? "Verifying payment…" : "Check payment status"}
+        </Button>
+      ) : (
         <Button
           type="submit"
-          size="lg"
-          className="w-full rounded-full font-bold shadow-md shadow-primary/20"
-          disabled={processing || !stripe || !elements || isExpired}
+          className="w-full"
+          disabled={!stripe || !elements || !ready || processing || props.busy || remaining <= 0}
         >
-          {processing ? (
-            <span className="flex items-center gap-2">
-              <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              Confirming payment…
-            </span>
-          ) : (
-            `Pay ${formatMoney(amountCents)} for ${leagueName}`
-          )}
+          {processing
+            ? "Confirming payment…"
+            : `Pay ${formatMoney(props.amountCents)} for ${props.leagueName}`}
         </Button>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="w-full text-muted-foreground hover:text-foreground text-xs"
-          disabled={processing}
-          onClick={onCancel}
-        >
-          Cancel reservation & release spot
-        </Button>
-      </div>
-
-      <div className="flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
-        <Lock className="size-3" />
-        <span>End-to-end encrypted by Stripe Elements · 256-bit SSL</span>
-      </div>
+      )}
+      <Button
+        type="button"
+        variant="ghost"
+        className="w-full"
+        disabled={processing || props.busy}
+        onClick={props.onCancel}
+      >
+        {props.busy ? "Updating reservation…" : "Cancel reservation & release spot"}
+      </Button>
+      <p className="text-center text-xs text-muted-foreground">
+        Payments are securely processed by Stripe.
+      </p>
     </form>
   );
 }
-
-export function StripeCheckoutForm(props: StripeCheckoutFormProps) {
+export function StripeCheckoutForm(props: Props) {
+  const stripe = useMemo(() => loadStripe(props.publishableKey), [props.publishableKey]);
   return (
     <Elements
-      stripe={stripePromise}
+      stripe={stripe}
       options={{
         clientSecret: props.clientSecret,
         appearance: {
           theme: "stripe",
-          variables: {
-            colorPrimary: "#166534",
-            colorBackground: "#ffffff",
-            colorText: "#0f172a",
-            colorDanger: "#dc2626",
-            fontFamily: "Manrope, system-ui, sans-serif",
-            borderRadius: "10px",
-          },
+          variables: { colorPrimary: "#166534", borderRadius: "10px" },
         },
       }}
     >
-      <InnerPaymentForm
-        amountCents={props.amountCents}
-        expiresAt={props.expiresAt}
-        leagueName={props.leagueName}
-        onSuccess={props.onSuccess}
-        onCancel={props.onCancel}
-        onError={props.onError}
-      />
+      <PaymentForm {...props} />
     </Elements>
   );
 }
