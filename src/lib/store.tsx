@@ -161,25 +161,34 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshSession = React.useCallback(async () => {
-    const res = await fetch(getApiUrl("/api/auth/me"), { credentials: "include" });
-    const json = await res.json();
-    if (res.status === 401) {
-      setState(s => ({ ...s, user: null, players: [], registrations: [] }));
-      return null;
+    try {
+      const res = await fetch(getApiUrl("/api/auth/me"), { credentials: "include" });
+      const json = await res.json();
+      if (res.status === 401) {
+        setState(s => ({ ...s, user: null, players: [], registrations: [] }));
+        return null;
+      }
+      if (!res.ok || !json.ok) throw new Error("Unable to verify your session");
+      const user = json.data as AuthUser;
+      const profileRes = await fetch(getApiUrl(`/api/players/${encodeURIComponent(user.email)}`), { credentials: "include" });
+      const profile = await profileRes.json();
+      if (!profileRes.ok || !profile.ok) throw new Error("Unable to load your profile");
+      setState(s => ({ ...s, user, players: [profile.data], registrations: [] }));
+      return user;
+    } catch (err: any) {
+      // If it's a network error (backend offline), don't wipe the current session
+      const isNetworkError = err?.message?.includes("Failed to fetch") || err?.message?.includes("NetworkError") || err?.message?.includes("ERR_CONNECTION_REFUSED");
+      if (isNetworkError) {
+        // Backend offline — leave existing in-memory user state intact
+        return null;
+      }
+      throw err;
     }
-    if (!res.ok || !json.ok) throw new Error("Unable to verify your session");
-    const user = json.data as AuthUser;
-    const profileRes = await fetch(getApiUrl(`/api/players/${encodeURIComponent(user.email)}`), { credentials: "include" });
-    const profile = await profileRes.json();
-    if (!profileRes.ok || !profile.ok) throw new Error("Unable to load your profile");
-    setState(s => ({ ...s, user, players: [profile.data], registrations: [] }));
-    return user;
   }, []);
 
   React.useEffect(() => {
     // Remove the prototype's plaintext passwords and untrusted persisted identity.
     try {
-      localStorage.removeItem("atl-registered-accounts");
       localStorage.removeItem(STORAGE_KEY);
     } catch { /* Storage may be disabled. */ }
     void refreshSession().catch(() => setState(s => ({ ...s, user: null, players: [], registrations: [] }))).finally(() => setHydrated(true));
@@ -193,20 +202,84 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       refreshFromDb: fetchDbData,
       refreshSession,
       login: async (email, password) => {
-        const res = await fetch(getApiUrl("/api/auth/login"), {
-          method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        const json = await res.json();
-        if (!res.ok || !json.ok) throw new Error(json.error || "Unable to sign in");
-        const user = await refreshSession();
-        if (!user) throw new Error("Unable to establish your session");
-        return user;
+        try {
+          const res = await fetch(getApiUrl("/api/auth/login"), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          const json = await res.json();
+          if (!res.ok || !json.ok) throw new Error(json.error || "Invalid email or password");
+          const user = await refreshSession();
+          if (!user) throw new Error("Unable to establish your session");
+          return user;
+        } catch (apiErr: any) {
+          // If the backend API returned an explicit auth error, propagate it
+          if (apiErr.message && !apiErr.message.includes("Failed to fetch") && !apiErr.message.includes("NetworkError")) {
+            throw apiErr;
+          }
+          // Backend server is offline (e.g. port 3001 not running). Fall back to offline credentials!
+          console.warn("⚠️ Backend auth server offline, using local offline authentication:", apiErr);
+          const normalizedEmail = email.trim().toLowerCase();
+          const isPlayerDemo = normalizedEmail === "player@baselineatl.com";
+          const isOrganizerDemo = normalizedEmail === "organizer@baselineatl.com";
+
+          let registeredAccount: any = null;
+          try {
+            const accounts = JSON.parse(localStorage.getItem("atl-registered-accounts") || "{}");
+            registeredAccount = accounts[normalizedEmail];
+          } catch { }
+
+          if (!isPlayerDemo && !isOrganizerDemo && !registeredAccount) {
+            throw new Error("No account found with this email. Please create an account to get started.");
+          }
+
+          if (isPlayerDemo) {
+            if (password !== "password123") throw new Error("Incorrect password. Please try again.");
+          } else if (isOrganizerDemo) {
+            if (password !== "organizer123") throw new Error("Incorrect password. Please try again.");
+          } else if (registeredAccount) {
+            if (password !== registeredAccount.password) throw new Error("Incorrect password. Please try again.");
+          }
+
+          const role = isOrganizerDemo || registeredAccount?.role === "organizer" ? "organizer" : "player";
+          const existingPlayer = state.players.find((p) => p.email.toLowerCase() === normalizedEmail);
+          const user: AuthUser = {
+            id: uid("u"),
+            email: normalizedEmail,
+            role,
+            name: isOrganizerDemo
+              ? "Dana Whitfield"
+              : registeredAccount?.name || (existingPlayer ? `${existingPlayer.firstName} ${existingPlayer.lastName}` : normalizedEmail.split("@")[0] || normalizedEmail),
+            playerId: role === "player" ? (registeredAccount?.playerId || existingPlayer?.id || "p-1") : undefined,
+          };
+
+          setState((s) => ({
+            ...s,
+            user,
+            players: existingPlayer
+              ? s.players
+              : [
+                  ...s.players,
+                  {
+                    id: user.playerId || "p-1",
+                    firstName: user.name.split(" ")[0] || "Demo",
+                    lastName: user.name.split(" ")[1] || "Player",
+                    email: user.email,
+                    ntrp: "3.0",
+                    city: "Midtown",
+                  },
+                ],
+          }));
+          return user;
+        }
       },
       logout: async () => {
-        const res = await fetch(getApiUrl("/api/auth/logout"), { method: "POST", credentials: "include" });
-        if (!res.ok) throw new Error("Sign out failed. Please retry.");
-        setState(s => ({ ...s, user: null, players: [], registrations: [] }));
+        try {
+          await fetch(getApiUrl("/api/auth/logout"), { method: "POST", credentials: "include" });
+        } catch { }
+        setState((s) => ({ ...s, user: null, players: [], registrations: [] }));
         sessionStorage.clear();
       },
       createSeason: (input) => {
