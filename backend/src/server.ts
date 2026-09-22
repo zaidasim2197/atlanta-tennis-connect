@@ -8,8 +8,12 @@ import dns from "node:dns";
 import express from "express";
 import cors from "cors";
 
-// TODO: REMOVE/STUB BEFORE COMMITTING - Custom DNS resolution for MongoDB Atlas SRV
-dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1"]);
+// Custom DNS resolution for MongoDB Atlas SRV (wrapped in try/catch for serverless environments)
+try {
+  dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1"]);
+} catch {
+  // Ignored in environments where setting custom DNS is restricted
+}
 
 import { connectDB } from "./lib/db";
 import leaguesRouter from "./routes/leagues";
