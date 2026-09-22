@@ -12,6 +12,7 @@ import {
 import { formatDateRange, formatMoney, type LeagueFormat, type SkillLevel } from "@/lib/tennis";
 import { Lock, Unlock, Plus, Users } from "lucide-react";
 import { DemoBanner } from "@/components/demo-banner";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/organizer")({
   component: OrganizerHub,
@@ -39,6 +40,7 @@ function OrganizerHub() {
     if (!user) {
       navigate({ to: "/login", search: { leagueId: undefined } });
     } else if (user.role !== "organizer") {
+      toast.error("Access denied. You do not have organizer privileges.");
       navigate({ to: "/dashboard" });
     }
   }, [user, navigate]);
