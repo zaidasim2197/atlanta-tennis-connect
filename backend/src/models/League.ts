@@ -1,10 +1,9 @@
 import { Schema, model, Document } from "mongoose";
 
 export type LeagueFormat =
-  | "junior-singles"
-  | "senior-singles"
-  | "junior-doubles"
-  | "senior-doubles"
+  | "men-singles"
+  | "women-singles"
+  | "men-doubles"
   | "mixed-doubles";
 
 export type SkillLevel = "2.5" | "3.0" | "3.5" | "4.0" | "4.5" | "5.0";
@@ -34,7 +33,12 @@ const LeagueSchema = new Schema<ILeague>(
     name:             { type: String, required: true },
     format:           {
       type: String,
-      enum: ["junior-singles","senior-singles","junior-doubles","senior-doubles","mixed-doubles"],
+      enum: [
+        "men-singles",
+        "women-singles",
+        "men-doubles",
+        "mixed-doubles",
+      ],
       required: true,
     },
     skillLevel:       { type: String, enum: ["2.5","3.0","3.5","4.0","4.5","5.0"], required: true },

@@ -182,124 +182,6 @@ function BrowseLeagues() {
     });
   }, [leagues, seasons, format, skill, seasonId, city, query]);
 
-  const activeSeason = seasons.find((s) => s.id === seasonId) || seasons[0];
-
-  // When user is not logged in, show the professional, modern authentication and registration gate
-  if (hydrated && !user) {
-    return (
-      <div>
-        <section className="group relative overflow-hidden bg-black border-b border-border py-16 text-white sm:py-24">
-          <div className="absolute inset-0">
-            <img
-              src="https://images.unsplash.com/photo-1657534927924-a6fc6573a93e?q=80&w=1200&auto=format&fit=crop"
-              alt="Tennis match"
-              className="h-full w-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-1000 ease-out"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-black/20" />
-          </div>
-          <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
-            <Reveal>
-              <p className="eyebrow text-accent drop-shadow-md">Members-Only League Access</p>
-              <h1 className="mt-2 text-3xl font-bold sm:text-5xl drop-shadow-lg">Browse Tennis Leagues</h1>
-              <p className="mt-3 max-w-xl text-white/90 drop-shadow-md text-sm sm:text-base">
-                Official Atlanta tennis flights, weekly schedules, and player registrations are reserved for registered members.
-              </p>
-            </Reveal>
-          </div>
-        </section>
-
-        <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16">
-          <Reveal className="rounded-3xl border border-border bg-card p-8 sm:p-12 shadow-2xl text-center relative overflow-hidden">
-            <div className="absolute -top-24 -right-24 size-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-24 -left-24 size-64 rounded-full bg-accent/10 blur-3xl pointer-events-none" />
-
-            <div className="relative z-10 max-w-2xl mx-auto space-y-6">
-              <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-sm">
-                <Lock className="size-8" />
-              </div>
-
-              <div className="space-y-2">
-                <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground">
-                  Sign in or register to browse leagues
-                </h2>
-                <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-                  To view active flights, match schedules, court locations, and register for upcoming seasons in Atlanta, please create an account or sign in with your existing profile.
-                </p>
-              </div>
-
-              {/* Call-to-action buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-                <Link to="/signup" search={{ leagueId: undefined }} className="w-full sm:w-auto">
-                  <Button
-                    size="lg"
-                    className="w-full sm:w-auto rounded-full px-8 py-6 text-sm font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
-                  >
-                    <UserPlus className="mr-2 size-4" /> Create an Account
-                  </Button>
-                </Link>
-                <Link to="/login" search={{ leagueId: undefined }} className="w-full sm:w-auto">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="w-full sm:w-auto rounded-full px-8 py-6 text-sm font-semibold border-border hover:bg-muted/80 cursor-pointer"
-                  >
-                    <LogIn className="mr-2 size-4" /> Sign In to See Leagues
-                  </Button>
-                </Link>
-              </div>
-
-              <p className="text-xs text-muted-foreground pt-1">
-                Already registered? <Link to="/login" search={{ leagueId: undefined }} className="text-primary font-semibold hover:underline">Sign in with your email</Link> to immediately view all leagues.
-              </p>
-            </div>
-
-            {/* What happens after registration — 3-step flow */}
-            <div className="mt-12 pt-10 border-t border-border/60">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-6 text-center">Your journey after joining</p>
-              <div className="grid gap-4 sm:grid-cols-3 text-left relative">
-                {/* connector line – visible on sm+ */}
-                <div className="hidden sm:block absolute top-6 left-[calc(16.66%+1rem)] right-[calc(16.66%+1rem)] h-px bg-border/60 z-0" />
-
-                {/* Step 1 */}
-                <div className="relative z-10 rounded-2xl border border-border/70 bg-background/60 backdrop-blur-sm p-5 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">1</span>
-                    <h3 className="font-bold text-sm text-foreground">Browse &amp; Pick a League</h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    After signing up, explore all open leagues filtered by your NTRP level, format (singles/doubles), and preferred Atlanta venue.
-                  </p>
-                </div>
-
-                {/* Step 2 */}
-                <div className="relative z-10 rounded-2xl border border-border/70 bg-background/60 backdrop-blur-sm p-5 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">2</span>
-                    <h3 className="font-bold text-sm text-foreground">Register &amp; Confirm Payment</h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Secure your spot with a one-time season fee. You'll receive an instant confirmation and your match schedule before opening day.
-                  </p>
-                </div>
-
-                {/* Step 3 */}
-                <div className="relative z-10 rounded-2xl border border-border/70 bg-background/60 backdrop-blur-sm p-5 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">3</span>
-                    <h3 className="font-bold text-sm text-foreground">Play, Track &amp; Compete</h3>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Show up, play your matches, and log scores in real time. Follow live standings and aim for the end-of-season championship.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div>
       <section className="group relative overflow-hidden bg-black border-b border-border py-16 text-white sm:py-24">
@@ -456,7 +338,7 @@ function BrowseLeagues() {
               <div className="inline-flex items-center gap-1.5">
                 <span className="size-2 rounded-full bg-primary" />
                 <span>
-                  Auto-aligned to profile: <strong>NTRP {playerSkill || currentPlayer.ntrp}</strong> (Fixed) · <strong>{FORMAT_LABELS[currentPlayer.preferredFormat || "senior-singles"]}</strong>{currentPlayer.city ? ` · ${currentPlayer.city}` : ''}
+                  Auto-aligned to profile: <strong>NTRP {playerSkill || currentPlayer.ntrp}</strong> (Fixed) · <strong>{FORMAT_LABELS[currentPlayer.preferredFormat || "men-singles"]}</strong>{currentPlayer.city ? ` · ${currentPlayer.city}` : ''}
                 </span>
               </div>
               {(city !== "all" || format !== "all" || (!playerSkill && skill !== "all") || seasonId !== "all") && (

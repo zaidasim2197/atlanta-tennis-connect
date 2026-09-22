@@ -20,6 +20,10 @@ export const Route = createFileRoute("/login")({
       typeof search["leagueId"] === "string"
         ? (search["leagueId"] as string)
         : undefined,
+    redirect:
+      typeof search["redirect"] === "string"
+        ? (search["redirect"] as string)
+        : undefined,
   }),
   component: Login,
 });
@@ -92,8 +96,9 @@ function Stepper({ current }: { current: number }) {
 function Login() {
   const { login, leagueById } = useStore();
   const navigate = useNavigate();
-  const { leagueId } = Route.useSearch();
-  const leagueData = leagueId ? leagueById(leagueId) : undefined;
+  const { leagueId, redirect } = Route.useSearch();
+  const targetLeagueId = leagueId || (redirect?.startsWith("/leagues/") ? redirect.replace("/leagues/", "") : undefined);
+  const leagueData = targetLeagueId ? leagueById(targetLeagueId) : undefined;
 
   const [role, setRole] = useState<"player" | "organizer">("player");
   const [email, setEmail] = useState("");
@@ -126,8 +131,15 @@ function Login() {
     setLoading(true);
     try {
       const user = await login(email.trim().toLowerCase(), password);
-      if (leagueId && user.role === "player") navigate({ to: "/register/$leagueId", params: { leagueId } });
-      else navigate({ to: user.role === "organizer" ? "/organizer" : "/dashboard" });
+      if (user.role === "organizer") {
+        navigate({ to: "/organizer" });
+      } else if (redirect) {
+        window.location.assign(redirect);
+      } else if (leagueId) {
+        navigate({ to: "/register/$leagueId", params: { leagueId } });
+      } else {
+        navigate({ to: "/dashboard" });
+      }
     } catch (error) {
       setPasswordError(error instanceof Error ? error.message : "Unable to sign in");
     } finally { setLoading(false); }
@@ -139,8 +151,18 @@ function Login() {
         {/* Progress stepper */}
         {leagueData && <Stepper current={2} />}
 
+        {/* Notice banner for redirected visitors */}
+        {redirect && (
+          <div className="mb-5 flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/10 p-4 text-sm font-medium text-foreground shadow-sm">
+            <AlertCircle className="size-5 shrink-0 text-primary" />
+            <p>
+              Please sign in with your account to view league details and continue.
+            </p>
+          </div>
+        )}
+
         {/* Selected league card */}
-        {leagueData && leagueId && (
+        {leagueData && (
           <div className="mb-5 overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
             <div className="flex items-center justify-between border-b border-border/60 bg-muted/50 px-5 py-3">
               <div className="flex items-center gap-2">
@@ -151,7 +173,7 @@ function Login() {
               </div>
               <Link
                 to="/leagues/$leagueId"
-                params={{ leagueId }}
+                params={{ leagueId: targetLeagueId! }}
                 className="rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-muted"
               >
                 Change
@@ -192,7 +214,7 @@ function Login() {
         <div className="rounded-2xl border border-border bg-card p-7 shadow-[var(--shadow-card)] sm:p-8">
           <div className="mb-6 text-center">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              {leagueData ? "Sign in to continue" : "Sign in to your account"}
+              {leagueData || redirect ? "Sign in to continue" : "Sign in to your account"}
             </h1>
             {leagueData && (
               <p className="mt-1.5 text-sm text-muted-foreground">
@@ -337,7 +359,7 @@ function Login() {
             <p className="mt-5 text-center text-sm text-muted-foreground">
               Don't have an account?{" "}
               <a
-                href={leagueId ? `/signup?leagueId=${leagueId}` : "/signup"}
+                href={leagueId ? `/signup?leagueId=${leagueId}` : redirect ? `/signup?redirect=${encodeURIComponent(redirect)}` : "/signup"}
                 className="font-semibold text-primary hover:underline"
               >
                 Create one

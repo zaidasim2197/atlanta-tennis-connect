@@ -13,6 +13,10 @@ export const Route = createFileRoute("/signup")({
       typeof search["leagueId"] === "string"
         ? (search["leagueId"] as string)
         : undefined,
+    redirect:
+      typeof search["redirect"] === "string"
+        ? (search["redirect"] as string)
+        : undefined,
   }),
   component: Signup,
 });
@@ -80,8 +84,9 @@ function Stepper({ current }: { current: number }) {
 function Signup() {
   const { refreshSession, leagueById, upsertPlayer, login } = useStore();
   const navigate = useNavigate();
-  const { leagueId } = Route.useSearch();
-  const leagueData = leagueId ? leagueById(leagueId) : undefined;
+  const { leagueId, redirect } = Route.useSearch();
+  const targetLeagueId = leagueId || (redirect?.startsWith("/leagues/") ? redirect.replace("/leagues/", "") : undefined);
+  const leagueData = targetLeagueId ? leagueById(targetLeagueId) : undefined;
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -134,11 +139,6 @@ function Signup() {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail || !normalizedEmail.includes("@")) {
       setError("Please enter a valid email address.");
-      return;
-    }
-
-    if (!dateOfBirth) {
-      setError("Please select your date of birth.");
       return;
     }
 
@@ -249,8 +249,10 @@ function Signup() {
         await login(normalizedEmail, password).catch(() => null);
       }
 
-      // 3. Navigate to registration payment or dashboard
-      if (leagueId) {
+      // 3. Navigate to redirect, registration payment or dashboard
+      if (redirect) {
+        window.location.assign(redirect);
+      } else if (leagueId) {
         navigate({ to: "/register/$leagueId", params: { leagueId } });
       } else {
         navigate({ to: "/dashboard" });
@@ -383,7 +385,7 @@ function Signup() {
               <div>
                 <div className="mb-1 flex items-center justify-between">
                   <label htmlFor="dob-trigger" className="block text-sm font-medium text-foreground">
-                    <span className="text-red-500 font-bold text-xs mr-1 select-none" aria-hidden="true">*</span>Date of Birth
+                    Date of Birth <span className="text-xs text-muted-foreground font-normal ml-1">(Optional)</span>
                   </label>
                   {age !== null && (
                     <span
@@ -606,7 +608,7 @@ function Signup() {
             <span className="text-muted-foreground">Already have an account? </span>
             <Link
               to="/login"
-              search={{ leagueId: leagueId ?? undefined }}
+              search={{ leagueId: leagueId ?? undefined, redirect: redirect ?? undefined }}
               className="font-semibold text-primary hover:underline"
             >
               Log in

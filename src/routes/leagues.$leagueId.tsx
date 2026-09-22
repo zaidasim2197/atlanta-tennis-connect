@@ -1,4 +1,5 @@
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import * as React from "react";
+import { createFileRoute, Link, useParams, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeft,
   CalendarDays,
@@ -38,7 +39,22 @@ const MATCH_DAY = [
 
 function LeagueDetail() {
   const { leagueId } = useParams({ from: "/leagues/$leagueId" });
-  const { leagueById, seasonById, spotsLeft, registrationsForLeague, registrationsForPlayer, user } = useStore();
+  const navigate = useNavigate();
+  const { leagueById, seasonById, spotsLeft, registrationsForLeague, registrationsForPlayer, user, hydrated } = useStore();
+
+  React.useEffect(() => {
+    if (hydrated && !user) {
+      navigate({
+        to: "/login",
+        search: { redirect: `/leagues/${leagueId}` },
+      });
+    }
+  }, [hydrated, user, leagueId, navigate]);
+
+  if (hydrated && !user) {
+    return null;
+  }
+
   const league = leagueById(leagueId);
 
   if (!league) {

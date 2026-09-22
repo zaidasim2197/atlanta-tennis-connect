@@ -101,7 +101,7 @@ function OrganizerHub() {
   // Create League form state
   const [name, setName] = useState("");
   const [seasonId, setSeasonId] = useState(seasons[0]?.id || "");
-  const [format, setFormat] = useState<LeagueFormat>("senior-singles");
+  const [format, setFormat] = useState<LeagueFormat>("men-singles");
   const [skillLevel, setSkillLevel] = useState<SkillLevel>("3.5");
   const [feeCents, setFeeCents] = useState(10000);
   const [scheduleDay, setScheduleDay] = useState("Tuesday");
@@ -741,10 +741,9 @@ function OrganizerHub() {
                     <SelectValue placeholder="Select format" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="junior-singles">Junior Singles</SelectItem>
-                    <SelectItem value="senior-singles">Senior Singles</SelectItem>
-                    <SelectItem value="junior-doubles">Junior Doubles</SelectItem>
-                    <SelectItem value="senior-doubles">Senior Doubles</SelectItem>
+                    <SelectItem value="men-singles">Men's Singles</SelectItem>
+                    <SelectItem value="women-singles">Women's Singles</SelectItem>
+                    <SelectItem value="men-doubles">Men's Doubles</SelectItem>
                     <SelectItem value="mixed-doubles">Mixed Doubles</SelectItem>
                   </SelectContent>
                 </Select>

@@ -1,0 +1,856 @@
+{
+  "metadata": {
+    "dataset_name": "Baseline ATL Prototype Demo Dataset",
+    "version": "1.0",
+    "environment": "prototype",
+    "location_scope": "Atlanta, Georgia",
+    "synthetic_data": true,
+    "notice": "Synthetic demo data only. Geographic placement, capacity, eligibility, refund, scheduling, score-verification, and public-visibility rules remain subject to client confirmation."
+  },
+  "skillLevels": [
+    {
+      "skill_level_id": "SKL-25",
+      "display_value": "2.5",
+      "sort_order": 1,
+      "active": true
+    },
+    {
+      "skill_level_id": "SKL-30",
+      "display_value": "3.0",
+      "sort_order": 2,
+      "active": true
+    },
+    {
+      "skill_level_id": "SKL-35",
+      "display_value": "3.5",
+      "sort_order": 3,
+      "active": true
+    },
+    {
+      "skill_level_id": "SKL-40",
+      "display_value": "4.0",
+      "sort_order": 4,
+      "active": true
+    },
+    {
+      "skill_level_id": "SKL-45",
+      "display_value": "4.5",
+      "sort_order": 5,
+      "active": true
+    },
+    {
+      "skill_level_id": "SKL-50",
+      "display_value": "5",
+      "sort_order": 6,
+      "active": true
+    }
+  ],
+  "formats": [
+    {
+      "format_id": "FMT-MS",
+      "name": "Men's Singles",
+      "team_size": 1,
+      "partner_required": false,
+      "active": true
+    },
+    {
+      "format_id": "FMT-WS",
+      "name": "Women's Singles",
+      "team_size": 1,
+      "partner_required": false,
+      "active": true
+    },
+    {
+      "format_id": "FMT-MD",
+      "name": "Men's Doubles",
+      "team_size": 2,
+      "partner_required": true,
+      "active": true
+    },
+    {
+      "format_id": "FMT-MXD",
+      "name": "Mixed Doubles",
+      "team_size": 2,
+      "partner_required": true,
+      "active": true
+    }
+  ],
+  "geographicGroups": [
+    {
+      "group_id": "GRP-ATL",
+      "name": "Atlanta",
+      "group_type": "city",
+      "parent_group_id": null,
+      "city": "Atlanta",
+      "status": "active",
+      "demo_only": true
+    },
+    {
+      "group_id": "GRP-ATL-N",
+      "name": "North Atlanta",
+      "group_type": "division",
+      "parent_group_id": "GRP-ATL",
+      "city": "Atlanta",
+      "status": "active",
+      "demo_only": true
+    },
+    {
+      "group_id": "GRP-ATL-C",
+      "name": "Central Atlanta",
+      "group_type": "division",
+      "parent_group_id": "GRP-ATL",
+      "city": "Atlanta",
+      "status": "active",
+      "demo_only": true
+    },
+    {
+      "group_id": "GRP-ATL-E",
+      "name": "East Atlanta",
+      "group_type": "division",
+      "parent_group_id": "GRP-ATL",
+      "city": "Atlanta",
+      "status": "active",
+      "demo_only": true
+    }
+  ],
+  "players": [
+    {
+      "player_id": "PLY-001",
+      "first_name": "Daniel",
+      "last_name": "Brooks",
+      "email": "daniel.brooks@example.test",
+      "phone": "+1 404-555-0101",
+      "account_status": "active"
+    },
+    {
+      "player_id": "PLY-002",
+      "first_name": "Marcus",
+      "last_name": "Hill",
+      "email": "marcus.hill@example.test",
+      "phone": "+1 404-555-0102",
+      "account_status": "active"
+    },
+    {
+      "player_id": "PLY-003",
+      "first_name": "Ethan",
+      "last_name": "Reed",
+      "email": "ethan.reed@example.test",
+      "phone": "+1 404-555-0103",
+      "account_status": "active"
+    },
+    {
+      "player_id": "PLY-004",
+      "first_name": "Sofia",
+      "last_name": "Martinez",
+      "email": "sofia.martinez@example.test",
+      "phone": "+1 404-555-0104",
+      "account_status": "active"
+    },
+    {
+      "player_id": "PLY-005",
+      "first_name": "Maya",
+      "last_name": "Collins",
+      "email": "maya.collins@example.test",
+      "phone": "+1 404-555-0105",
+      "account_status": "active"
+    },
+    {
+      "player_id": "PLY-006",
+      "first_name": "Olivia",
+      "last_name": "Turner",
+      "email": "olivia.turner@example.test",
+      "phone": "+1 404-555-0106",
+      "account_status": "active"
+    },
+    {
+      "player_id": "PLY-007",
+      "first_name": "Noah",
+      "last_name": "Carter",
+      "email": "noah.carter@example.test",
+      "phone": "+1 404-555-0107",
+      "account_status": "active"
+    },
+    {
+      "player_id": "PLY-008",
+      "first_name": "Ava",
+      "last_name": "Mitchell",
+      "email": "ava.mitchell@example.test",
+      "phone": "+1 404-555-0108",
+      "account_status": "active"
+    },
+    {
+      "player_id": "PLY-009",
+      "first_name": "Liam",
+      "last_name": "Parker",
+      "email": "liam.parker@example.test",
+      "phone": "+1 404-555-0109",
+      "account_status": "active"
+    },
+    {
+      "player_id": "PLY-010",
+      "first_name": "Chloe",
+      "last_name": "Bennett",
+      "email": "chloe.bennett@example.test",
+      "phone": "+1 404-555-0110",
+      "account_status": "active"
+    }
+  ],
+  "playerProfiles": [
+    {
+      "profile_id": "PRO-001",
+      "player_id": "PLY-001",
+      "declared_skill_level_id": "SKL-35",
+      "preferred_format_id": "FMT-MS",
+      "zip_code": "30328",
+      "home_area": "North Atlanta",
+      "home_court": "Northside Tennis Center - Demo",
+      "eligibility_status": "eligible",
+      "handedness": "right",
+      "privacy_preferences": {
+        "show_skill_level": true,
+        "show_home_area": false,
+        "show_phone_to_opponent": false
+      },
+      "profile_status": "complete"
+    },
+    {
+      "profile_id": "PRO-002",
+      "player_id": "PLY-002",
+      "declared_skill_level_id": "SKL-35",
+      "preferred_format_id": "FMT-MS",
+      "zip_code": "30342",
+      "home_area": "North Atlanta",
+      "home_court": "Chastain Area Court - Demo",
+      "eligibility_status": "eligible",
+      "handedness": "right",
+      "privacy_preferences": {
+        "show_skill_level": true,
+        "show_home_area": false,
+        "show_phone_to_opponent": false
+      },
+      "profile_status": "complete"
+    },
+    {
+      "profile_id": "PRO-003",
+      "player_id": "PLY-003",
+      "declared_skill_level_id": "SKL-40",
+      "preferred_format_id": "FMT-MD",
+      "zip_code": "30319",
+      "home_area": "North Atlanta",
+      "home_court": "Brookhaven Area Court - Demo",
+      "eligibility_status": "eligible",
+      "handedness": "left",
+      "privacy_preferences": {
+        "show_skill_level": true,
+        "show_home_area": false,
+        "show_phone_to_opponent": false
+      },
+      "profile_status": "complete"
+    },
+    {
+      "profile_id": "PRO-004",
+      "player_id": "PLY-004",
+      "declared_skill_level_id": "SKL-35",
+      "preferred_format_id": "FMT-WS",
+      "zip_code": "30309",
+      "home_area": "Central Atlanta",
+      "home_court": "Midtown Court - Demo",
+      "eligibility_status": "eligible",
+      "handedness": "right",
+      "privacy_preferences": {
+        "show_skill_level": true,
+        "show_home_area": false,
+        "show_phone_to_opponent": false
+      },
+      "profile_status": "complete"
+    },
+    {
+      "profile_id": "PRO-005",
+      "player_id": "PLY-005",
+      "declared_skill_level_id": "SKL-35",
+      "preferred_format_id": "FMT-MXD",
+      "zip_code": "30308",
+      "home_area": "Central Atlanta",
+      "home_court": "Piedmont Area Court - Demo",
+      "eligibility_status": "eligible",
+      "handedness": "right",
+      "privacy_preferences": {
+        "show_skill_level": true,
+        "show_home_area": false,
+        "show_phone_to_opponent": false
+      },
+      "profile_status": "complete"
+    },
+    {
+      "profile_id": "PRO-006",
+      "player_id": "PLY-006",
+      "declared_skill_level_id": "SKL-40",
+      "preferred_format_id": "FMT-WS",
+      "zip_code": "30307",
+      "home_area": "East Atlanta",
+      "home_court": "Eastside Tennis Court - Demo",
+      "eligibility_status": "eligible",
+      "handedness": "left",
+      "privacy_preferences": {
+        "show_skill_level": true,
+        "show_home_area": false,
+        "show_phone_to_opponent": false
+      },
+      "profile_status": "complete"
+    },
+    {
+      "profile_id": "PRO-007",
+      "player_id": "PLY-007",
+      "declared_skill_level_id": "SKL-40",
+      "preferred_format_id": "FMT-MD",
+      "zip_code": "30329",
+      "home_area": "East Atlanta",
+      "home_court": "Briarcliff Area Court - Demo",
+      "eligibility_status": "needs_review",
+      "handedness": "right",
+      "privacy_preferences": {
+        "show_skill_level": true,
+        "show_home_area": false,
+        "show_phone_to_opponent": false
+      },
+      "profile_status": "needs_review"
+    },
+    {
+      "profile_id": "PRO-008",
+      "player_id": "PLY-008",
+      "declared_skill_level_id": "SKL-30",
+      "preferred_format_id": "FMT-MXD",
+      "zip_code": "30324",
+      "home_area": "Central Atlanta",
+      "home_court": null,
+      "eligibility_status": "unknown",
+      "handedness": null,
+      "privacy_preferences": {
+        "show_skill_level": true,
+        "show_home_area": false,
+        "show_phone_to_opponent": false
+      },
+      "profile_status": "incomplete"
+    },
+    {
+      "profile_id": "PRO-009",
+      "player_id": "PLY-009",
+      "declared_skill_level_id": "SKL-35",
+      "preferred_format_id": "FMT-MXD",
+      "zip_code": "30306",
+      "home_area": "Central Atlanta",
+      "home_court": "Virginia Highland Court - Demo",
+      "eligibility_status": "eligible",
+      "handedness": "right",
+      "privacy_preferences": {
+        "show_skill_level": true,
+        "show_home_area": false,
+        "show_phone_to_opponent": false
+      },
+      "profile_status": "complete"
+    },
+    {
+      "profile_id": "PRO-010",
+      "player_id": "PLY-010",
+      "declared_skill_level_id": "SKL-35",
+      "preferred_format_id": "FMT-MXD",
+      "zip_code": "30312",
+      "home_area": "Central Atlanta",
+      "home_court": "Grant Park Area Court - Demo",
+      "eligibility_status": "eligible",
+      "handedness": "right",
+      "privacy_preferences": {
+        "show_skill_level": true,
+        "show_home_area": false,
+        "show_phone_to_opponent": false
+      },
+      "profile_status": "complete"
+    }
+  ],
+  "leagues": [
+    {
+      "league_id": "LG-MS-35",
+      "name": "Baseline Men's Singles 3.5",
+      "format_id": "FMT-MS",
+      "offered_skill_levels": [
+        "SKL-35"
+      ],
+      "age_band": null,
+      "organiser_notes": "Demo competition. Geographic placement subject to final client rules.",
+      "status": "active"
+    },
+    {
+      "league_id": "LG-WS-35",
+      "name": "Baseline Women's Singles 3.5",
+      "format_id": "FMT-WS",
+      "offered_skill_levels": [
+        "SKL-35"
+      ],
+      "age_band": null,
+      "organiser_notes": "Prototype league.",
+      "status": "active"
+    },
+    {
+      "league_id": "LG-MD-40",
+      "name": "Baseline Men's Doubles 4.0",
+      "format_id": "FMT-MD",
+      "offered_skill_levels": [
+        "SKL-40"
+      ],
+      "age_band": null,
+      "organiser_notes": "Accepted partnership required before partnership is treated as confirmed.",
+      "status": "active"
+    },
+    {
+      "league_id": "LG-MXD-35",
+      "name": "Baseline Mixed Doubles 3.5",
+      "format_id": "FMT-MXD",
+      "offered_skill_levels": [
+        "SKL-35"
+      ],
+      "age_band": null,
+      "organiser_notes": "Prototype league.",
+      "status": "active"
+    }
+  ],
+  "seasons": [
+    {
+      "season_id": "SEA-F26-MS35",
+      "league_id": "LG-MS-35",
+      "name": "Fall 2026",
+      "registration_open": "2026-09-01",
+      "registration_close": "2026-10-02",
+      "start_date": "2026-10-10",
+      "end_date": "2026-12-05",
+      "entry_price": 30,
+      "currency": "USD",
+      "capacity": 16,
+      "registered_count": 13,
+      "known_play_day": "Saturday",
+      "known_play_time": "9:00 AM - 1:00 PM",
+      "registration_status": "open",
+      "status": "upcoming"
+    },
+    {
+      "season_id": "SEA-F26-WS35",
+      "league_id": "LG-WS-35",
+      "name": "Fall 2026",
+      "registration_open": "2026-09-01",
+      "registration_close": "2026-10-02",
+      "start_date": "2026-10-11",
+      "end_date": "2026-12-06",
+      "entry_price": 30,
+      "currency": "USD",
+      "capacity": 16,
+      "registered_count": 16,
+      "known_play_day": "Sunday",
+      "known_play_time": "10:00 AM - 2:00 PM",
+      "registration_status": "full",
+      "status": "upcoming"
+    },
+    {
+      "season_id": "SEA-F26-MD40",
+      "league_id": "LG-MD-40",
+      "name": "Fall 2026",
+      "registration_open": "2026-09-05",
+      "registration_close": "2026-10-05",
+      "start_date": "2026-10-17",
+      "end_date": "2026-12-12",
+      "entry_price": 35,
+      "currency": "USD",
+      "capacity": 12,
+      "registered_count": 8,
+      "known_play_day": "Saturday",
+      "known_play_time": "2:00 PM - 6:00 PM",
+      "registration_status": "open",
+      "status": "upcoming"
+    },
+    {
+      "season_id": "SEA-F26-MXD35",
+      "league_id": "LG-MXD-35",
+      "name": "Fall 2026",
+      "registration_open": "2026-09-05",
+      "registration_close": "2026-10-05",
+      "start_date": "2026-10-18",
+      "end_date": "2026-12-13",
+      "entry_price": 35,
+      "currency": "USD",
+      "capacity": 12,
+      "registered_count": 10,
+      "known_play_day": "Sunday",
+      "known_play_time": "3:00 PM - 6:00 PM",
+      "registration_status": "open",
+      "status": "upcoming"
+    }
+  ],
+  "registrations": [
+    {
+      "registration_id": "REG-001",
+      "player_id": "PLY-001",
+      "season_id": "SEA-F26-MS35",
+      "skill_level_snapshot": "SKL-35",
+      "format_id": "FMT-MS",
+      "assigned_group_id": "GRP-ATL-N",
+      "registration_status": "confirmed",
+      "payment_status": "succeeded",
+      "registered_at": "2026-09-12T14:20:00-04:00",
+      "confirmed_at": "2026-09-13T10:15:00-04:00",
+      "requires_review": false,
+      "organiser_note": null
+    },
+    {
+      "registration_id": "REG-002",
+      "player_id": "PLY-002",
+      "season_id": "SEA-F26-MS35",
+      "skill_level_snapshot": "SKL-35",
+      "format_id": "FMT-MS",
+      "assigned_group_id": "GRP-ATL-N",
+      "registration_status": "confirmed",
+      "payment_status": "succeeded",
+      "registered_at": "2026-09-13T17:30:00-04:00",
+      "confirmed_at": "2026-09-14T09:00:00-04:00",
+      "requires_review": false,
+      "organiser_note": null
+    },
+    {
+      "registration_id": "REG-003",
+      "player_id": "PLY-003",
+      "season_id": "SEA-F26-MD40",
+      "skill_level_snapshot": "SKL-40",
+      "format_id": "FMT-MD",
+      "assigned_group_id": null,
+      "registration_status": "awaiting_review_placement",
+      "payment_status": "succeeded",
+      "registered_at": "2026-09-18T12:10:00-04:00",
+      "confirmed_at": null,
+      "requires_review": true,
+      "organiser_note": "Awaiting partnership and geographic placement."
+    },
+    {
+      "registration_id": "REG-004",
+      "player_id": "PLY-004",
+      "season_id": "SEA-F26-WS35",
+      "skill_level_snapshot": "SKL-35",
+      "format_id": "FMT-WS",
+      "assigned_group_id": null,
+      "registration_status": "waitlisted",
+      "payment_status": "succeeded",
+      "registered_at": "2026-09-20T11:35:00-04:00",
+      "confirmed_at": null,
+      "requires_review": true,
+      "organiser_note": "Demo waitlist state. Final capacity/waitlist policy requires client confirmation."
+    },
+    {
+      "registration_id": "REG-005",
+      "player_id": "PLY-005",
+      "season_id": "SEA-F26-MXD35",
+      "skill_level_snapshot": "SKL-35",
+      "format_id": "FMT-MXD",
+      "assigned_group_id": "GRP-ATL-C",
+      "registration_status": "confirmed",
+      "payment_status": "succeeded",
+      "registered_at": "2026-09-15T15:05:00-04:00",
+      "confirmed_at": "2026-09-16T09:30:00-04:00",
+      "requires_review": false,
+      "organiser_note": null
+    },
+    {
+      "registration_id": "REG-006",
+      "player_id": "PLY-006",
+      "season_id": "SEA-F26-WS35",
+      "skill_level_snapshot": "SKL-40",
+      "format_id": "FMT-WS",
+      "assigned_group_id": null,
+      "registration_status": "payment_pending",
+      "payment_status": "failed",
+      "registered_at": "2026-09-21T16:45:00-04:00",
+      "confirmed_at": null,
+      "requires_review": false,
+      "organiser_note": null
+    },
+    {
+      "registration_id": "REG-007",
+      "player_id": "PLY-007",
+      "season_id": "SEA-F26-MD40",
+      "skill_level_snapshot": "SKL-40",
+      "format_id": "FMT-MD",
+      "assigned_group_id": null,
+      "registration_status": "awaiting_review_placement",
+      "payment_status": "succeeded",
+      "registered_at": "2026-09-19T13:15:00-04:00",
+      "confirmed_at": null,
+      "requires_review": true,
+      "organiser_note": "Profile eligibility requires organiser review."
+    },
+    {
+      "registration_id": "REG-008",
+      "player_id": "PLY-008",
+      "season_id": "SEA-F26-MXD35",
+      "skill_level_snapshot": "SKL-30",
+      "format_id": "FMT-MXD",
+      "assigned_group_id": null,
+      "registration_status": "draft",
+      "payment_status": "not_started",
+      "registered_at": "2026-09-22T10:05:00-04:00",
+      "confirmed_at": null,
+      "requires_review": false,
+      "organiser_note": "Registration cannot progress until required profile information is completed."
+    },
+    {
+      "registration_id": "REG-009",
+      "player_id": "PLY-009",
+      "season_id": "SEA-F26-MXD35",
+      "skill_level_snapshot": "SKL-35",
+      "format_id": "FMT-MXD",
+      "assigned_group_id": "GRP-ATL-C",
+      "registration_status": "confirmed",
+      "payment_status": "succeeded",
+      "registered_at": "2026-09-10T12:30:00-04:00",
+      "confirmed_at": "2026-09-11T09:20:00-04:00",
+      "requires_review": false,
+      "organiser_note": null
+    },
+    {
+      "registration_id": "REG-010",
+      "player_id": "PLY-010",
+      "season_id": "SEA-F26-MXD35",
+      "skill_level_snapshot": "SKL-35",
+      "format_id": "FMT-MXD",
+      "assigned_group_id": "GRP-ATL-C",
+      "registration_status": "confirmed",
+      "payment_status": "succeeded",
+      "registered_at": "2026-09-10T12:45:00-04:00",
+      "confirmed_at": "2026-09-11T09:25:00-04:00",
+      "requires_review": false,
+      "organiser_note": null
+    }
+  ],
+  "doublesPartnerships": [
+    {
+      "partnership_id": "PAR-001",
+      "season_id": "SEA-F26-MXD35",
+      "player_1_id": "PLY-005",
+      "player_2_id": "PLY-001",
+      "initiated_by": "PLY-005",
+      "status": "accepted",
+      "requested_at": "2026-09-14T18:00:00-04:00",
+      "responded_at": "2026-09-14T19:22:00-04:00",
+      "replacement_required": false
+    },
+    {
+      "partnership_id": "PAR-002",
+      "season_id": "SEA-F26-MD40",
+      "player_1_id": "PLY-003",
+      "player_2_id": "PLY-007",
+      "initiated_by": "PLY-003",
+      "status": "requested",
+      "requested_at": "2026-09-21T12:15:00-04:00",
+      "responded_at": null,
+      "replacement_required": false
+    },
+    {
+      "partnership_id": "PAR-003",
+      "season_id": "SEA-F26-MXD35",
+      "player_1_id": "PLY-009",
+      "player_2_id": "PLY-010",
+      "initiated_by": "PLY-009",
+      "status": "accepted",
+      "requested_at": "2026-09-10T14:00:00-04:00",
+      "responded_at": "2026-09-10T15:10:00-04:00",
+      "replacement_required": false
+    }
+  ],
+  "matches": [
+    {
+      "match_id": "MAT-001",
+      "season_id": "SEA-F26-MS35",
+      "geographic_group_id": "GRP-ATL-N",
+      "participant_type": "player",
+      "participant_a_id": "PLY-001",
+      "participant_b_id": "PLY-002",
+      "home_participant_id": "PLY-001",
+      "away_participant_id": "PLY-002",
+      "scheduled_at": "2026-10-17T10:00:00-04:00",
+      "court": "Northside Tennis Center - Demo",
+      "status": "scheduled",
+      "schedule_source": "demo_organiser_assignment",
+      "court_booking_status": "awaiting_home_player_confirmation",
+      "court_booking_owner": "PLY-001"
+    },
+    {
+      "match_id": "MAT-002",
+      "season_id": "SEA-F26-MS35",
+      "geographic_group_id": "GRP-ATL-N",
+      "participant_type": "player",
+      "participant_a_id": "PLY-001",
+      "participant_b_id": "PLY-002",
+      "home_participant_id": "PLY-002",
+      "away_participant_id": "PLY-001",
+      "scheduled_at": null,
+      "court": null,
+      "status": "scheduling_required",
+      "schedule_source": null,
+      "court_booking_status": "not_started",
+      "court_booking_owner": "PLY-002"
+    },
+    {
+      "match_id": "MAT-003",
+      "season_id": "SEA-F26-MXD35",
+      "geographic_group_id": "GRP-ATL-C",
+      "participant_type": "partnership",
+      "participant_a_id": "PAR-001",
+      "participant_b_id": "PAR-003",
+      "home_participant_id": "PAR-001",
+      "away_participant_id": "PAR-003",
+      "scheduled_at": "2026-10-25T15:30:00-04:00",
+      "court": "Piedmont Area Court - Demo",
+      "status": "scheduled",
+      "schedule_source": "demo_organiser_assignment",
+      "court_booking_status": "confirmed_by_home_player",
+      "court_booking_owner": "PAR-001"
+    },
+    {
+      "match_id": "MAT-004",
+      "season_id": "SEA-F26-MS35",
+      "geographic_group_id": "GRP-ATL-N",
+      "participant_type": "player",
+      "participant_a_id": "PLY-001",
+      "participant_b_id": "PLY-002",
+      "home_participant_id": "PLY-002",
+      "away_participant_id": "PLY-001",
+      "scheduled_at": "2026-09-12T09:30:00-04:00",
+      "court": "Chastain Area Court - Demo",
+      "status": "completed",
+      "schedule_source": "demo_historical_fixture",
+      "court_booking_status": "confirmed_by_home_player",
+      "court_booking_owner": "PLY-002"
+    },
+    {
+      "match_id": "MAT-005",
+      "season_id": "SEA-F26-MS35",
+      "geographic_group_id": "GRP-ATL-N",
+      "participant_type": "player",
+      "participant_a_id": "PLY-001",
+      "participant_b_id": "PLY-002",
+      "home_participant_id": "PLY-001",
+      "away_participant_id": "PLY-002",
+      "scheduled_at": "2026-09-19T11:00:00-04:00",
+      "court": "Northside Tennis Center - Demo",
+      "status": "completed",
+      "schedule_source": "demo_historical_fixture",
+      "court_booking_status": "confirmed_by_home_player",
+      "court_booking_owner": "PLY-001"
+    },
+    {
+      "match_id": "MAT-006",
+      "season_id": "SEA-F26-MXD35",
+      "geographic_group_id": "GRP-ATL-C",
+      "participant_type": "partnership",
+      "participant_a_id": "PAR-001",
+      "participant_b_id": "PAR-003",
+      "home_participant_id": "PAR-003",
+      "away_participant_id": "PAR-001",
+      "scheduled_at": "2026-09-20T14:00:00-04:00",
+      "court": "Central Atlanta Court - Demo",
+      "status": "completed",
+      "schedule_source": "demo_historical_fixture",
+      "court_booking_status": "confirmed_by_home_player",
+      "court_booking_owner": "PAR-003"
+    }
+  ],
+  "results": [
+    {
+      "result_id": "RES-001",
+      "match_id": "MAT-004",
+      "submitted_by": "PLY-001",
+      "score_data": {
+        "sets": [
+          {
+            "player_a": 6,
+            "player_b": 4
+          },
+          {
+            "player_a": 6,
+            "player_b": 3
+          }
+        ]
+      },
+      "winner_id": "PLY-001",
+      "status": "accepted",
+      "submitted_at": "2026-09-12T12:10:00-04:00",
+      "confirmed_at": "2026-09-12T15:20:00-04:00",
+      "confirmed_by": "PLY-002",
+      "dispute_reason": null
+    },
+    {
+      "result_id": "RES-002",
+      "match_id": "MAT-005",
+      "submitted_by": "PLY-002",
+      "score_data": {
+        "sets": [
+          {
+            "player_a": 4,
+            "player_b": 6
+          },
+          {
+            "player_a": 6,
+            "player_b": 3
+          },
+          {
+            "player_a": 6,
+            "player_b": 4
+          }
+        ]
+      },
+      "winner_id": null,
+      "status": "awaiting_confirmation",
+      "submitted_at": "2026-09-19T13:45:00-04:00",
+      "confirmed_at": null,
+      "confirmed_by": null,
+      "dispute_reason": null
+    },
+    {
+      "result_id": "RES-003",
+      "match_id": "MAT-006",
+      "submitted_by": "PLY-005",
+      "score_data": {
+        "sets": [
+          {
+            "team_a": 6,
+            "team_b": 4
+          },
+          {
+            "team_a": 5,
+            "team_b": 7
+          },
+          {
+            "team_a": 7,
+            "team_b": 5
+          }
+        ]
+      },
+      "winner_id": null,
+      "status": "disputed",
+      "submitted_at": "2026-09-20T17:15:00-04:00",
+      "confirmed_at": null,
+      "confirmed_by": null,
+      "dispute_reason": "Opponent reported a different final-set score."
+    }
+  ],
+  "playerStatistics": [
+    {
+      "player_id": "PLY-001",
+      "matches_played": 1,
+      "matches_won": 1,
+      "matches_lost": 0,
+      "win_percentage": 100
+    },
+    {
+      "player_id": "PLY-002",
+      "matches_played": 1,
+      "matches_won": 0,
+      "matches_lost": 1,
+      "win_percentage": 0
+    }
+  ]
+}
