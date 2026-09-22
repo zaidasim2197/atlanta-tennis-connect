@@ -170,36 +170,45 @@ function Index() {
                 </p>
               </div>
 
-              {/* Feature preview cards */}
-              <div className="mt-12 pt-10 border-t border-border/60 grid gap-4 sm:grid-cols-3 text-left">
-                <div className="rounded-2xl border border-border/70 bg-background/50 p-5 space-y-2">
-                  <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <ShieldCheck className="size-5" />
-                  </div>
-                  <h3 className="font-bold text-sm text-foreground">NTRP-Aligned Flights</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Singles, doubles, and mixed flights balanced strictly by rating (2.5 to 5.0) for fair, competitive matches.
-                  </p>
-                </div>
+              {/* What happens after registration — 3-step flow */}
+              <div className="mt-12 pt-10 border-t border-border/60">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-6 text-center">Your journey after joining</p>
+                <div className="grid gap-4 sm:grid-cols-3 text-left relative">
+                  {/* connector line – visible on md+ */}
+                  <div className="hidden sm:block absolute top-6 left-[calc(16.66%+1rem)] right-[calc(16.66%+1rem)] h-px bg-border/60 z-0" />
 
-                <div className="rounded-2xl border border-border/70 bg-background/50 p-5 space-y-2">
-                  <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <MapPin className="size-5" />
+                  {/* Step 1 */}
+                  <div className="relative z-10 rounded-2xl border border-border/70 bg-background/60 backdrop-blur-sm p-5 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">1</span>
+                      <h3 className="font-bold text-sm text-foreground">Browse &amp; Pick a League</h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      After signing up, explore all open leagues filtered by your NTRP level, format (singles/doubles), and preferred Atlanta venue.
+                    </p>
                   </div>
-                  <h3 className="font-bold text-sm text-foreground">Metro Atlanta Venues</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Convenient home and away match locations across Midtown, Buckhead, Decatur, Sandy Springs, and more.
-                  </p>
-                </div>
 
-                <div className="rounded-2xl border border-border/70 bg-background/50 p-5 space-y-2">
-                  <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Trophy className="size-5" />
+                  {/* Step 2 */}
+                  <div className="relative z-10 rounded-2xl border border-border/70 bg-background/60 backdrop-blur-sm p-5 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">2</span>
+                      <h3 className="font-bold text-sm text-foreground">Register &amp; Confirm Payment</h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Secure your spot with a one-time season fee. You'll receive an instant confirmation and your match schedule before opening day.
+                    </p>
                   </div>
-                  <h3 className="font-bold text-sm text-foreground">Verified Standings</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Official score reporting, committee review, live standings, and end-of-season championship tournaments.
-                  </p>
+
+                  {/* Step 3 */}
+                  <div className="relative z-10 rounded-2xl border border-border/70 bg-background/60 backdrop-blur-sm p-5 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">3</span>
+                      <h3 className="font-bold text-sm text-foreground">Play, Track &amp; Compete</h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Show up, play your matches, and log scores in real time. Follow live standings and aim for the end-of-season championship.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

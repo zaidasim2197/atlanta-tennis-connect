@@ -159,16 +159,7 @@ function Dashboard() {
             Manage your registered leagues, match schedules, home court, and official statistics.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button asChild variant="outline" size="sm" className="rounded-full">
-            <Link to="/profile">
-              <Settings className="mr-2 size-4" /> Edit Profile
-            </Link>
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => void logout().catch(() => toast.error("Sign out failed. Please retry."))} className="rounded-full text-muted-foreground">
-            <LogOut className="mr-2 size-4" /> Sign Out
-          </Button>
-        </div>
+
       </div>
 
       {/* Main Grid */}
@@ -791,8 +782,8 @@ function Dashboard() {
                   type="button"
                   onClick={() => setWinnerChoice("player")}
                   className={`rounded-xl border p-2.5 text-xs font-bold transition-all ${winnerChoice === "player"
-                      ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                      : "border-border bg-card text-foreground hover:border-primary/50"
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-border bg-card text-foreground hover:border-primary/50"
                     }`}
                 >
                   ✓ I Won
@@ -801,8 +792,8 @@ function Dashboard() {
                   type="button"
                   onClick={() => setWinnerChoice("opponent")}
                   className={`rounded-xl border p-2.5 text-xs font-bold transition-all ${winnerChoice === "opponent"
-                      ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                      : "border-border bg-card text-foreground hover:border-primary/50"
+                    ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                    : "border-border bg-card text-foreground hover:border-primary/50"
                     }`}
                 >
                   Opponent Won
