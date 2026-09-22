@@ -24,7 +24,7 @@ async function main() {
       $set: {
         slug: "p-demo-organizer",
         firstName: "Organizer",
-        lastName: "Only",
+        lastName: "",
         email: "organizer@baselineatl.com",
         phone: "(404) 555-0101",
         ntrp: "4.0",

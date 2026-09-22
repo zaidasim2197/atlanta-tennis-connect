@@ -101,10 +101,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       .then(async (res) => {
         const json = await res.json();
         if (!res.ok || !json.ok || !Array.isArray(json.data)) return;
-        if (!disposed) setState((prev) => ({ ...prev, registrations: json.data
-          .filter((r: Registration & { status: string }) => r.status === "registered")
-          .map((r: Registration) => ({ ...r, playerId: prev.user?.playerId || r.playerId })) }));
-      }).catch(() => {});
+        if (!disposed) setState((prev) => ({
+          ...prev, registrations: json.data
+            .filter((r: Registration & { status: string }) => r.status === "registered")
+            .map((r: Registration) => ({ ...r, playerId: prev.user?.playerId || r.playerId }))
+        }));
+      }).catch(() => { });
     return () => { disposed = true; };
   }, [state.user?.email, state.dbConnected, state.leagues]);
 
@@ -248,7 +250,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             email: normalizedEmail,
             role,
             name: isOrganizerDemo
-              ? "Organizer Only"
+              ? "Organizer"
               : registeredAccount?.name || (existingPlayer ? `${existingPlayer.firstName} ${existingPlayer.lastName}` : normalizedEmail.split("@")[0] || normalizedEmail),
             playerId: role === "player" ? (registeredAccount?.playerId || existingPlayer?.id || "p-1") : undefined,
           };
@@ -259,16 +261,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             players: existingPlayer
               ? s.players
               : [
-                  ...s.players,
-                  {
-                    id: user.playerId || "p-1",
-                    firstName: user.name.split(" ")[0] || "Demo",
-                    lastName: user.name.split(" ")[1] || "Player",
-                    email: user.email,
-                    ntrp: "3.0",
-                    city: "Midtown",
-                  },
-                ],
+                ...s.players,
+                {
+                  id: user.playerId || "p-1",
+                  firstName: user.name.split(" ")[0] || "Demo",
+                  lastName: user.name.split(" ")[1] || "Player",
+                  email: user.email,
+                  ntrp: "3.0",
+                  city: "Midtown",
+                },
+              ],
           }));
           return user;
         }

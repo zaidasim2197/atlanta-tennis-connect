@@ -26,7 +26,7 @@ async function userDTO(account: { _id: unknown; email: string; role: string; pla
   const player = await Player.findOne({ slug: account.playerSlug });
   if (!player) throw Object.assign(new Error("Account profile unavailable"), { statusCode: 403 });
   const name = account.role === "organizer" || account.email === "organizer@baselineatl.com"
-    ? "Organizer Only"
+    ? "Organizer"
     : `${player.firstName} ${player.lastName}`;
   return { id: String(account._id), email: account.email, role: account.role, playerId: account.playerSlug, name };
 }
@@ -48,7 +48,7 @@ router.post("/signup", wrap(async (req, res) => {
       [account] = await Account.create([{ email, playerSlug: slug, passwordHash, role: "player" }], { session });
     });
   } catch (e) {
-    if ((e as {code?: number}).code === 11000) return err(res, "Unable to create this account. Sign in or contact the organiser.", 409);
+    if ((e as { code?: number }).code === 11000) return err(res, "Unable to create this account. Sign in or contact the organiser.", 409);
     throw e;
   }
   await beginSession(req, res, account!._id.toString());

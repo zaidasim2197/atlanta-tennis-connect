@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useStore } from "@/lib/store";
+import { useEffect, useState, useMemo } from "react";
+import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -9,8 +9,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatDateRange, formatMoney, type LeagueFormat, type SkillLevel, SKILL_LEVELS } from "@/lib/tennis";
-import { Lock, Unlock, Plus, Users } from "lucide-react";
+import {
+  formatDateRange,
+  formatMoney,
+  type LeagueFormat,
+  type SkillLevel,
+  SKILL_LEVELS,
+  FORMAT_LABELS,
+  type League,
+} from "@/lib/tennis";
+import {
+  Lock,
+  Unlock,
+  Plus,
+  Users,
+  Search,
+  Mail,
+  Phone,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Copy,
+  Check,
+  ExternalLink,
+  ShieldCheck,
+  UserCheck,
+  Calendar,
+  MapPin,
+  Trophy,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DemoBanner } from "@/components/demo-banner";
 import { toast } from "sonner";
 
@@ -41,6 +76,14 @@ function OrganizerHub() {
   const [directScoreText, setDirectScoreText] = useState("6-4, 6-3");
   const [directWinnerId, setDirectWinnerId] = useState("");
 
+  // League Roster / Participant modal state
+  const [selectedLeague, setSelectedLeague] = useState<League | null>(null);
+  const [allRegistrations, setAllRegistrations] = useState<any[]>([]);
+  const [loadingRegistrations, setLoadingRegistrations] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "held">("all");
+  const [copiedEmails, setCopiedEmails] = useState(false);
+
   // Create League form state
   const [name, setName] = useState("");
   const [seasonId, setSeasonId] = useState(seasons[0]?.id || "");
@@ -60,8 +103,44 @@ function OrganizerHub() {
     } else if (user.role !== "organizer") {
       toast.error("Access denied. You do not have organizer privileges.");
       navigate({ to: "/dashboard" });
+    } else {
+      // Fetch live registrations for all leagues as organizer
+      setLoadingRegistrations(true);
+      fetch(getApiUrl("/api/registrations"), { credentials: "include" })
+        .then(async (res) => {
+          const json = await res.json();
+          if (res.ok && json.ok && Array.isArray(json.data)) {
+            setAllRegistrations(json.data);
+          }
+        })
+        .catch((e) => console.warn("Failed to fetch organizer registrations:", e))
+        .finally(() => setLoadingRegistrations(false));
     }
   }, [hydrated, user, navigate]);
+
+  // Combine live registrations with fallback
+  const effectiveRegistrations = useMemo(() => {
+    if (allRegistrations.length > 0) return allRegistrations;
+    return registrations.map((r) => {
+      const p = players.find((player) => player.id === r.playerId);
+      const isPaid = r.paymentStatus === "paid";
+      return {
+        id: r.id,
+        leagueId: r.leagueId,
+        playerId: r.playerId,
+        name: p ? `${p.firstName} ${p.lastName}` : "Registered Player",
+        email: p?.email || "player@example.com",
+        phone: p?.phone || "(404) 555-0100",
+        ntrp: p?.ntrp || r.skillLevelSnapshot || "3.5",
+        city: p?.city || "Atlanta",
+        status: isPaid ? "registered" : "held",
+        paymentStatus: isPaid ? "paid" : "held",
+        amountCents: r.amountCents || 3500,
+        createdAt: r.createdAt || new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      };
+    });
+  }, [allRegistrations, registrations, players]);
 
   if (!user || user.role !== "organizer") return null;
 
@@ -137,7 +216,16 @@ function OrganizerHub() {
             </div>
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
               <div className="text-sm font-medium text-muted-foreground">Total Registrations</div>
-              <div className="mt-2 text-3xl font-bold">{registrations.length}</div>
+              <div className="mt-2 text-3xl font-bold text-primary">
+                {effectiveRegistrations.filter((r) => r.paymentStatus === "paid" || r.paymentStatus === "held").length}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {effectiveRegistrations.filter((r) => r.paymentStatus === "held").length > 0 && (
+                  <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                    ({effectiveRegistrations.filter((r) => r.paymentStatus === "held").length} currently on 15m hold)
+                  </span>
+                )}
+              </div>
             </div>
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
               <div className="text-sm font-medium text-muted-foreground">Total Seasons</div>
@@ -145,7 +233,15 @@ function OrganizerHub() {
             </div>
           </div>
 
-          <h2 className="text-xl font-bold mt-8 mb-4">All Leagues</h2>
+          <div className="flex items-center justify-between mt-8 mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-foreground">All Leagues</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Click on any league to view registered participants, contact details, and real-time payment hold statuses.
+              </p>
+            </div>
+          </div>
+
           <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-muted-foreground">
@@ -153,20 +249,41 @@ function OrganizerHub() {
                   <tr>
                     <th className="px-6 py-4">League</th>
                     <th className="px-6 py-4">Season</th>
-                    <th className="px-6 py-4">Registrations</th>
-                    <th className="px-6 py-4">Status</th>
-                    <th className="px-6 py-4">Actions</th>
+                    <th className="px-6 py-4">Participants</th>
+                    <th className="px-6 py-4">Registration</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {leagues.map((league) => {
                     const season = seasons.find((s) => s.id === league.seasonId);
-                    const regCount = registrations.filter((r) => r.leagueId === league.id).length;
+                    const leagueRegs = effectiveRegistrations.filter((r) => r.leagueId === league.id);
+                    const paidCount = leagueRegs.filter((r) => r.paymentStatus === "paid").length;
+                    const heldCount = leagueRegs.filter((r) => r.paymentStatus === "held").length;
+
                     return (
-                      <tr key={league.id} className="hover:bg-muted/50 transition-colors">
-                        <td className="px-6 py-4 font-medium text-foreground">{league.name}</td>
+                      <tr
+                        key={league.id}
+                        onClick={() => setSelectedLeague(league)}
+                        className="hover:bg-muted/60 transition-colors cursor-pointer group"
+                      >
                         <td className="px-6 py-4">
-                          <div>{season?.name}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                              {league.name}
+                            </span>
+                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                              {FORMAT_LABELS[league.format] || league.format}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                            <span>NTRP {league.skillLevel}</span>
+                            <span>•</span>
+                            <span>{league.venue}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-foreground">{season?.name}</div>
                           {league.startDate && league.endDate && (
                             <div className="text-xs text-muted-foreground mt-0.5">
                               {formatDateRange(league.startDate, league.endDate)}
@@ -174,31 +291,60 @@ function OrganizerHub() {
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-1">
-                            <Users className="size-4" />
-                            <span>{regCount} / {league.playerLimit}</span>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                              <Users className="size-4 text-primary" />
+                              <span>
+                                {paidCount} / {league.playerLimit} confirmed
+                              </span>
+                            </div>
+                            {heldCount > 0 && (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[11px] font-bold px-2.5 py-0.5 w-fit">
+                                <span className="size-1.5 rounded-full bg-amber-500 animate-ping" />
+                                {heldCount} on 15m hold
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           {league.registrationOpen ? (
-                            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                            <span className="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
                               Open
                             </span>
                           ) : (
-                            <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-800">
+                            <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-xs font-semibold text-slate-800 dark:text-slate-300">
                               Closed
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-4">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toggleRegistration(league.id)}
-                            className="rounded-full h-8"
-                          >
-                            {league.registrationOpen ? <><Lock className="mr-2 size-3" /> Close</> : <><Unlock className="mr-2 size-3" /> Open</>}
-                          </Button>
+                        <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setSelectedLeague(league)}
+                              className="rounded-full h-8 text-xs font-semibold"
+                            >
+                              <Users className="size-3.5 mr-1.5 text-primary" />
+                              Roster
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => toggleRegistration(league.id)}
+                              className="rounded-full h-8 text-xs"
+                            >
+                              {league.registrationOpen ? (
+                                <>
+                                  <Lock className="mr-1.5 size-3" /> Close
+                                </>
+                              ) : (
+                                <>
+                                  <Unlock className="mr-1.5 size-3" /> Open
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -553,6 +699,346 @@ function OrganizerHub() {
           </form>
         </div>
       )}
+
+      {/* ─── League Participants Dialog Modal ─────────────────────────────── */}
+      <Dialog open={Boolean(selectedLeague)} onOpenChange={(open) => { if (!open) { setSelectedLeague(null); setSearchQuery(""); setStatusFilter("all"); } }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-2xl border-border">
+          {selectedLeague && (() => {
+            const season = seasons.find((s) => s.id === selectedLeague.seasonId);
+            const leagueParticipants = effectiveRegistrations.filter((r) => r.leagueId === selectedLeague.id);
+            const paidParticipants = leagueParticipants.filter((r) => r.paymentStatus === "paid");
+            const heldParticipants = leagueParticipants.filter((r) => r.paymentStatus === "held");
+            const spotsRemaining = Math.max(0, selectedLeague.playerLimit - paidParticipants.length - heldParticipants.length);
+
+            const filteredParticipants = leagueParticipants.filter((p) => {
+              if (statusFilter === "paid" && p.paymentStatus !== "paid") return false;
+              if (statusFilter === "held" && p.paymentStatus !== "held") return false;
+              if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase();
+                const matchName = p.name?.toLowerCase().includes(q);
+                const matchEmail = p.email?.toLowerCase().includes(q);
+                const matchPhone = p.phone?.toLowerCase().includes(q);
+                return matchName || matchEmail || matchPhone;
+              }
+              return true;
+            });
+
+            const copyAllEmails = () => {
+              const emails = filteredParticipants.map((p) => p.email).filter(Boolean).join(", ");
+              if (!emails) {
+                toast.error("No participant emails to copy");
+                return;
+              }
+              navigator.clipboard.writeText(emails);
+              setCopiedEmails(true);
+              toast.success(`Copied ${filteredParticipants.length} participant emails to clipboard`);
+              setTimeout(() => setCopiedEmails(false), 2000);
+            };
+
+            const formatHoldTime = (expiresAt?: string) => {
+              if (!expiresAt) return "Checkout in progress";
+              const diffMs = new Date(expiresAt).getTime() - Date.now();
+              if (diffMs <= 0) return "Hold expired";
+              const mins = Math.ceil(diffMs / (60 * 1000));
+              return `~${mins} min left on hold`;
+            };
+
+            return (
+              <div>
+                {/* Modal Header */}
+                <div className="border-b border-border/80 bg-muted/40 p-6 sm:p-7">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+                          {FORMAT_LABELS[selectedLeague.format] || selectedLeague.format}
+                        </span>
+                        <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-foreground">
+                          NTRP {selectedLeague.skillLevel}
+                        </span>
+                        <span className="rounded-full bg-muted border border-border px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                          {formatMoney(selectedLeague.feeCents)} per player
+                        </span>
+                      </div>
+                      <DialogTitle className="text-2xl font-bold text-foreground">
+                        {selectedLeague.name}
+                      </DialogTitle>
+                      <DialogDescription className="mt-1 text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+                        <span className="flex items-center gap-1 font-medium text-foreground">
+                          <Calendar className="size-3.5 text-primary" />
+                          {season?.name || "Season"} ({formatDateRange(selectedLeague.startDate, selectedLeague.endDate)})
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <MapPin className="size-3.5 text-primary" />
+                          {selectedLeague.venue}
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="size-3.5 text-primary" />
+                          {selectedLeague.scheduleDay}s at {selectedLeague.scheduleTime}
+                        </span>
+                      </DialogDescription>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={copyAllEmails}
+                        className="rounded-full text-xs font-semibold h-9"
+                      >
+                        {copiedEmails ? (
+                          <>
+                            <Check className="size-3.5 mr-1.5 text-emerald-600" /> Copied Emails
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="size-3.5 mr-1.5 text-muted-foreground" /> Copy Emails
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* KPI Badges */}
+                  <div className="grid grid-cols-3 gap-3 mt-6">
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-left">
+                      <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
+                        Confirmed (Paid)
+                      </div>
+                      <div className="text-2xl font-bold text-emerald-800 dark:text-emerald-300 mt-0.5">
+                        {paidParticipants.length}
+                        <span className="text-xs font-normal text-muted-foreground ml-1.5">
+                          / {selectedLeague.playerLimit}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-left">
+                      <div className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide flex items-center gap-1">
+                        <Clock className="size-3" />
+                        15-Min Holds
+                      </div>
+                      <div className="text-2xl font-bold text-amber-800 dark:text-amber-300 mt-0.5">
+                        {heldParticipants.length}
+                        <span className="text-[11px] font-normal text-amber-600 dark:text-amber-400 ml-1.5">
+                          checkout in progress
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-border bg-background p-3 text-left">
+                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                        Available Spots
+                      </div>
+                      <div className="text-2xl font-bold text-foreground mt-0.5">
+                        {spotsRemaining}
+                        <span className="text-xs font-normal text-muted-foreground ml-1.5">open slots</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filter and Search Bar */}
+                <div className="p-5 border-b border-border bg-card/60 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="relative w-full sm:w-72">
+                    <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Search name, email, phone..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full rounded-full border border-border bg-background pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter("all")}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                        statusFilter === "all"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "bg-muted text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      All ({leagueParticipants.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter("paid")}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                        statusFilter === "paid"
+                          ? "bg-emerald-600 text-white shadow-sm"
+                          : "bg-muted text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      Paid ({paidParticipants.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter("held")}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                        statusFilter === "held"
+                          ? "bg-amber-600 text-white shadow-sm"
+                          : "bg-muted text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      On Hold ({heldParticipants.length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Participants Roster List / Table */}
+                <div className="p-6">
+                  {filteredParticipants.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-border bg-card/40 p-12 text-center">
+                      <Users className="size-10 mx-auto text-muted-foreground/50 mb-3" />
+                      <h4 className="font-bold text-sm text-foreground">No participants found</h4>
+                      <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                        {searchQuery || statusFilter !== "all"
+                          ? "No players match your active search or filter criteria."
+                          : "No participants have registered for this league yet. Players will appear here once they reserve or complete checkout."}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs text-muted-foreground">
+                          <thead className="bg-secondary/60 text-[11px] uppercase tracking-wider text-foreground font-semibold">
+                            <tr>
+                              <th className="px-5 py-3.5">Participant</th>
+                              <th className="px-5 py-3.5">Contact Information</th>
+                              <th className="px-5 py-3.5">Rating</th>
+                              <th className="px-5 py-3.5">Payment Status</th>
+                              <th className="px-5 py-3.5 text-right">Registered</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {filteredParticipants.map((p, idx) => {
+                              const isPaid = p.paymentStatus === "paid";
+                              const isHeld = p.paymentStatus === "held";
+                              const initials = (p.name || "Player")
+                                .split(" ")
+                                .map((n: string) => n[0])
+                                .join("")
+                                .slice(0, 2)
+                                .toUpperCase();
+
+                              return (
+                                <tr key={p.id || idx} className="hover:bg-muted/40 transition-colors">
+                                  {/* Name */}
+                                  <td className="px-5 py-4">
+                                    <div className="flex items-center gap-3">
+                                      <Avatar className="size-9 border border-primary/20 shrink-0">
+                                        <AvatarFallback className="bg-primary font-bold text-primary-foreground text-xs">
+                                          {initials}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div>
+                                        <div className="font-bold text-sm text-foreground">{p.name}</div>
+                                        <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                                          {p.city && <span>{p.city}</span>}
+                                          {p.preferredCourt && (
+                                            <>
+                                              <span>•</span>
+                                              <span>{p.preferredCourt}</span>
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* Contact */}
+                                  <td className="px-5 py-4">
+                                    <div className="flex flex-col gap-1">
+                                      <a
+                                        href={`mailto:${p.email}`}
+                                        className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-primary transition-colors truncate max-w-[200px]"
+                                        title={p.email}
+                                      >
+                                        <Mail className="size-3.5 text-muted-foreground shrink-0" />
+                                        <span className="truncate">{p.email}</span>
+                                      </a>
+                                      {p.phone && p.phone !== "Not provided" && (
+                                        <a
+                                          href={`tel:${p.phone}`}
+                                          className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-[11px]"
+                                        >
+                                          <Phone className="size-3 shrink-0" />
+                                          <span>{p.phone}</span>
+                                        </a>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  {/* NTRP */}
+                                  <td className="px-5 py-4">
+                                    <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 font-mono text-xs font-bold text-foreground">
+                                      NTRP {p.ntrp || "3.5"}
+                                    </span>
+                                  </td>
+
+                                  {/* Payment / Hold Status */}
+                                  <td className="px-5 py-4">
+                                    {isPaid ? (
+                                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 px-3 py-1 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                                        <CheckCircle2 className="size-3.5" />
+                                        Paid &amp; Confirmed
+                                      </span>
+                                    ) : isHeld ? (
+                                      <div className="flex flex-col gap-0.5">
+                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 dark:bg-amber-950/70 px-3 py-1 text-xs font-bold text-amber-800 dark:text-amber-300 w-fit">
+                                          <span className="size-2 rounded-full bg-amber-500 animate-ping" />
+                                          On Hold (15 min)
+                                        </span>
+                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold pl-1">
+                                          {formatHoldTime(p.expiresAt)}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-400">
+                                        Hold Expired
+                                      </span>
+                                    )}
+                                  </td>
+
+                                  {/* Registered date */}
+                                  <td className="px-5 py-4 text-right">
+                                    <div className="text-foreground font-medium">
+                                      {p.createdAt
+                                        ? new Date(p.createdAt).toLocaleDateString("en-US", {
+                                            month: "short",
+                                            day: "numeric",
+                                            year: "numeric",
+                                          })
+                                        : "—"}
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                                      {p.createdAt
+                                        ? new Date(p.createdAt).toLocaleTimeString("en-US", {
+                                            hour: "numeric",
+                                            minute: "2-digit",
+                                          })
+                                        : ""}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
