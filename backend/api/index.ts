@@ -4,12 +4,23 @@
  */
 import "dotenv/config";
 import { connectDB } from "../src/lib/db";
-import { app } from "../src/server";
 
-export const config = { api: { bodyParser: false } };
+export const config = { api: { bodyParser: false }, maxDuration: 30 };
 
 // Ensure DB is connected before handling any request
 let dbReady: Promise<void> | null = null;
+let appReady: Promise<typeof import("../src/server")["app"]> | null = null;
+
+function getApp() {
+  if (!appReady) {
+    appReady = import("../src/server").then(m => m.app).catch(err => {
+      console.error("FATAL: Failed to load Express app:", err);
+      appReady = null;
+      throw err;
+    });
+  }
+  return appReady;
+}
 
 function ensureDB() {
   if (!dbReady) {
@@ -19,7 +30,7 @@ function ensureDB() {
       })
       .catch((err) => {
         console.error("MongoDB connection failed:", err);
-        dbReady = null; // Allow retry on next invocation
+        dbReady = null;
         throw err;
       });
   }
@@ -28,6 +39,12 @@ function ensureDB() {
 
 // Vercel expects a default export for the serverless function
 export default async function handler(req: any, res: any) {
-  await ensureDB();
-  return app(req, res);
+  try {
+    await ensureDB();
+    const app = await getApp();
+    return app(req, res);
+  } catch (err) {
+    console.error("Handler error:", err);
+    res.status(503).json({ ok: false, error: "Service temporarily unavailable" });
+  }
 }
