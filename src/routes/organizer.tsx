@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatDateRange, formatMoney, type LeagueFormat, type SkillLevel } from "@/lib/tennis";
+import { formatDateRange, formatMoney, type LeagueFormat, type SkillLevel, SKILL_LEVELS } from "@/lib/tennis";
 import { Lock, Unlock, Plus, Users } from "lucide-react";
 import { DemoBanner } from "@/components/demo-banner";
 import { toast } from "sonner";
@@ -19,10 +19,26 @@ export const Route = createFileRoute("/organizer")({
 });
 
 function OrganizerHub() {
-  const { user, leagues, seasons, registrations, toggleRegistration, createLeague } = useStore();
+  const {
+    user,
+    leagues,
+    seasons,
+    registrations,
+    toggleRegistration,
+    createLeague,
+    matches,
+    results,
+    confirmMatchResult,
+    disputeMatchResult,
+    submitMatchScore,
+    players,
+  } = useStore();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<"leagues" | "create">("leagues");
+  const [activeTab, setActiveTab] = useState<"leagues" | "scores" | "create">("leagues");
+  const [directScoreMatchId, setDirectScoreMatchId] = useState<string | null>(null);
+  const [directScoreText, setDirectScoreText] = useState("6-4, 6-3");
+  const [directWinnerId, setDirectWinnerId] = useState("");
 
   // Create League form state
   const [name, setName] = useState("");
@@ -90,6 +106,17 @@ function OrganizerHub() {
           onClick={() => setActiveTab("leagues")}
         >
           Manage Leagues
+        </button>
+        <button
+          className={`pb-2 font-medium flex items-center gap-1.5 ${activeTab === "scores" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
+          onClick={() => setActiveTab("scores")}
+        >
+          Score Verification
+          {results.filter((r) => r.status === "awaiting-confirmation").length > 0 && (
+            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
+              {results.filter((r) => r.status === "awaiting-confirmation").length}
+            </span>
+          )}
         </button>
         <button
           className={`pb-2 font-medium ${activeTab === "create" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
@@ -181,6 +208,258 @@ function OrganizerHub() {
         </div>
       )}
 
+      {activeTab === "scores" && (
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <div className="text-sm font-medium text-muted-foreground">Pending Player Scores</div>
+              <div className="mt-2 text-3xl font-bold text-amber-600">
+                {results.filter((r) => r.status === "awaiting-confirmation").length}
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <div className="text-sm font-medium text-muted-foreground">Official Confirmed Results</div>
+              <div className="mt-2 text-3xl font-bold text-emerald-600">
+                {results.filter((r) => r.status === "accepted").length}
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <div className="text-sm font-medium text-muted-foreground">Total Active Fixtures</div>
+              <div className="mt-2 text-3xl font-bold">{matches.length}</div>
+            </div>
+          </div>
+
+          {/* Section 1: Pending Approvals */}
+          <div className="mt-8">
+            <h2 className="text-xl font-bold mb-2">Scores Awaiting Verification</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Player-reported match scores. Scores will not display in official player stats until you verify and confirm them here.
+            </p>
+
+            {results.filter((r) => r.status === "awaiting-confirmation").length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-card/60 p-8 text-center text-sm text-muted-foreground">
+                ✓ No pending match scores to review. All submitted results have been verified.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {results
+                  .filter((r) => r.status === "awaiting-confirmation")
+                  .map((res) => {
+                    const match = matches.find((m) => m.id === res.matchId);
+                    const submitter = players.find((p) => p.id === res.submittedBy);
+                    const winner = players.find((p) => p.id === res.winnerId);
+
+                    return (
+                      <div
+                        key={res.resultId}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-5 shadow-sm"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-xs font-bold text-amber-800">
+                              Needs Verification
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              Reported by: <strong>{submitter ? `${submitter.firstName} ${submitter.lastName}` : res.submittedBy}</strong>
+                            </span>
+                          </div>
+                          <p className="font-bold text-base text-foreground">
+                            {match?.court || "Piedmont Park"} · {match?.matchDate || "Scheduled Date"}
+                          </p>
+                          <div className="text-xs text-muted-foreground">
+                            Reported Score: <strong className="font-mono text-sm text-foreground">{res.scoreData}</strong> · Winner: <strong>{winner ? `${winner.firstName} ${winner.lastName}` : (res.winnerId === res.submittedBy ? "Reporter" : "Opponent")}</strong>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            size="sm"
+                            className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs"
+                            onClick={() => {
+                              confirmMatchResult(res.resultId);
+                              toast.success("Match result verified! Official stats updated for players.");
+                            }}
+                          >
+                            ✓ Verify & Confirm
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-full text-xs text-destructive border-destructive/40 hover:bg-destructive/10"
+                            onClick={() => {
+                              const reason = window.prompt("Enter dispute reason:", "Score mismatch reported by opponent or incomplete fixture.");
+                              if (reason && reason.trim()) {
+                                disputeMatchResult(res.resultId, reason.trim());
+                                toast.info("Result marked as disputed. It will not count toward official player stats.");
+                              }
+                            }}
+                          >
+                            Dispute Score
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+
+            {/* Sub-section: Disputed Results */}
+            {results.some((r) => r.status === "disputed") && (
+              <div className="mt-6 space-y-3">
+                <h3 className="text-sm font-bold text-destructive flex items-center gap-1.5">
+                  <span>⚠️ Disputed Results Under Committee Review</span>
+                </h3>
+                {results
+                  .filter((r) => r.status === "disputed")
+                  .map((res) => {
+                    const match = matches.find((m) => m.id === res.matchId);
+                    return (
+                      <div
+                        key={res.resultId}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-xs"
+                      >
+                        <div>
+                          <span className="font-bold text-foreground">
+                            {match?.court || "Atlanta Court"} · Score: {res.scoreData}
+                          </span>
+                          <p className="text-destructive mt-1">
+                            <strong>Reason:</strong> {res.disputeReason || "Contested score"}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full text-xs self-start sm:self-auto"
+                          onClick={() => {
+                            confirmMatchResult(res.resultId);
+                            toast.success("Dispute resolved and result accepted.");
+                          }}
+                        >
+                          Resolve & Confirm
+                        </Button>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Direct Score Entry for All Scheduled Fixtures */}
+          <div className="mt-8">
+            <h2 className="text-xl font-bold mb-2">Direct Official Score Entry</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              As an organizer, you can directly record official verified match scores for any scheduled fixture.
+            </p>
+
+            <div className="space-y-3">
+              {matches.map((m) => {
+                const res = results.find((r) => r.matchId === m.id);
+                const player1 = players.find((p) => p.id === m.playerId);
+                const isSelected = directScoreMatchId === m.id;
+
+                return (
+                  <div
+                    key={m.id}
+                    className="rounded-xl border border-border bg-card p-4 shadow-sm"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-foreground">
+                            {player1 ? `${player1.firstName} ${player1.lastName}` : "Player 1"} vs {m.opponentName || "Opponent"}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            ({m.court || "Piedmont Park"})
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {m.matchDate} at {m.matchTime} · Status: <strong className="capitalize">{m.matchStatus}</strong>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {res?.status === "accepted" ? (
+                          <span className="rounded-full bg-emerald-500/10 px-3 py-1 font-mono text-xs font-bold text-emerald-700">
+                            ✓ {res.scoreData} (Verified)
+                          </span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-full text-xs"
+                            onClick={() => {
+                              setDirectScoreMatchId(isSelected ? null : m.id);
+                              setDirectWinnerId(m.playerId);
+                            }}
+                          >
+                            {isSelected ? "Cancel" : "Enter Official Score"}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {isSelected && (
+                      <div className="mt-4 border-t border-border pt-3 space-y-3 bg-muted/40 p-3 rounded-lg">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs font-semibold text-foreground block mb-1">
+                              Match Score (Sets)
+                            </label>
+                            <input
+                              type="text"
+                              value={directScoreText}
+                              onChange={(e) => setDirectScoreText(e.target.value)}
+                              placeholder="e.g. 6-4, 6-3 or 6-3, 4-6, 10-7"
+                              className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs font-mono font-bold"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-foreground block mb-1">
+                              Match Winner
+                            </label>
+                            <select
+                              value={directWinnerId}
+                              onChange={(e) => setDirectWinnerId(e.target.value)}
+                              className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs"
+                            >
+                              <option value={m.playerId}>
+                                {player1 ? `${player1.firstName} ${player1.lastName}` : "Home Player"}
+                              </option>
+                              <option value={m.opponentId || "opponent"}>
+                                {m.opponentName || "Opponent"}
+                              </option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex justify-end">
+                          <Button
+                            size="sm"
+                            className="rounded-full"
+                            onClick={() => {
+                              submitMatchScore({
+                                matchId: m.id,
+                                submittedBy: "organizer",
+                                scoreData: directScoreText,
+                                winnerId: directWinnerId || m.playerId,
+                                role: "organizer",
+                              });
+                              toast.success("Official score recorded and verified!");
+                              setDirectScoreMatchId(null);
+                            }}
+                          >
+                            Save & Confirm Official Score
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {activeTab === "create" && (
         <div className="rounded-xl border border-border bg-card p-6 sm:p-8 shadow-sm">
           <h2 className="text-xl font-bold mb-6">Create New League</h2>
@@ -226,11 +505,11 @@ function OrganizerHub() {
                     <SelectValue placeholder="Select level" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2.5">2.5</SelectItem>
-                    <SelectItem value="3.0">3.0</SelectItem>
-                    <SelectItem value="3.5">3.5</SelectItem>
-                    <SelectItem value="4.0">4.0</SelectItem>
-                    <SelectItem value="4.5+">4.5+</SelectItem>
+                    {SKILL_LEVELS.map((lvl) => (
+                      <SelectItem key={lvl} value={lvl}>
+                        {lvl}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

@@ -40,7 +40,7 @@ export const options = {
   },
 };
 
-const SKILL_FILTERS = ["3.0", "3.5", "4.0", "4.5+"];
+const SKILL_FILTERS = ["3.0", "3.5", "4.0", "4.5", "5.0"];
 
 export default function () {
   const vuIdx = __VU;

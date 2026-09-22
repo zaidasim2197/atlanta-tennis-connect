@@ -1,12 +1,17 @@
 import * as React from "react";
 import {
   FALLBACK_MOCK_LEAGUES,
+  FALLBACK_MOCK_MATCHES,
   FALLBACK_MOCK_PLAYERS,
   FALLBACK_MOCK_REGISTRATIONS,
+  FALLBACK_MOCK_RESULTS,
   FALLBACK_MOCK_SEASONS,
   type AuthUser,
   type League,
+  type Match,
+  type MatchResult,
   type Player,
+  type PlayerStats,
   type Registration,
   type Season,
 } from "./tennis";
@@ -16,6 +21,8 @@ interface DataState {
   leagues: League[];
   players: Player[];
   registrations: Registration[];
+  matches: Match[];
+  results: MatchResult[];
   user: AuthUser | null;
   dbConnected: boolean;
   fallbackActive: boolean;
@@ -31,24 +38,41 @@ interface StoreValue extends DataState {
   toggleRegistration: (leagueId: string) => void;
   registerPlayer: (input: {
     leagueId: string;
-    player: Omit<Player, "id">;
-    partnerId?: string;
+    player: Player | Omit<Player, "id">;
+    partnerId?: string | undefined;
+    preferredCourt?: string | undefined;
   }) => { registration: Registration; player: Player };
   updatePlayer: (playerId: string, patch: Partial<Omit<Player, "id">>) => void;
   upsertPlayer: (player: Player) => void;
   leagueById: (id: string) => League | undefined;
   seasonById: (id: string) => Season | undefined;
   registrationsForLeague: (leagueId: string) => Registration[];
+  registrationsForPlayer: (playerId: string) => Registration[];
   spotsLeft: (leagueId: string) => number;
+  matchesForPlayer: (playerId: string) => Match[];
+  statsForPlayer: (playerId: string) => PlayerStats;
+  resultsForPlayer: (playerId: string) => MatchResult[];
+  submitMatchScore: (input: {
+    matchId: string;
+    submittedBy: string;
+    scoreData: string;
+    winnerId: string;
+    role?: "player" | "organizer";
+  }) => void;
+  confirmMatchResult: (resultId: string) => void;
+  disputeMatchResult: (resultId: string, reason: string) => void;
+  searchPartners: (query: string, excludePlayerId?: string) => Player[];
 }
 
-const STORAGE_KEY = "atl-tennis-league-state-v4";
+const STORAGE_KEY = "atl-tennis-league-state-v6";
 
 const initial: DataState = {
   seasons: FALLBACK_MOCK_SEASONS,
   leagues: FALLBACK_MOCK_LEAGUES,
   players: FALLBACK_MOCK_PLAYERS,
   registrations: FALLBACK_MOCK_REGISTRATIONS,
+  matches: FALLBACK_MOCK_MATCHES,
+  results: FALLBACK_MOCK_RESULTS,
   user: null,
   dbConnected: false,
   fallbackActive: false,
@@ -102,6 +126,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         name: l.name,
         format: l.format,
         skillLevel: l.skillLevel,
+        offeredSkillLevels: l.offeredSkillLevels || (l.slug === "l-1" || l.id === "l-1" ? ["2.5", "3.0", "3.5", "4.0"] : l.skillLevel ? [l.skillLevel] : ["3.0", "3.5"]),
+        geographicGroup: l.geographicGroup || (l.venue?.toLowerCase().includes("piedmont") ? "Midtown" : "Midtown"),
         feeCents: l.feeCents,
         scheduleDay: l.scheduleDay,
         scheduleTime: l.scheduleTime,
@@ -230,18 +256,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             l.id === leagueId ? { ...l, registrationOpen: !l.registrationOpen } : l,
           ),
         })),
-      registerPlayer: ({ leagueId, player, partnerId }) => {
+      registerPlayer: ({ leagueId, player, partnerId, preferredCourt }) => {
         const league = state.leagues.find((l) => l.id === leagueId)!;
-        const existing = state.players.find((p) => p.email === player.email);
-        const saved: Player = existing ? { ...existing, ...player } : { ...player, id: uid("p") };
-        const registration: Registration & { partnerId?: string } = {
+        const existing = state.players.find((p) => p.email.toLowerCase() === player.email.toLowerCase());
+        const court = preferredCourt || player.preferredCourt || existing?.preferredCourt || "Piedmont Park Courts";
+        const saved: Player = existing
+          ? { ...existing, ...player, preferredCourt: court }
+          : { ...player, id: uid("p"), preferredCourt: court };
+        const registration: Registration = {
           id: uid("r"),
           leagueId,
           playerId: saved.id,
           createdAt: new Date().toISOString().slice(0, 10),
+          registrationStatus: "confirmed",
           paymentStatus: "paid",
           amountCents: league ? league.feeCents : 3500,
-          ...(partnerId ? { partnerId } : {}),
+          skillLevelSnapshot: saved.ntrp,
+          doublesPartnerId: partnerId || undefined,
+          partnerStatus: partnerId ? "requested" : undefined,
+          preferredCourt: court,
         };
         setState((s) => ({
           ...s,
@@ -273,6 +306,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       leagueById: (id) => state.leagues.find((l) => l.id === id),
       seasonById: (id) => state.seasons.find((s) => s.id === id),
       registrationsForLeague: (leagueId) => state.registrations.filter((r) => r.leagueId === leagueId),
+      registrationsForPlayer: (playerId) => state.registrations.filter((r) => r.playerId === playerId),
       spotsLeft: (leagueId) => {
         const league = state.leagues.find((l) => l.id === leagueId);
         if (!league) return 0;
@@ -281,6 +315,105 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           return (league as any).spotsRemaining;
         }
         return Math.max(0, league.playerLimit - state.registrations.filter((r) => r.leagueId === leagueId).length);
+      },
+      matchesForPlayer: (playerId) => {
+        // Return only real, explicitly created/assigned fixtures. No fake auto-generation!
+        return state.matches.filter((m) => m.playerId === playerId || m.opponentId === playerId);
+      },
+      statsForPlayer: (playerId) => {
+        // Only accepted match results contribute to official stats
+        const acceptedForPlayer = state.results.filter(
+          (r) => r.status === "accepted" && (r.submittedBy === playerId || r.winnerId === playerId),
+        );
+        const matchesPlayed = acceptedForPlayer.length;
+        const wins = acceptedForPlayer.filter((r) => r.winnerId === playerId).length;
+        const losses = matchesPlayed - wins;
+        const winRate = matchesPlayed > 0 ? Math.round((wins / matchesPlayed) * 100) : 0;
+        return { matchesPlayed, wins, losses, winRate };
+      },
+      resultsForPlayer: (playerId) => {
+        return state.results.filter((r) => {
+          const match = state.matches.find((m) => m.id === r.matchId);
+          return (
+            r.submittedBy === playerId ||
+            r.winnerId === playerId ||
+            match?.playerId === playerId ||
+            match?.opponentId === playerId
+          );
+        });
+      },
+      submitMatchScore: ({ matchId, submittedBy, scoreData, winnerId, role = "player" }) => {
+        const isOrganizer = role === "organizer";
+        const now = new Date().toISOString();
+        const newResult: MatchResult = {
+          resultId: uid("res"),
+          matchId,
+          submittedBy,
+          scoreData,
+          winnerId,
+          status: isOrganizer ? "accepted" : "awaiting-confirmation",
+          submittedAt: now,
+          ...(isOrganizer ? { confirmedAt: now, confirmedBy: "organizer" } : {}),
+        };
+        setState((s) => ({
+          ...s,
+          results: [newResult, ...s.results.filter((r) => r.matchId !== matchId)],
+          matches: s.matches.map((m) =>
+            m.id === matchId ? { ...m, matchStatus: isOrganizer ? "completed" : "scheduled" } : m,
+          ),
+        }));
+      },
+      confirmMatchResult: (resultId) => {
+        setState((s) => {
+          const target = s.results.find((r) => r.resultId === resultId);
+          if (!target) return s;
+          const updatedResult: MatchResult = {
+            ...target,
+            status: "accepted",
+            confirmedAt: new Date().toISOString(),
+            confirmedBy: "organizer",
+          };
+          return {
+            ...s,
+            results: s.results.map((r) => (r.resultId === resultId ? updatedResult : r)),
+            matches: s.matches.map((m) =>
+              m.id === target.matchId ? { ...m, matchStatus: "completed" } : m,
+            ),
+          };
+        });
+      },
+      disputeMatchResult: (resultId, reason) => {
+        setState((s) => {
+          const target = s.results.find((r) => r.resultId === resultId);
+          if (!target) return s;
+          const updatedResult: MatchResult = {
+            ...target,
+            status: "disputed",
+            disputeReason: reason || "Dispute raised by league organizer or player review.",
+            confirmedAt: new Date().toISOString(),
+            confirmedBy: "organizer",
+          };
+          return {
+            ...s,
+            results: s.results.map((r) => (r.resultId === resultId ? updatedResult : r)),
+            matches: s.matches.map((m) =>
+              m.id === target.matchId ? { ...m, matchStatus: "scheduled" } : m,
+            ),
+          };
+        });
+      },
+      searchPartners: (query, excludePlayerId) => {
+        const q = query.trim().toLowerCase();
+        if (!q) return state.players.filter((p) => p.id !== excludePlayerId).slice(0, 5);
+        return state.players
+          .filter((p) => p.id !== excludePlayerId)
+          .filter(
+            (p) =>
+              p.firstName.toLowerCase().includes(q) ||
+              p.lastName.toLowerCase().includes(q) ||
+              p.id.toLowerCase().includes(q) ||
+              `${p.firstName} ${p.lastName}`.toLowerCase().includes(q),
+          );
       },
     };
   }, [state, hydrated, fetchDbData]);

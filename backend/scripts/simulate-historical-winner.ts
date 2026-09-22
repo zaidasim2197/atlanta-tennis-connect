@@ -22,7 +22,7 @@ async function simulateHistoricalWinner() {
   // 1. Find a real seeded champion matching an active league
   const championHistory = await TournamentHistory.findOne({
     finish: "champion",
-    skillLevel: { $in: ["3.0", "3.5", "4.0", "4.5+"] },
+    skillLevel: { $in: ["3.0", "3.5", "4.0", "4.5", "5.0"] },
     year: { $gte: 2024 },
   });
   if (!championHistory) throw new Error("No seeded champion record found matching league levels");

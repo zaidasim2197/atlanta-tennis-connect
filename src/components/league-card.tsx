@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FORMAT_LABELS, formatDateRange, formatMoney, type League, type Season } from "@/lib/tennis";
 
+import { useStore } from "@/lib/store";
+
 export function LeagueCard({
   league,
   season,
@@ -13,6 +15,15 @@ export function LeagueCard({
   season: Season | undefined;
   spotsLeft: number;
 }) {
+  const { user, registrations } = useStore();
+  const isRegistered = user ? registrations.some((r) => r.playerId === user.playerId && r.leagueId === league.id) : false;
+  const isFull = spotsLeft <= 0;
+  const isClosed = !league.registrationOpen;
+
+  const cleanTitle = league.name.replace(/^(Midtown|Buckhead|Decatur|Westside|Sandy Springs|Alpharetta|East Atlanta|Peachtree)\s+/i, "");
+  const cleanSeason = season?.name?.replace(/\s*(Metro|Indoor|Premier)?\s*Season/i, "") || season?.name;
+  const cleanSkill = (league.skillLevel as string).replace("+", "");
+
   return (
     <article className="hover-lift group flex h-full flex-col rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
       <div className="flex flex-wrap items-center gap-2">
@@ -20,17 +31,25 @@ export function LeagueCard({
           {FORMAT_LABELS[league.format]}
         </span>
         <span className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-accent-foreground">
-          NTRP {league.skillLevel}
+          NTRP {cleanSkill}
         </span>
-        {!league.registrationOpen && (
+        {isRegistered ? (
+          <span className="rounded-full bg-primary/10 border border-primary/30 px-3 py-1 text-xs font-bold text-primary">
+            ✓ Enrolled
+          </span>
+        ) : isClosed ? (
           <span className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-muted-foreground">
             Registration closed
           </span>
-        )}
+        ) : isFull ? (
+          <span className="rounded-full border border-destructive/40 bg-destructive/10 px-3 py-1 text-xs font-semibold text-destructive">
+            Full
+          </span>
+        ) : null}
       </div>
 
-      <h3 className="mt-4 text-xl font-bold text-foreground">{league.name}</h3>
-      <p className="mt-1 text-sm text-muted-foreground">{season?.name}</p>
+      <h3 className="mt-4 text-xl font-bold text-foreground">{cleanTitle}</h3>
+      <p className="mt-1 text-sm text-muted-foreground">{cleanSeason}</p>
 
       <dl className="mt-5 space-y-2.5 text-sm text-muted-foreground">
         <div className="flex items-center gap-2.5">
@@ -45,10 +64,6 @@ export function LeagueCard({
           </dd>
         </div>
         <div className="flex items-center gap-2.5">
-          <MapPin className="size-4 shrink-0 text-primary" />
-          <dd>{league.venue}</dd>
-        </div>
-        <div className="flex items-center gap-2.5">
           <Users className="size-4 shrink-0 text-primary" />
           <dd>
             {spotsLeft} of {league.playerLimit} spots left
@@ -61,9 +76,9 @@ export function LeagueCard({
           <p className="text-2xl font-bold text-primary">{formatMoney(league.feeCents)}</p>
           <p className="text-xs text-muted-foreground">per player, per season</p>
         </div>
-        <Button asChild size="sm">
+        <Button asChild size="sm" variant={isRegistered ? "outline" : "default"}>
           <Link to="/leagues/$leagueId" params={{ leagueId: league.id }}>
-            View details <ArrowRight className="transition-transform duration-200 group-hover:translate-x-0.5" />
+            {isRegistered ? "View Details" : isClosed ? "Closed" : isFull ? "Full · View" : "Register"} <ArrowRight className="transition-transform duration-200 group-hover:translate-x-0.5" />
           </Link>
         </Button>
       </div>

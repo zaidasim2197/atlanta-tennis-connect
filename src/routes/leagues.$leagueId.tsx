@@ -38,7 +38,7 @@ const MATCH_DAY = [
 
 function LeagueDetail() {
   const { leagueId } = useParams({ from: "/leagues/$leagueId" });
-  const { leagueById, seasonById, spotsLeft, registrationsForLeague, user } = useStore();
+  const { leagueById, seasonById, spotsLeft, registrationsForLeague, registrationsForPlayer, user } = useStore();
   const league = leagueById(leagueId);
 
   if (!league) {
@@ -56,7 +56,8 @@ function LeagueDetail() {
   const season = seasonById(league.seasonId);
   const left = spotsLeft(league.id);
   const registered = registrationsForLeague(league.id).length;
-  const canRegister = league.registrationOpen && left > 0;
+  const isRegistered = user?.playerId ? registrationsForPlayer(user.playerId).some((r) => r.leagueId === league.id) : false;
+  const canRegister = league.registrationOpen && left > 0 && !isRegistered;
 
   return (
     <div>
@@ -183,7 +184,16 @@ function LeagueDetail() {
               </div>
             </div>
 
-            {canRegister ? (
+            {isRegistered ? (
+              <div className="mt-5 space-y-3">
+                <div className="rounded-xl border border-primary/30 bg-primary/10 p-3 text-center text-sm font-semibold text-primary">
+                  ✓ You are registered for this league
+                </div>
+                <Button asChild size="lg" className="w-full">
+                  <Link to="/dashboard">View in Player Dashboard →</Link>
+                </Button>
+              </div>
+            ) : canRegister ? (
               <Button asChild size="lg" className="mt-5 w-full">
                 <Link to="/register/$leagueId" params={{ leagueId: league.id }}>
                   {user ? "Continue to payment →" : "Sign up and pay"}

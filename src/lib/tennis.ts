@@ -10,11 +10,22 @@ export type LeagueFormat =
   | "senior-doubles"
   | "mixed-doubles";
 
-export type SkillLevel = "2.5" | "3.0" | "3.5" | "4.0" | "4.5+";
+export type SkillLevel = "2.5" | "3.0" | "3.5" | "4.0" | "4.5" | "5.0";
+
+export interface GeographicGroup {
+  groupId: string;
+  name: string;
+  groupType: "metro-core" | "perimeter-north" | "perimeter-south" | "east-metro" | "west-metro" | string;
+  parentGroupId?: string;
+  city: string;
+  status: "active" | "inactive" | "tbd";
+}
 
 export interface Season {
   id: string;
+  seasonId?: string;
   name: string;
+  seasonName?: string;
   startDate: string; // ISO
   endDate: string; // ISO
   status: SeasonStatus;
@@ -22,38 +33,152 @@ export interface Season {
 
 export interface League {
   id: string;
+  leagueId?: string;
   seasonId: string;
+  seasonName?: string;
   name: string;
+  leagueName?: string;
   format: LeagueFormat;
+  formatId?: LeagueFormat;
   skillLevel: SkillLevel;
+  offeredSkillLevels?: SkillLevel[];
+  ageCategory?: "open" | "senior" | "junior" | string;
+  geographicGroup?: string;
   feeCents: number;
-  scheduleDay: string; // e.g. "Tuesday"
-  scheduleTime: string; // e.g. "6:30 PM"
+  registrationFee?: number;
+  scheduleDay: string;
+  matchDay?: string;
+  scheduleTime: string;
+  matchTime?: string;
   venue: string;
   playerLimit: number;
+  capacity?: number;
+  spotsRemaining?: number;
   registrationOpen: boolean;
+  registrationStatus?: "open" | "closed" | "upcoming" | "waitlist";
+  registrationClose?: string;
   description: string;
   startDate?: string;
+  seasonStartDate?: string;
   endDate?: string;
+  seasonEndDate?: string;
 }
 
 export interface Player {
-  id: string;
+  id: string; // System-generated Player ID (e.g. "p-demo-player")
+  playerId?: string;
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
-  ntrp: SkillLevel;
+  phone?: string | undefined;
+  password?: string | undefined;
+  ntrp: SkillLevel; // Declared skill level (unverified)
+  declaredSkillLevel?: SkillLevel | undefined;
   city: string;
+  zipCode?: string | undefined;
+  preferredCourt?: string | undefined;
+  homeArea?: string | undefined;
+  preferredFormat?: LeagueFormat | undefined;
+  handedness?: "right" | "left" | undefined;
+  dateOfBirth?: string | undefined;
+  parentName?: string | undefined;
+  parentPhone?: string | undefined;
+  isJunior?: boolean | undefined;
+  eligibilityStatus?: "eligible" | "pending-verification" | "ineligible" | undefined;
+  privacyPreferences?: {
+    showPhoneToOpponent: boolean;
+    showEmailToOpponent: boolean;
+  } | undefined;
+  accountStatus?: "active" | "suspended" | "closed" | undefined;
+  profileStatus?: "incomplete" | "complete" | "needs-review" | undefined;
+  profileImage?: string | undefined;
 }
+
+export type RegistrationStatus =
+  | "draft"
+  | "payment-pending"
+  | "paid"
+  | "awaiting-review"
+  | "confirmed";
+
+export type PaymentStatus =
+  | "not-started"
+  | "pending"
+  | "succeeded"
+  | "failed"
+  | "refund-pending"
+  | "refunded";
+
+export type PartnerStatus =
+  | "none"
+  | "search-initiated"
+  | "requested"
+  | "accepted"
+  | "declined"
+  | "replacement-needed"
+  | "pending"; // backward-compatible alias for requested
 
 export interface Registration {
   id: string;
   leagueId: string;
   playerId: string;
   createdAt: string;
-  paymentStatus: "paid" | "pending";
+  registrationStatus?: RegistrationStatus | undefined;
+  paymentStatus: PaymentStatus | "paid" | "pending";
   amountCents: number;
+  skillLevelSnapshot?: SkillLevel | undefined;
+  doublesPartnerId?: string | undefined;
+  partnerStatus?: PartnerStatus | undefined;
+  preferredCourt?: string | undefined;
+  paymentReference?: string | undefined;
+}
+
+export type MatchStatus =
+  | "unassigned"
+  | "opponent-assigned"
+  | "scheduling-required"
+  | "scheduled"
+  | "completed";
+
+export interface Match {
+  id: string;
+  matchId?: string;
+  seasonId: string;
+  leagueId: string;
+  geographicGroupId?: string;
+  playerId: string;
+  opponentId?: string;
+  opponentName?: string;
+  opponentLevel?: SkillLevel;
+  homeAway?: "home" | "away";
+  matchDate?: string;
+  matchTime?: string;
+  court?: string;
+  matchStatus: MatchStatus;
+  scheduleSource?: "system" | "manual" | "mutual";
+  courtBookingStatus?: "not-booked" | "booked" | "pending";
+  courtBookingOwner?: string;
+  rescheduleStatus?: "none" | "requested" | "rescheduled";
+}
+
+export interface MatchResult {
+  resultId: string;
+  matchId: string;
+  submittedBy: string;
+  scoreData: string;
+  winnerId: string;
+  status: "not-available" | "submitted" | "awaiting-confirmation" | "accepted" | "disputed";
+  submittedAt?: string;
+  confirmedAt?: string;
+  confirmedBy?: string;
+  disputeReason?: string;
+}
+
+export interface PlayerStats {
+  matchesPlayed: number;
+  wins: number;
+  losses: number;
+  winRate: number; // percentage e.g. 75
 }
 
 export interface AuthUser {
@@ -72,7 +197,15 @@ export const FORMAT_LABELS: Record<LeagueFormat, string> = {
   "mixed-doubles": "Mixed Doubles",
 };
 
-export const SKILL_LEVELS: SkillLevel[] = ["2.5", "3.0", "3.5", "4.0", "4.5+"];
+export const FORMAT_DETAILS: Record<LeagueFormat, { teamSize: number; partnerRequired: boolean }> = {
+  "junior-singles": { teamSize: 1, partnerRequired: false },
+  "senior-singles": { teamSize: 1, partnerRequired: false },
+  "junior-doubles": { teamSize: 2, partnerRequired: true },
+  "senior-doubles": { teamSize: 2, partnerRequired: true },
+  "mixed-doubles": { teamSize: 2, partnerRequired: true },
+};
+
+export const SKILL_LEVELS: SkillLevel[] = ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"];
 
 export const formatMoney = (cents: number) =>
   (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 });
@@ -89,9 +222,9 @@ export const formatDateRange = (a: string, b: string) =>
  */
 
 export const FALLBACK_MOCK_SEASONS: Season[] = [
-  { id: "s-fall-26", name: "Fall 2026 Metro Season", startDate: "2026-10-06", endDate: "2026-12-19", status: "active" },
-  { id: "s-winter-27", name: "Winter 2027 Indoor Season", startDate: "2026-11-16", endDate: "2027-02-12", status: "upcoming" },
-  { id: "s-spring-27", name: "Spring 2027 Premier Season", startDate: "2027-01-12", endDate: "2027-03-23", status: "upcoming" },
+  { id: "s-fall-26", name: "Fall 2026", startDate: "2026-10-06", endDate: "2026-12-19", status: "active" },
+  { id: "s-winter-27", name: "Winter 2027", startDate: "2026-11-16", endDate: "2027-02-12", status: "upcoming" },
+  { id: "s-spring-27", name: "Spring 2027", startDate: "2027-01-12", endDate: "2027-03-23", status: "upcoming" },
 ];
 export const SEED_SEASONS = FALLBACK_MOCK_SEASONS;
 
@@ -99,9 +232,11 @@ export const FALLBACK_MOCK_LEAGUES: League[] = [
   {
     id: "l-1",
     seasonId: "s-fall-26",
-    name: "Midtown Tuesday Singles",
+    name: "Tuesday Singles",
     format: "senior-singles",
-    skillLevel: "3.5",
+    skillLevel: "3.0",
+    offeredSkillLevels: ["2.5", "3.0", "3.5", "4.0"],
+    geographicGroup: "Midtown",
     feeCents: 3500,
     scheduleDay: "Tuesday",
     scheduleTime: "6:30 PM",
@@ -109,20 +244,21 @@ export const FALLBACK_MOCK_LEAGUES: League[] = [
     playerLimit: 24,
     registrationOpen: true,
     description:
-      "Ten weeks of competitive 3.5 singles under the Midtown lights. Weekly match assignments, live standings and an end-of-season playoff for the top eight.",
+      "Ten weeks of competitive singles under the lights at Piedmont Park. Weekly match assignments, live standings and an end-of-season playoff for the top eight.",
     startDate: "2026-10-06",
     endDate: "2026-12-15",
   },
   {
     id: "l-2",
     seasonId: "s-fall-26",
-    name: "Buckhead Mixed Doubles",
+    name: "Thursday Mixed Doubles",
     format: "mixed-doubles",
     skillLevel: "4.0",
+    geographicGroup: "Buckhead",
     feeCents: 4500,
     scheduleDay: "Thursday",
     scheduleTime: "7:00 PM",
-    venue: "Bitsy Grant Tennis Center, Buckhead",
+    venue: "Bitsy Grant Tennis Center",
     playerLimit: 32,
     registrationOpen: true,
     description:
@@ -133,13 +269,14 @@ export const FALLBACK_MOCK_LEAGUES: League[] = [
   {
     id: "l-3",
     seasonId: "s-fall-26",
-    name: "Decatur Junior Singles",
+    name: "Saturday Junior Singles",
     format: "junior-singles",
     skillLevel: "3.0",
+    geographicGroup: "Decatur",
     feeCents: 2500,
     scheduleDay: "Saturday",
     scheduleTime: "9:00 AM",
-    venue: "McKoy Park Courts, Decatur",
+    venue: "McKoy Park Courts",
     playerLimit: 20,
     registrationOpen: true,
     description:
@@ -150,9 +287,10 @@ export const FALLBACK_MOCK_LEAGUES: League[] = [
   {
     id: "l-4",
     seasonId: "s-fall-26",
-    name: "Westside Senior Doubles",
+    name: "Wednesday Senior Doubles",
     format: "senior-doubles",
     skillLevel: "3.0",
+    geographicGroup: "Midtown",
     feeCents: 3000,
     scheduleDay: "Wednesday",
     scheduleTime: "10:00 AM",
@@ -167,13 +305,14 @@ export const FALLBACK_MOCK_LEAGUES: League[] = [
   {
     id: "l-5",
     seasonId: "s-winter-27",
-    name: "Sandy Springs Indoor Singles",
+    name: "Monday Singles",
     format: "senior-singles",
-    skillLevel: "4.5+",
+    skillLevel: "4.5",
+    geographicGroup: "Sandy Springs",
     feeCents: 5000,
     scheduleDay: "Monday",
     scheduleTime: "8:00 PM",
-    venue: "Sandy Springs Indoor Club",
+    venue: "Sandy Springs Tennis Center",
     playerLimit: 16,
     registrationOpen: true,
     description:
@@ -184,9 +323,10 @@ export const FALLBACK_MOCK_LEAGUES: League[] = [
   {
     id: "l-6",
     seasonId: "s-winter-27",
-    name: "Alpharetta Junior Doubles",
+    name: "Sunday Junior Doubles",
     format: "junior-doubles",
     skillLevel: "2.5",
+    geographicGroup: "Alpharetta",
     feeCents: 2500,
     scheduleDay: "Sunday",
     scheduleTime: "1:00 PM",
@@ -201,9 +341,10 @@ export const FALLBACK_MOCK_LEAGUES: League[] = [
   {
     id: "l-7",
     seasonId: "s-winter-27",
-    name: "East Atlanta Mixed Doubles",
+    name: "Friday Mixed Doubles",
     format: "mixed-doubles",
     skillLevel: "3.5",
+    geographicGroup: "Midtown",
     feeCents: 3500,
     scheduleDay: "Friday",
     scheduleTime: "6:00 PM",
@@ -218,9 +359,10 @@ export const FALLBACK_MOCK_LEAGUES: League[] = [
   {
     id: "l-8",
     seasonId: "s-spring-27",
-    name: "Peachtree Premier Singles",
+    name: "Tuesday Premier Singles",
     format: "senior-singles",
     skillLevel: "4.0",
+    geographicGroup: "Midtown",
     feeCents: 4000,
     scheduleDay: "Tuesday",
     scheduleTime: "7:00 PM",
@@ -236,20 +378,51 @@ export const FALLBACK_MOCK_LEAGUES: League[] = [
 export const SEED_LEAGUES = FALLBACK_MOCK_LEAGUES;
 
 export const FALLBACK_MOCK_PLAYERS: Player[] = [
-  { id: "p-1", firstName: "Jordan", lastName: "Ellis", email: "jordan@example.com", phone: "(404) 555-0142", ntrp: "3.5", city: "Atlanta" },
-  { id: "p-2", firstName: "Maya", lastName: "Robinson", email: "maya@example.com", phone: "(404) 555-0119", ntrp: "4.0", city: "Decatur" },
-  { id: "p-3", firstName: "Chris", lastName: "Nguyen", email: "chris@example.com", phone: "(678) 555-0187", ntrp: "3.5", city: "Smyrna" },
-  { id: "p-4", firstName: "Tasha", lastName: "Bell", email: "tasha@example.com", phone: "(770) 555-0165", ntrp: "3.0", city: "Marietta" },
-  { id: "p-5", firstName: "Andre", lastName: "Cole", email: "andre@example.com", phone: "(404) 555-0173", ntrp: "4.5+", city: "Sandy Springs" },
+  { id: "p-demo-player", firstName: "Alex", lastName: "Mercer", email: "player@baselineatl.com", phone: "(404) 555-0100", ntrp: "3.5", city: "Atlanta", zipCode: "30305", preferredCourt: "Piedmont Park Courts", accountStatus: "active", profileStatus: "complete" },
+  { id: "p-1", firstName: "Jordan", lastName: "Ellis", email: "jordan@example.com", phone: "(404) 555-0142", ntrp: "3.5", city: "Atlanta", zipCode: "30309", preferredCourt: "Piedmont Park Courts", accountStatus: "active", profileStatus: "complete" },
+  { id: "p-2", firstName: "Maya", lastName: "Robinson", email: "maya@example.com", phone: "(404) 555-0119", ntrp: "4.0", city: "Decatur", zipCode: "30030", preferredCourt: "Glenlake Tennis Center", accountStatus: "active", profileStatus: "complete" },
+  { id: "p-3", firstName: "Chris", lastName: "Nguyen", email: "chris@example.com", phone: "(678) 555-0187", ntrp: "3.5", city: "Smyrna", zipCode: "30080", preferredCourt: "Bitsy Grant Tennis Center", accountStatus: "active", profileStatus: "complete" },
+  { id: "p-4", firstName: "Tasha", lastName: "Bell", email: "tasha@example.com", phone: "(770) 555-0165", ntrp: "3.0", city: "Marietta", zipCode: "30060", preferredCourt: "Fair Oaks Tennis Center", accountStatus: "active", profileStatus: "complete" },
+  { id: "p-5", firstName: "Andre", lastName: "Cole", email: "andre@example.com", phone: "(404) 555-0173", ntrp: "4.5", city: "Sandy Springs", zipCode: "30328", preferredCourt: "Sandy Springs Tennis Center", accountStatus: "active", profileStatus: "complete" },
 ];
 export const SEED_PLAYERS = FALLBACK_MOCK_PLAYERS;
 
 export const FALLBACK_MOCK_REGISTRATIONS: Registration[] = [
-  { id: "r-1", leagueId: "l-1", playerId: "p-1", createdAt: "2026-10-01", paymentStatus: "paid", amountCents: 3500 },
-  { id: "r-2", leagueId: "l-1", playerId: "p-3", createdAt: "2026-10-02", paymentStatus: "paid", amountCents: 3500 },
-  { id: "r-3", leagueId: "l-2", playerId: "p-2", createdAt: "2026-10-03", paymentStatus: "paid", amountCents: 4500 },
-  { id: "r-4", leagueId: "l-2", playerId: "p-1", createdAt: "2026-10-05", paymentStatus: "paid", amountCents: 4500 },
-  { id: "r-5", leagueId: "l-3", playerId: "p-4", createdAt: "2026-10-08", paymentStatus: "paid", amountCents: 2500 },
-  { id: "r-6", leagueId: "l-5", playerId: "p-5", createdAt: "2026-10-12", paymentStatus: "pending", amountCents: 5000 },
+  { id: "r-demo-1", leagueId: "l-1", playerId: "p-demo-player", createdAt: "2026-09-28", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 3500, skillLevelSnapshot: "3.5", preferredCourt: "Piedmont Park Courts" },
+  { id: "r-1", leagueId: "l-1", playerId: "p-1", createdAt: "2026-10-01", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 3500, skillLevelSnapshot: "3.5" },
+  { id: "r-2", leagueId: "l-1", playerId: "p-3", createdAt: "2026-10-02", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 3500, skillLevelSnapshot: "3.5" },
+  { id: "r-3", leagueId: "l-2", playerId: "p-2", createdAt: "2026-10-03", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 4500, skillLevelSnapshot: "4.0", doublesPartnerId: "p-1", partnerStatus: "accepted" },
+  { id: "r-4", leagueId: "l-2", playerId: "p-1", createdAt: "2026-10-05", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 4500, skillLevelSnapshot: "3.5", doublesPartnerId: "p-2", partnerStatus: "accepted" },
+  { id: "r-5", leagueId: "l-3", playerId: "p-4", createdAt: "2026-10-08", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 2500, skillLevelSnapshot: "3.0" },
+  { id: "r-6", leagueId: "l-5", playerId: "p-5", createdAt: "2026-10-12", registrationStatus: "awaiting-review", paymentStatus: "pending", amountCents: 5000, skillLevelSnapshot: "4.5" },
 ];
 export const SEED_REGISTRATIONS = FALLBACK_MOCK_REGISTRATIONS;
+
+export const FALLBACK_MOCK_MATCHES: Match[] = [
+  {
+    id: "m-1",
+    seasonId: "s-fall-26",
+    leagueId: "l-1",
+    playerId: "p-demo-player",
+    opponentId: "p-1",
+    opponentName: "Jordan Ellis",
+    opponentLevel: "3.5",
+    homeAway: "home",
+    matchDate: "2026-10-14",
+    matchTime: "6:30 PM",
+    court: "Piedmont Park Courts - Court 2",
+    matchStatus: "scheduled",
+    courtBookingOwner: "Alex Mercer (Home Player)",
+  },
+];
+
+export const FALLBACK_MOCK_RESULTS: MatchResult[] = [
+  {
+    resultId: "res-1",
+    matchId: "m-past-1",
+    submittedBy: "p-demo-player",
+    scoreData: "6-4, 7-5",
+    winnerId: "p-demo-player",
+    status: "accepted",
+  },
+];

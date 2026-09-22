@@ -1,5 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Trophy, Users, Calendar, CheckCircle2 } from "lucide-react";
+import {
+  ArrowRight,
+  Trophy,
+  Users,
+  Calendar,
+  Lock,
+  LogIn,
+  UserPlus,
+  ShieldCheck,
+  MapPin,
+} from "lucide-react";
 import { useStore } from "@/lib/store";
 import { LeagueCard } from "@/components/league-card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +26,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { leagues, seasons, spotsLeft } = useStore();
+  const { leagues, seasons, spotsLeft, user, hydrated } = useStore();
   const featuredLeagues = leagues.slice(0, 3);
 
   return (
@@ -41,7 +51,7 @@ function Index() {
             Real tennis. Real local.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-white/90 sm:text-xl font-medium drop-shadow-md">
-            Join organized tennis leagues across metro Atlanta. Browse formats, pick your level, sign up and play. We handle the schedules, you handle the rallies.
+            Join organized tennis leagues across metro Atlanta. Create your profile, browse member flights, sign up and play. We handle the schedules, you handle the rallies.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             <Button asChild size="lg" className="rounded-full font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl border-2 border-primary/20">
@@ -65,7 +75,7 @@ function Index() {
               <Trophy className="size-6" />
             </div>
             <h3 className="mt-4 font-bold text-foreground">Competitive Play</h3>
-            <p className="mt-2 text-sm text-muted-foreground">Find opponents at your exact skill level, from casual 2.5 to competitive 4.5+.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Find opponents at your exact skill level, from casual 2.5 to competitive 5.0.</p>
           </div>
           <div className="flex flex-col items-center text-center">
             <div className="flex size-12 items-center justify-center rounded-full bg-secondary text-primary">
@@ -84,34 +94,116 @@ function Index() {
         </div>
       </section>
 
-      {/* Featured Leagues Section */}
+      {/* Featured Leagues / Member Access Section */}
       <section className="px-4 py-20 sm:px-6 lg:px-8 bg-background">
         <div className="mx-auto max-w-6xl">
-          <div className="flex flex-wrap items-end justify-between gap-4">
+          {hydrated && user ? (
             <div>
-              <h2 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Featured Leagues</h2>
-              <p className="mt-2 text-muted-foreground">Upcoming flights with spots still available.</p>
-            </div>
-            <Button asChild variant="outline" className="rounded-full">
-              <Link to="/leagues">View all leagues</Link>
-            </Button>
-          </div>
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <h2 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Featured Leagues</h2>
+                  <p className="mt-2 text-muted-foreground">Upcoming flights with spots still available.</p>
+                </div>
+                <Button asChild variant="outline" className="rounded-full">
+                  <Link to="/leagues">View all leagues</Link>
+                </Button>
+              </div>
 
-          <DemoBanner
-            message="Featured leagues shown here are sample data for demonstration purposes only."
-            className="mt-6"
-          />
-
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {featuredLeagues.map((league) => (
-              <LeagueCard
-                key={league.id}
-                league={league}
-                season={seasons.find((s) => s.id === league.seasonId)}
-                spotsLeft={spotsLeft(league.id)}
+              <DemoBanner
+                message="Featured leagues shown here are sample data for demonstration purposes only."
+                className="mt-6"
               />
-            ))}
-          </div>
+
+              <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {featuredLeagues.map((league) => (
+                  <LeagueCard
+                    key={league.id}
+                    league={league}
+                    season={seasons.find((s) => s.id === league.seasonId)}
+                    spotsLeft={spotsLeft(league.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-border bg-card p-8 sm:p-12 shadow-xl text-center relative overflow-hidden">
+              <div className="absolute -top-24 -right-24 size-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-24 -left-24 size-64 rounded-full bg-accent/10 blur-3xl pointer-events-none" />
+
+              <div className="relative z-10 max-w-2xl mx-auto space-y-6">
+                <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20 shadow-sm">
+                  <Lock className="size-8" />
+                </div>
+
+                <div className="space-y-2">
+                  <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground font-display">
+                    Sign in or register to browse leagues
+                  </h2>
+                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
+                    To view active flights, match schedules, court locations, and register for upcoming seasons in metro Atlanta, please create an account or sign in with your existing profile.
+                  </p>
+                </div>
+
+                {/* Call-to-action buttons */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                  <Link to="/signup" search={{ leagueId: undefined }} className="w-full sm:w-auto">
+                    <Button
+                      size="lg"
+                      className="w-full sm:w-auto rounded-full px-8 py-6 text-sm font-bold bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+                    >
+                      <UserPlus className="mr-2 size-4" /> Create an Account
+                    </Button>
+                  </Link>
+                  <Link to="/login" search={{ leagueId: undefined }} className="w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="w-full sm:w-auto rounded-full px-8 py-6 text-sm font-semibold border-border hover:bg-muted/80 cursor-pointer"
+                    >
+                      <LogIn className="mr-2 size-4" /> Sign In to See Leagues
+                    </Button>
+                  </Link>
+                </div>
+
+                <p className="text-xs text-muted-foreground pt-1">
+                  Already registered? <Link to="/login" search={{ leagueId: undefined }} className="text-primary font-semibold hover:underline">Sign in with your email</Link> to immediately view all leagues.
+                </p>
+              </div>
+
+              {/* Feature preview cards */}
+              <div className="mt-12 pt-10 border-t border-border/60 grid gap-4 sm:grid-cols-3 text-left">
+                <div className="rounded-2xl border border-border/70 bg-background/50 p-5 space-y-2">
+                  <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <ShieldCheck className="size-5" />
+                  </div>
+                  <h3 className="font-bold text-sm text-foreground">NTRP-Aligned Flights</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Singles, doubles, and mixed flights balanced strictly by rating (2.5 to 5.0) for fair, competitive matches.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-border/70 bg-background/50 p-5 space-y-2">
+                  <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <MapPin className="size-5" />
+                  </div>
+                  <h3 className="font-bold text-sm text-foreground">Metro Atlanta Venues</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Convenient home and away match locations across Midtown, Buckhead, Decatur, Sandy Springs, and more.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-border/70 bg-background/50 p-5 space-y-2">
+                  <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Trophy className="size-5" />
+                  </div>
+                  <h3 className="font-bold text-sm text-foreground">Verified Standings</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Official score reporting, committee review, live standings, and end-of-season championship tournaments.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -128,7 +220,7 @@ function Index() {
               <AccordionItem value="item-1">
                 <AccordionTrigger className="text-base font-semibold hover:text-primary">How do I know my skill level?</AccordionTrigger>
                 <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
-                  We use the standard NTRP rating system (2.5 to 4.5+). If you're a beginner, 2.5 is a great start. Intermediate players typically fall into 3.0 or 3.5, while advanced players compete at 4.0 and above. You can easily select your level when creating your profile.
+                  We use the standard NTRP rating system (2.5 to 5.0). If you're a beginner, 2.5 is a great start. Intermediate players typically fall into 3.0 or 3.5, while advanced players compete at 4.0 and 4.5 or 5.0. You can easily select your level when creating your profile.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="item-2">

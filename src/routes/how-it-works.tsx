@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Search, Target, CreditCard, Trophy, ArrowRight } from "lucide-react";
+import { UserPlus, Search, CreditCard, Trophy, ArrowRight, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/reveal";
+import { useStore } from "@/lib/store";
 
 export const Route = createFileRoute("/how-it-works")({
   head: () => ({
@@ -9,10 +10,10 @@ export const Route = createFileRoute("/how-it-works")({
       { title: "How Baseline ATL Works — Atlanta Tennis Leagues" },
       {
         name: "description",
-        content: "Four steps from browsing Atlanta tennis leagues to playing your first match: browse, pick your level, sign up and pay, play the season.",
+        content: "Four steps to playing Atlanta tennis leagues: register your account, browse leagues, secure your spot, and play the season.",
       },
       { property: "og:title", content: "How Baseline ATL Works" },
-      { property: "og:description", content: "Browse leagues, pick your level, sign up and pay, play your season." },
+      { property: "og:description", content: "Register your account, browse leagues, secure your spot, and play your season." },
     ],
   }),
   component: HowItWorks,
@@ -20,34 +21,36 @@ export const Route = createFileRoute("/how-it-works")({
 
 export const STEPS = [
   {
-    icon: Search,
-    title: "Browse leagues",
-    body: "Filter every active and upcoming league in metro Atlanta by format, skill level and season until you find your fit.",
+    icon: UserPlus,
+    title: "Register your account",
+    body: "Create your free player profile with your skill level and location to unlock full access to all metro Atlanta leagues, flights, and schedules.",
   },
   {
-    icon: Target,
-    title: "Pick your level",
-    body: "Every flight is NTRP-rated, from 2.5 first-timers to 4.5+ competitive singles, so your matches stay close.",
+    icon: Search,
+    title: "Browse leagues & find your fit",
+    body: "Explore active and upcoming flights tailored to your NTRP rating (2.5 to 5.0), preferred format (singles, doubles, mixed), and local courts.",
   },
   {
     icon: CreditCard,
-    title: "Sign up and pay",
-    body: "One short registration, secure payment, instant confirmation. Your spot is locked the moment you're done.",
+    title: "Register and secure your spot",
+    body: "One fast registration with secure payment and instant confirmation. Your spot in the flight is guaranteed immediately.",
   },
   {
     icon: Trophy,
     title: "Play your season",
-    body: "Weekly matches, live standings, and playoffs for the top of each flight. Track it all from your dashboard.",
+    body: "Weekly scheduled matches, live standings, playoffs for top flight finishers, and sub management all from your player dashboard.",
   },
 ];
 
 function HowItWorks() {
+  const { user, hydrated } = useStore();
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
       <Reveal>
         <p className="eyebrow text-muted-foreground">How it works</p>
         <h1 className="mt-3 max-w-2xl text-4xl font-bold sm:text-5xl">
-          From browsing to your first match in four steps.
+          From registration to your first match in four steps.
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
           Baseline ATL handles the scheduling, the standings and the payments so players and organizers can focus on
@@ -71,11 +74,28 @@ function HowItWorks() {
       </ol>
 
       <Reveal delay={100} className="mt-14">
-        <Button asChild size="lg">
-          <Link to="/leagues">
-            Browse leagues <ArrowRight />
-          </Link>
-        </Button>
+        {hydrated && user ? (
+          <Button asChild size="lg" className="rounded-full px-8 py-6 font-bold">
+            <Link to="/leagues">
+              Browse leagues <ArrowRight className="ml-2 size-4" />
+            </Link>
+          </Button>
+        ) : (
+          <div className="flex flex-wrap items-center gap-4">
+            <Button asChild size="lg" className="rounded-full px-8 py-6 font-bold shadow-lg shadow-primary/20">
+              <Link to="/signup" search={{ leagueId: undefined }}>
+                <UserPlus className="mr-2 size-4" />
+                Register your account
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="rounded-full px-8 py-6 font-semibold">
+              <Link to="/login" search={{ leagueId: undefined }}>
+                <LogIn className="mr-2 size-4" />
+                Sign in
+              </Link>
+            </Button>
+          </div>
+        )}
       </Reveal>
     </div>
   );

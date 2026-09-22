@@ -4,7 +4,8 @@ import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { SKILL_LEVELS, FORMAT_LABELS, formatMoney, type SkillLevel } from "@/lib/tennis";
 import { TennisBall } from "@/components/tennis-ball";
-import { MapPin, CalendarDays, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { MapPin, CalendarDays, Calendar, ShieldAlert, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { ModernDobPicker } from "@/components/modern-dob-picker";
 
 export const Route = createFileRoute("/signup")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -29,11 +30,10 @@ function Stepper({ current }: { current: number }) {
           <div key={label} className="flex items-start">
             <div className="flex flex-col items-center gap-1.5">
               <div
-                className={`flex size-8 items-center justify-center rounded-full text-xs font-bold ring-2 transition-all ${
-                  done || active
+                className={`flex size-8 items-center justify-center rounded-full text-xs font-bold ring-2 transition-all ${done || active
                     ? "bg-primary text-primary-foreground ring-primary"
                     : "bg-background text-muted-foreground ring-border"
-                }`}
+                  }`}
               >
                 {done ? (
                   <svg
@@ -54,22 +54,20 @@ function Stepper({ current }: { current: number }) {
                 )}
               </div>
               <span
-                className={`text-[10px] font-semibold whitespace-nowrap ${
-                  active
+                className={`text-[10px] font-semibold whitespace-nowrap ${active
                     ? "text-primary"
                     : done
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                }`}
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
               >
                 {label}
               </span>
             </div>
             {i < STEPS.length - 1 && (
               <div
-                className={`mx-1.5 mt-4 h-0.5 w-10 shrink-0 rounded-full transition-all sm:w-14 ${
-                  done ? "bg-primary" : "bg-border"
-                }`}
+                className={`mx-1.5 mt-4 h-0.5 w-10 shrink-0 rounded-full transition-all sm:w-14 ${done ? "bg-primary" : "bg-border"
+                  }`}
               />
             )}
           </div>
@@ -88,14 +86,41 @@ function Signup() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [parentName, setParentName] = useState("");
+  const [parentPhone, setParentPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState("");
   const [city, setCity] = useState("Atlanta");
-  const [ntrp, setNtrp] = useState<SkillLevel>("3.0");
+  const [zipCode, setZipCode] = useState("30309");
+  const [preferredCourt, setPreferredCourt] = useState("Piedmont Park Courts");
+  const [ntrp, setNtrp] = useState<SkillLevel>("3.5");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Calculate age based on entered Date of Birth
+  const calculateAge = (dobString: string): number | null => {
+    if (!dobString) return null;
+    const parts = dobString.split("-");
+    const p0 = parts[0];
+    const p1 = parts[1];
+    const p2 = parts[2];
+    if (!p0 || !p1 || !p2) return null;
+    const birthDate = new Date(parseInt(p0, 10), parseInt(p1, 10) - 1, parseInt(p2, 10));
+    if (isNaN(birthDate.getTime())) return null;
+    const today = new Date();
+    let computedAge = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      computedAge--;
+    }
+    return computedAge;
+  };
+
+  const age = calculateAge(dateOfBirth);
+  const isUnder18 = age !== null && age < 18;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,6 +137,22 @@ function Signup() {
       return;
     }
 
+    if (!dateOfBirth) {
+      setError("Please select your date of birth.");
+      return;
+    }
+
+    if (isUnder18) {
+      if (!parentName.trim()) {
+        setError("Parent or guardian name is required for junior players under 18.");
+        return;
+      }
+      if (!parentPhone.trim()) {
+        setError("Parent or guardian phone number is required for junior players under 18.");
+        return;
+      }
+    }
+
     if (password.length < 6) {
       setError("Password must be at least 6 characters long.");
       return;
@@ -126,7 +167,7 @@ function Signup() {
     let registeredUsers: Record<string, any> = {};
     try {
       registeredUsers = JSON.parse(localStorage.getItem("atl-registered-accounts") || "{}");
-    } catch {}
+    } catch { }
 
     if (
       registeredUsers[normalizedEmail] ||
@@ -150,8 +191,14 @@ function Signup() {
             firstName: firstName.trim(),
             lastName: lastName.trim(),
             email: normalizedEmail,
+            dateOfBirth,
+            parentName: isUnder18 ? parentName.trim() : undefined,
+            parentPhone: isUnder18 ? parentPhone.trim() : undefined,
+            isJunior: isUnder18,
             phone: phone.trim() || undefined,
             city: city.trim() || "Atlanta",
+            zipCode: zipCode.trim() || "30309",
+            preferredCourt: preferredCourt.trim() || "Piedmont Park Courts",
             ntrp,
           }),
         });
@@ -173,8 +220,14 @@ function Signup() {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: normalizedEmail,
+        dateOfBirth,
+        parentName: isUnder18 ? parentName.trim() : undefined,
+        parentPhone: isUnder18 ? parentPhone.trim() : undefined,
+        isJunior: isUnder18,
         phone: phone.trim(),
         city: city.trim() || "Atlanta",
+        zipCode: zipCode.trim() || "30309",
+        preferredCourt: preferredCourt.trim() || "Piedmont Park Courts",
         ntrp,
       };
 
@@ -189,12 +242,22 @@ function Signup() {
           playerId: playerRecord.id,
         };
         localStorage.setItem("atl-registered-accounts", JSON.stringify(registeredUsers));
-      } catch {}
+      } catch { }
 
       // 3. Log in user as player
       const user = login("player", normalizedEmail, displayName);
       if (user.playerId) {
-        updatePlayer(user.playerId, { firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim(), city, ntrp });
+        updatePlayer(user.playerId, {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: phone.trim(),
+          city,
+          ntrp,
+          dateOfBirth,
+          parentName: isUnder18 ? parentName.trim() : undefined,
+          parentPhone: isUnder18 ? parentPhone.trim() : undefined,
+          isJunior: isUnder18,
+        });
       }
 
       // 4. Navigate to registration payment or dashboard
@@ -288,7 +351,7 @@ function Signup() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="firstName" className="mb-1 block text-sm font-medium text-foreground">
-                  First Name
+                  <span className="text-red-500 font-bold text-xs mr-1 select-none" aria-hidden="true">*</span>First Name
                 </label>
                 <input
                   id="firstName"
@@ -300,7 +363,7 @@ function Signup() {
               </div>
               <div>
                 <label htmlFor="lastName" className="mb-1 block text-sm font-medium text-foreground">
-                  Last Name
+                  <span className="text-red-500 font-bold text-xs mr-1 select-none" aria-hidden="true">*</span>Last Name
                 </label>
                 <input
                   id="lastName"
@@ -312,23 +375,92 @@ function Signup() {
               </div>
             </div>
 
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="mb-1 block text-sm font-medium text-foreground">
-                Email address
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="block w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
+            {/* Email & Date of Birth */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="email" className="mb-1 block text-sm font-medium text-foreground">
+                  <span className="text-red-500 font-bold text-xs mr-1 select-none" aria-hidden="true">*</span>Email address
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="block w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              <div>
+                <div className="mb-1 flex items-center justify-between">
+                  <label htmlFor="dob-trigger" className="block text-sm font-medium text-foreground">
+                    <span className="text-red-500 font-bold text-xs mr-1 select-none" aria-hidden="true">*</span>Date of Birth
+                  </label>
+                  {age !== null && (
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        isUnder18
+                          ? "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800"
+                          : "bg-primary/10 text-primary border-primary/20"
+                      }`}
+                    >
+                      {age} yrs · {isUnder18 ? "Junior (<18)" : "Adult"}
+                    </span>
+                  )}
+                </div>
+                <ModernDobPicker
+                  value={dateOfBirth}
+                  onChange={setDateOfBirth}
+                  age={age}
+                  isUnder18={isUnder18}
+                />
+              </div>
             </div>
 
-            {/* Phone + City */}
-            <div className="grid gap-4 sm:grid-cols-2">
+            {/* Junior Player Parent / Guardian Information */}
+            {isUnder18 && (
+              <div className="rounded-xl border border-amber-300/80 bg-amber-50/70 p-4 dark:border-amber-800/80 dark:bg-amber-950/30 space-y-3">
+                <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
+                  <ShieldAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <p className="text-xs font-semibold">
+                    Junior Player Notice: Since you are under 18, parent or guardian contact details are required.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="parentName" className="mb-1 block text-xs font-semibold text-foreground">
+                      <span className="text-red-500 font-bold text-xs mr-1 select-none" aria-hidden="true">*</span>Parent / Guardian Name
+                    </label>
+                    <input
+                      id="parentName"
+                      type="text"
+                      required={isUnder18}
+                      value={parentName}
+                      onChange={(e) => setParentName(e.target.value)}
+                      placeholder="Parent's full name"
+                      className="block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="parentPhone" className="mb-1 block text-xs font-semibold text-foreground">
+                      <span className="text-red-500 font-bold text-xs mr-1 select-none" aria-hidden="true">*</span>Parent / Guardian Phone
+                    </label>
+                    <input
+                      id="parentPhone"
+                      type="tel"
+                      required={isUnder18}
+                      value={parentPhone}
+                      onChange={(e) => setParentPhone(e.target.value)}
+                      placeholder="(404) 555-0199"
+                      className="block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Phone + City + ZIP */}
+            <div className="grid gap-3 sm:grid-cols-3">
               <div>
                 <label htmlFor="phone" className="mb-1 block text-sm font-medium text-foreground">
                   Phone Number
@@ -338,7 +470,8 @@ function Signup() {
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="block w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  placeholder="(404) 555-0100"
+                  className="block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
               <div>
@@ -350,16 +483,48 @@ function Signup() {
                   type="text"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  className="block w-full rounded-lg border border-input bg-background px-3.5 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  placeholder="Atlanta"
+                  className="block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
+              <div>
+                <label htmlFor="zipCode" className="mb-1 block text-sm font-medium text-foreground">
+                  ZIP Code
+                </label>
+                <input
+                  id="zipCode"
+                  type="text"
+                  value={zipCode}
+                  onChange={(e) => setZipCode(e.target.value)}
+                  placeholder="30309"
+                  className="block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+
+            {/* Preferred Home Court */}
+            <div>
+              <label htmlFor="preferredCourt" className="mb-1 block text-sm font-medium text-foreground">
+                Preferred / Home Court
+              </label>
+              <input
+                id="preferredCourt"
+                type="text"
+                value={preferredCourt}
+                onChange={(e) => setPreferredCourt(e.target.value)}
+                placeholder="e.g. Piedmont Park Courts"
+                className="block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Notice: Setting your home court does not automatically reserve it.
+              </p>
             </div>
 
             {/* Password & Confirm Password */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="password" className="mb-1 block text-sm font-medium text-foreground">
-                  Password
+                  <span className="text-red-500 font-bold text-xs mr-1 select-none" aria-hidden="true">*</span>Password
                 </label>
                 <div className="relative">
                   <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -385,7 +550,7 @@ function Signup() {
               </div>
               <div>
                 <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium text-foreground">
-                  Confirm Password
+                  <span className="text-red-500 font-bold text-xs mr-1 select-none" aria-hidden="true">*</span>Confirm Password
                 </label>
                 <div className="relative">
                   <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -412,20 +577,21 @@ function Signup() {
 
             {/* NTRP */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-foreground">
-                Skill Level (NTRP)
-              </label>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="mb-1.5 flex items-center justify-between">
+                <label className="text-sm font-medium text-foreground">
+                  <span className="text-red-500 font-bold text-xs mr-1 select-none" aria-hidden="true">*</span>Declared Skill Level (NTRP)
+                </label>
+              </div>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                 {SKILL_LEVELS.map((level) => (
                   <button
                     key={level}
                     type="button"
                     onClick={() => setNtrp(level as SkillLevel)}
-                    className={`rounded-lg py-2.5 text-sm font-semibold transition-all ${
-                      ntrp === level
+                    className={`rounded-lg py-2.5 text-sm font-semibold transition-all ${ntrp === level
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     {level}
                   </button>
@@ -442,8 +608,8 @@ function Signup() {
               {loading
                 ? "Creating account…"
                 : leagueData
-                ? "Create account & continue to payment →"
-                : "Create Account"}
+                  ? "Create account & continue to payment →"
+                  : "Create Account"}
             </Button>
           </form>
 

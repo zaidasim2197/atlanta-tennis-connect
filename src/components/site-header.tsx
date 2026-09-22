@@ -1,9 +1,18 @@
 import * as React from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Menu, X, LogOut } from "lucide-react";
+import { Menu, X, LogOut, Copy, Check, LayoutDashboard, User, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TennisBall } from "@/components/tennis-ball";
 import { useStore } from "@/lib/store";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 const navItems = [
   { to: "/", label: "Home" },
@@ -14,7 +23,17 @@ const navItems = [
 export function SiteHeader() {
   const { user, logout, dbConnected, fallbackActive } = useStore();
   const [open, setOpen] = React.useState(false);
+  const [copiedId, setCopiedId] = React.useState(false);
   const navigate = useNavigate();
+
+  const handleCopyId = (id: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(id);
+      setCopiedId(true);
+      toast.success(`Player ID copied: ${id}`);
+      setTimeout(() => setCopiedId(false), 2000);
+    }
+  };
 
   const dashboardTo = user?.role === "organizer" ? "/organizer" : "/dashboard";
 
@@ -45,30 +64,137 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 lg:flex">
+        <div className="hidden items-center gap-3 lg:flex">
           {user ? (
-            <>
-              <Button asChild variant="ghost" size="sm">
-                <Link to={dashboardTo}>{user.role === "organizer" ? "Organizer hub" : "My dashboard"}</Link>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  logout();
-                  navigate({ to: "/" });
-                }}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="group flex items-center gap-2.5 rounded-full border border-border/80 bg-card/60 py-1.5 pl-2 pr-3.5 shadow-sm transition-all duration-200 hover:border-primary/50 hover:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  aria-label="User profile menu"
+                >
+                  <div className="relative">
+                    <Avatar className="size-8 border border-primary/30 shadow-xs transition-transform duration-200 group-hover:scale-105">
+                      <AvatarFallback className="bg-primary/10 font-bold text-xs text-primary">
+                        {user.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .slice(0, 2)
+                          .toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="absolute bottom-0 right-0 size-2 rounded-full border border-background bg-emerald-500 ring-1 ring-background" />
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span className="text-xs font-bold leading-tight text-foreground transition-colors group-hover:text-primary max-w-[120px] truncate">
+                      {user.name}
+                    </span>
+                    {user.playerId && (
+                      <span className="font-mono text-[10px] font-semibold text-primary/90 leading-tight">
+                        ID: {user.playerId}
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown className="size-3.5 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180 ml-0.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-64 p-2 shadow-xl border-border/80 rounded-2xl bg-card/95 backdrop-blur-md"
               >
-                <LogOut /> Sign out
-              </Button>
-            </>
+                {/* Profile Header */}
+                <div className="p-3 bg-muted/50 rounded-xl mb-1 border border-border/50">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="size-10 border border-primary/20">
+                      <AvatarFallback className="bg-primary font-bold text-primary-foreground text-sm">
+                        {user.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .slice(0, 2)
+                          .toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm text-foreground truncate">{user.name}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
+                    </div>
+                  </div>
+                  {user.playerId && (
+                    <div className="mt-2.5 flex items-center justify-between rounded-lg bg-background/90 px-2.5 py-1.5 border border-border/70 text-xs">
+                      <span className="font-mono text-[11px] font-bold text-primary truncate">
+                        ID: {user.playerId}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleCopyId(user.playerId!);
+                        }}
+                        className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        title="Copy Player ID"
+                      >
+                        {copiedId ? (
+                          <Check className="size-3 text-emerald-600" />
+                        ) : (
+                          <Copy className="size-3" />
+                        )}
+                        <span>{copiedId ? "Copied" : "Copy"}</span>
+                      </button>
+                    </div>
+                  )}
+                  {user.role === "organizer" && (
+                    <div className="mt-2 text-center">
+                      <span className="inline-block rounded bg-accent/20 px-2 py-0.5 text-[10px] font-bold uppercase text-accent-foreground">
+                        Organizer Account
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <DropdownMenuItem asChild className="cursor-pointer rounded-lg py-2 text-xs font-semibold">
+                  <Link to={dashboardTo}>
+                    <LayoutDashboard className="mr-2 size-4 text-primary" />
+                    {user.role === "organizer" ? "Organizer Hub" : "Player Dashboard"}
+                  </Link>
+                </DropdownMenuItem>
+
+                {user.role === "player" && (
+                  <DropdownMenuItem asChild className="cursor-pointer rounded-lg py-2 text-xs font-semibold">
+                    <Link to="/profile">
+                      <User className="mr-2 size-4 text-primary" />
+                      My Profile & Court
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+
+                <DropdownMenuSeparator className="my-1 border-border/60" />
+
+                <DropdownMenuItem
+                  onClick={() => {
+                    logout();
+                    navigate({ to: "/" });
+                  }}
+                  className="cursor-pointer rounded-lg py-2 text-xs font-semibold text-destructive focus:bg-destructive/10 focus:text-destructive"
+                >
+                  <LogOut className="mr-2 size-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <>
               <Button asChild variant="ghost" size="sm">
-                <Link to="/login" search={{ leagueId: undefined }}>Sign in</Link>
+                <Link to="/login" search={{ leagueId: undefined }}>
+                  Sign in
+                </Link>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <Link to="/signup" search={{ leagueId: undefined }}>Sign up</Link>
+                <Link to="/signup" search={{ leagueId: undefined }}>
+                  Sign up
+                </Link>
               </Button>
               <Button asChild size="sm">
                 <Link to="/leagues">Find a league</Link>
@@ -105,9 +231,31 @@ export function SiteHeader() {
             <div className="mt-2 flex flex-col gap-2">
               {user ? (
                 <>
+                  <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-3">
+                    <div>
+                      <span className="font-semibold text-sm text-foreground block">{user.name}</span>
+                      <span className="text-xs text-muted-foreground">{user.email}</span>
+                    </div>
+                    {user.playerId && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyId(user.playerId!)}
+                        className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1 font-mono text-xs font-bold text-primary active:bg-primary/20 transition-colors"
+                        title="Copy Player ID"
+                      >
+                        {copiedId ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
+                        <span>ID: {user.playerId}</span>
+                      </button>
+                    )}
+                  </div>
                   <Button asChild onClick={() => setOpen(false)}>
                     <Link to={dashboardTo}>{user.role === "organizer" ? "Organizer hub" : "My dashboard"}</Link>
                   </Button>
+                  {user.role === "player" && (
+                    <Button asChild variant="outline" onClick={() => setOpen(false)}>
+                      <Link to="/profile">My Profile & Stats</Link>
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     onClick={() => {

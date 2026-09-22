@@ -35,21 +35,21 @@ import { TournamentHistory } from "../src/models/TournamentHistory";
 export const SEASONS = [
   {
     slug: "s-fall-26",
-    name: "Fall 2026 Metro Season",
+    name: "Fall 2026",
     startDate: "2026-10-06",
     endDate: "2026-12-19",
     status: "active" as const,
   },
   {
     slug: "s-winter-27",
-    name: "Winter 2027 Indoor Season",
+    name: "Winter 2027",
     startDate: "2026-11-16",
     endDate: "2027-02-12",
     status: "upcoming" as const,
   },
   {
     slug: "s-spring-27",
-    name: "Spring 2027 Premier Season",
+    name: "Spring 2027",
     startDate: "2027-01-12",
     endDate: "2027-03-23",
     status: "upcoming" as const,
@@ -60,31 +60,31 @@ export const LEAGUES = [
   {
     slug: "l-1",
     seasonSlug: "s-fall-26",
-    name: "Midtown Tuesday Singles",
+    name: "Tuesday Singles",
     format: "senior-singles" as const,
-    skillLevel: "3.5" as const,
+    skillLevel: "3.0" as const,
     feeCents: 3500,
     scheduleDay: "Tuesday",
     scheduleTime: "6:30 PM",
-    venue: "Piedmont Park Courts, Midtown",
+    venue: "Piedmont Park Courts",
     playerLimit: 24,
     spotsRemaining: 24, // will be decremented as registrations are seeded
     registrationOpen: true,
     description:
-      "Ten weeks of competitive 3.5 singles under the Midtown lights. Weekly match assignments, live standings and an end-of-season playoff for the top eight.",
+      "Ten weeks of competitive 3.0 singles under the lights. Weekly match assignments, live standings and an end-of-season playoff for the top eight.",
     startDate: "2026-10-06",
     endDate: "2026-12-15",
   },
   {
     slug: "l-2",
     seasonSlug: "s-fall-26",
-    name: "Buckhead Mixed Doubles",
+    name: "Thursday Mixed Doubles",
     format: "mixed-doubles" as const,
     skillLevel: "4.0" as const,
     feeCents: 4500,
     scheduleDay: "Thursday",
     scheduleTime: "7:00 PM",
-    venue: "Bitsy Grant Tennis Center, Buckhead",
+    venue: "Bitsy Grant Tennis Center",
     playerLimit: 32,
     spotsRemaining: 32,
     registrationOpen: true,
@@ -96,13 +96,13 @@ export const LEAGUES = [
   {
     slug: "l-3",
     seasonSlug: "s-fall-26",
-    name: "Decatur Junior Singles",
+    name: "Saturday Junior Singles",
     format: "junior-singles" as const,
     skillLevel: "3.0" as const,
     feeCents: 2500,
     scheduleDay: "Saturday",
     scheduleTime: "9:00 AM",
-    venue: "McKoy Park Courts, Decatur",
+    venue: "McKoy Park Courts",
     playerLimit: 20,
     spotsRemaining: 20,
     registrationOpen: true,
@@ -114,13 +114,13 @@ export const LEAGUES = [
   {
     slug: "l-4",
     seasonSlug: "s-winter-27",
-    name: "Sandy Springs Indoor Singles",
+    name: "Monday Singles",
     format: "senior-singles" as const,
-    skillLevel: "4.5+" as const,
+    skillLevel: "5.0" as const,
     feeCents: 5000,
     scheduleDay: "Monday",
     scheduleTime: "8:00 PM",
-    venue: "Sandy Springs Indoor Club",
+    venue: "Sandy Springs Tennis Center",
     playerLimit: 16,
     spotsRemaining: 16,
     registrationOpen: true,
@@ -169,7 +169,7 @@ const LAST_NAMES = [
   "Cooper","Richardson","Cox","Howard","Ward","Torres","Peterson","Gray","Ramirez","James",
 ];
 
-const NTRP_LEVELS = ["2.5","3.0","3.5","4.0","4.5+"] as const;
+const NTRP_LEVELS = ["2.5","3.0","3.5","4.0","4.5","5.0"] as const;
 const ATLANTA_ZIPS = ["30305", "30309", "30327", "30318", "30306", "30030", "30067", "30075", "30328", "30342"];
 const CITIES = ["Atlanta","Decatur","Smyrna","Marietta","Sandy Springs","Buckhead","Alpharetta","Dunwoody","Roswell","Tucker"];
 const PREFERRED_SIDES = ["deuce", "ad", "both"] as const;
@@ -185,7 +185,7 @@ export function generatePlayers(count: number) {
     const first = FIRST_NAMES[i % FIRST_NAMES.length];
     const last  = LAST_NAMES[i % LAST_NAMES.length];
     const ntrp  = NTRP_LEVELS[i % NTRP_LEVELS.length];
-    const baseRating = ntrp === "4.5+" ? 4.6 : parseFloat(ntrp);
+    const baseRating = parseFloat(ntrp);
     const rating = Math.round((baseRating + (Math.random() * 0.4 - 0.2)) * 100) / 100;
 
     // Deterministic email: player0000@loadtest.atl … player0499@loadtest.atl

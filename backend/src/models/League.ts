@@ -7,7 +7,7 @@ export type LeagueFormat =
   | "senior-doubles"
   | "mixed-doubles";
 
-export type SkillLevel = "2.5" | "3.0" | "3.5" | "4.0" | "4.5+";
+export type SkillLevel = "2.5" | "3.0" | "3.5" | "4.0" | "4.5" | "5.0";
 
 export interface ILeague extends Document {
   slug: string;           // stable frontend ID e.g. "l-1"
@@ -37,7 +37,7 @@ const LeagueSchema = new Schema<ILeague>(
       enum: ["junior-singles","senior-singles","junior-doubles","senior-doubles","mixed-doubles"],
       required: true,
     },
-    skillLevel:       { type: String, enum: ["2.5","3.0","3.5","4.0","4.5+"], required: true },
+    skillLevel:       { type: String, enum: ["2.5","3.0","3.5","4.0","4.5","5.0"], required: true },
     feeCents:         { type: Number, required: true, min: 0 },
     scheduleDay:      { type: String, required: true },
     scheduleTime:     { type: String, required: true },
