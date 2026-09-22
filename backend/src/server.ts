@@ -27,6 +27,12 @@ app.disable("x-powered-by");
 
 // ─── Middleware ──────────────────────────────────────────────────────────────
 
+// ─── Debug request logging (temporary – remove after diagnosis) ───────────────
+app.use((req, _res, next) => {
+  console.log(`[DEBUG] ${req.method} url=${req.url} path=${req.path} origin=${req.headers.origin ?? "none"}`);
+  next();
+});
+
 app.use(protectOrigin);
 app.use(
   cors({
