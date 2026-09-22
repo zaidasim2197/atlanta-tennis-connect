@@ -80,7 +80,7 @@ function Stepper({ current }: { current: number }) {
 }
 
 function Signup() {
-  const { login, upsertPlayer, updatePlayer, leagueById } = useStore();
+  const { refreshSession, leagueById } = useStore();
   const navigate = useNavigate();
   const { leagueId } = Route.useSearch();
   const leagueData = leagueId ? leagueById(leagueId) : undefined;
@@ -112,8 +112,8 @@ function Signup() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    if (password.length < 15) {
+      setError("Password must be at least 15 characters long.");
       return;
     }
 
@@ -122,93 +122,20 @@ function Signup() {
       return;
     }
 
-    // Check if account already exists
-    let registeredUsers: Record<string, any> = {};
-    try {
-      registeredUsers = JSON.parse(localStorage.getItem("atl-registered-accounts") || "{}");
-    } catch {}
-
-    if (
-      registeredUsers[normalizedEmail] ||
-      normalizedEmail === "player@baselineatl.com" ||
-      normalizedEmail === "organizer@baselineatl.com"
-    ) {
-      setError("An account with this email address already exists. Please sign in instead.");
-      return;
-    }
-
     setLoading(true);
-
     try {
-      // 1. Persist player to backend MongoDB database
-      let backendPlayerId: string | undefined;
-      try {
-        const res = await fetch(getApiUrl("/api/players"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-            email: normalizedEmail,
-            phone: phone.trim() || undefined,
-            city: city.trim() || "Atlanta",
-            ntrp,
-          }),
-        });
-
-        if (res.ok) {
-          const json = await res.json();
-          if (json.ok && json.data?.id) {
-            backendPlayerId = json.data.id;
-          }
-        }
-      } catch (apiErr) {
-        console.warn("Backend player registration offline or failed, using local store:", apiErr);
-      }
-
-      // 2. Save player in local store and localStorage
-      const displayName = `${firstName.trim()} ${lastName.trim()}`;
-      const playerRecord = {
-        id: backendPlayerId || `p-${Math.random().toString(36).slice(2, 9)}`,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        email: normalizedEmail,
-        phone: phone.trim(),
-        city: city.trim() || "Atlanta",
-        ntrp,
-      };
-
-      upsertPlayer(playerRecord);
-
-      // Save custom registered credentials with explicit role: "player"
-      try {
-        registeredUsers[normalizedEmail] = {
-          password,
-          role: "player",
-          name: displayName,
-          playerId: playerRecord.id,
-        };
-        localStorage.setItem("atl-registered-accounts", JSON.stringify(registeredUsers));
-      } catch {}
-
-      // 3. Log in user as player
-      const user = login("player", normalizedEmail, displayName);
-      if (user.playerId) {
-        updatePlayer(user.playerId, { firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim(), city, ntrp });
-      }
-
-      // 4. Navigate to registration payment or dashboard
-      if (leagueId) {
-        navigate({ to: "/register/$leagueId", params: { leagueId } });
-      } else {
-        navigate({ to: "/dashboard" });
-      }
-    } catch (err: unknown) {
-      console.error("Signup error:", err);
-      setError("An unexpected error occurred. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+      const res = await fetch(getApiUrl("/api/auth/signup"), {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firstName: firstName.trim(), lastName: lastName.trim(), email: normalizedEmail, password, phone: phone.trim(), city: city.trim() || "Atlanta", ntrp }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || "Unable to create your account");
+      await refreshSession();
+      if (leagueId) navigate({ to: "/register/$leagueId", params: { leagueId } });
+      else navigate({ to: "/dashboard" });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to create your account");
+    } finally { setLoading(false); }
   };
 
   return (
@@ -367,10 +294,10 @@ function Signup() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     required
-                    minLength={6}
+                    minLength={15}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="At least 6 characters"
+                    placeholder="At least 15 characters"
                     className="block w-full rounded-lg border border-input bg-background py-2.5 pl-9 pr-10 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
@@ -393,7 +320,7 @@ function Signup() {
                     id="confirmPassword"
                     type={showPassword ? "text" : "password"}
                     required
-                    minLength={6}
+                    minLength={15}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Repeat password"

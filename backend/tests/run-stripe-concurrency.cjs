@@ -14,6 +14,17 @@ if (!secretKey?.startsWith("sk_test_")) {
 }
 
 const stripe = new Stripe(secretKey);
+const sessions = new Map();
+async function createTestAccount(email) {
+  const response = await fetch(`${baseUrl}/api/auth/signup`, {
+    method: "POST", headers: { "Content-Type": "application/json", Origin: new URL(baseUrl).origin },
+    body: JSON.stringify({ email, password: require("node:crypto").randomBytes(24).toString("hex"), firstName: "Stripe", lastName: "Concurrency QA", ntrp: "3.5" }),
+  });
+  if (response.status !== 201) throw new Error(`Test account setup failed: HTTP ${response.status}`);
+  const cookie = response.headers.getSetCookie().find(value => /(?:^|;)\s*Max-Age=[1-9]/.test(value))?.split(";")[0];
+  if (!cookie) throw new Error("Test session not returned");
+  sessions.set(email, cookie);
+}
 
 async function league() {
   const response = await fetch(`${baseUrl}/api/leagues`);
@@ -28,7 +39,7 @@ async function register(email) {
   const startedAt = Date.now();
   const response = await fetch(`${baseUrl}/api/registrations`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: new URL(baseUrl).origin, Cookie: sessions.get(email) },
     body: JSON.stringify({ leagueId, playerEmail: email }),
   });
   const body = await response.json().catch(() => ({}));
@@ -52,11 +63,10 @@ async function main() {
   }
 
   const runId = new Date().toISOString().replace(/[-:.TZ]/g, "");
-  const results = await Promise.all(
-    Array.from({ length: requestCount }, (_, index) =>
-      register(`stripe-race-${runId}-${String(index + 1).padStart(2, "0")}@example.test`),
-    ),
-  );
+  const emails = Array.from({ length: requestCount }, (_, index) => `stripe-race-${runId}-${String(index + 1).padStart(2, "0")}@example.test`);
+  // Provision before timing the race. Sessions are kept in memory, never logged.
+  for (const email of emails) await createTestAccount(email);
+  const results = await Promise.all(emails.map(register));
 
   const winners = results.filter((result) => result.httpStatus === 201);
   const conflicts = results.filter((result) => result.httpStatus === 409);
@@ -115,7 +125,7 @@ async function main() {
   evidence.cleanup = [];
   for (const winner of winners) {
     const response = await fetch(`${baseUrl}/api/payments/${winner.reservationId}/cancel`, {
-      method: "POST",
+      method: "POST", headers: { Origin: new URL(baseUrl).origin, Cookie: sessions.get(winner.email) },
     });
     evidence.cleanup.push({
       reservationId: winner.reservationId,

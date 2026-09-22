@@ -27,7 +27,7 @@ import { sleep, check } from "k6";
 import { Counter, Rate, Trend } from "k6/metrics";
 import {
   BASE_URL, LEAGUE_SLUGS, HOT_LEAGUE, JSON_HEADERS,
-  COMMON_THRESHOLDS, playerEmail,
+  COMMON_THRESHOLDS, authHeaders, playerEmail,
 } from "./config.js";
 
 // Tell k6 that 409 and 404 are NOT failures for this scenario
@@ -112,7 +112,7 @@ export function registerFn() {
   const res   = http.post(
     `${BASE_URL}/api/registrations`,
     JSON.stringify({ leagueId: league, playerEmail: email }),
-    { headers: JSON_HEADERS },
+    { headers: authHeaders(email) },
   );
   regDuration.add(Date.now() - start);
 
@@ -144,7 +144,7 @@ export function raceFn() {
   const res = http.post(
     `${BASE_URL}/api/registrations`,
     JSON.stringify({ leagueId: HOT_LEAGUE, playerEmail: email }),
-    { headers: JSON_HEADERS },
+    { headers: authHeaders(email) },
   );
 
   if (res.status === 201) {

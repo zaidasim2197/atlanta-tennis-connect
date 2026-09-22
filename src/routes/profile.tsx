@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { useStore } from "@/lib/store";
+import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { SKILL_LEVELS, type SkillLevel } from "@/lib/tennis";
 import { ArrowLeft } from "lucide-react";
@@ -11,7 +11,7 @@ export const Route = createFileRoute("/profile")({
 });
 
 function Profile() {
-  const { user, players, updatePlayer } = useStore();
+  const { hydrated, user, players, upsertPlayer } = useStore();
   const navigate = useNavigate();
   
   const player = players.find(p => p.id === user?.playerId);
@@ -25,30 +25,34 @@ function Profile() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!user) {
       navigate({ to: "/login", search: { leagueId: undefined } });
     }
-  }, [user, navigate]);
+  }, [hydrated, user, navigate]);
+
+  useEffect(() => {
+    if (!player) return;
+    setFirstName(player.firstName); setLastName(player.lastName); setEmail(player.email);
+    setPhone(player.phone); setCity(player.city); setNtrp(player.ntrp);
+  }, [player]);
 
   if (!user || !player) {
     return null; // Will redirect or just show blank
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    setTimeout(() => {
-      updatePlayer(player.id, {
-        firstName,
-        lastName,
-        phone,
-        city,
-        ntrp,
-      });
-      setLoading(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true);
+    try {
+      const res = await fetch(getApiUrl("/api/players"), { method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email, firstName, lastName, phone, city, ntrp }) });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || "Unable to save profile");
+      upsertPlayer(json.data);
       toast.success("Profile updated successfully");
-    }, 500);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Unable to save profile"); }
+    finally { setLoading(false); }
   };
 
   return (

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { toast } from "sonner";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Menu, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -54,9 +55,9 @@ export function SiteHeader() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  logout();
-                  navigate({ to: "/" });
+                onClick={async () => {
+                  try { await logout(); navigate({ to: "/" }); }
+                  catch { toast.error("Sign out failed. Please retry."); }
                 }}
               >
                 <LogOut /> Sign out
@@ -110,10 +111,9 @@ export function SiteHeader() {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      logout();
-                      setOpen(false);
-                      navigate({ to: "/" });
+                    onClick={async () => {
+                      try { await logout(); setOpen(false); navigate({ to: "/" }); }
+                      catch { toast.error("Sign out failed. Please retry."); }
                     }}
                   >
                     Sign out

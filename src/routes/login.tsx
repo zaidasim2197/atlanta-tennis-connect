@@ -11,7 +11,6 @@ import {
   EyeOff,
   Lock,
   AlertCircle,
-  KeyRound,
 } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
@@ -23,18 +22,6 @@ export const Route = createFileRoute("/login")({
   }),
   component: Login,
 });
-
-// ─── Hardcoded demo credentials ─────────────────────────────────────────────
-const DEMO_CREDENTIALS = {
-  player: {
-    email: "player@baselineatl.com",
-    password: "player123",
-  },
-  organizer: {
-    email: "organizer@baselineatl.com",
-    password: "organizer123",
-  },
-} as const;
 
 // ─── Step indicator ─────────────────────────────────────────────────────────
 const STEPS = ["League", "Sign in", "Payment", "Confirmed"] as const;
@@ -127,100 +114,18 @@ function Login() {
     clearErrors();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearErrors();
-
-    const normalizedEmail = email.trim().toLowerCase();
-
-    if (!normalizedEmail || !normalizedEmail.includes("@")) {
-      setEmailError("Please enter a valid email address.");
-      return;
-    }
-
-    if (!password) {
-      setPasswordError("Please enter your password.");
-      return;
-    }
-
-    // 1. Check demo credentials
-    const isDemoPlayer = normalizedEmail === DEMO_CREDENTIALS.player.email.toLowerCase();
-    const isDemoOrganizer = normalizedEmail === DEMO_CREDENTIALS.organizer.email.toLowerCase();
-
-    // 2. Check registered accounts from localStorage
-    let registeredUsers: Record<
-      string,
-      { password?: string; role?: "player" | "organizer"; name?: string; playerId?: string }
-    > = {};
-    try {
-      registeredUsers = JSON.parse(localStorage.getItem("atl-registered-accounts") || "{}");
-    } catch {}
-
-    const registeredAccount = registeredUsers[normalizedEmail];
-
-    // 3. Determine if the account exists, its authorized role, password, and display name
-    let accountExists = false;
-    let expectedPassword = "";
-    let authorizedRole: "player" | "organizer" = "player";
-    let displayName: string | undefined = undefined;
-
-    if (isDemoPlayer) {
-      accountExists = true;
-      expectedPassword = DEMO_CREDENTIALS.player.password;
-      authorizedRole = "player";
-      displayName = "Alex Mercer";
-    } else if (isDemoOrganizer) {
-      accountExists = true;
-      expectedPassword = DEMO_CREDENTIALS.organizer.password;
-      authorizedRole = "organizer";
-      displayName = "Dana Whitfield";
-    } else if (registeredAccount) {
-      accountExists = true;
-      expectedPassword = registeredAccount.password || "";
-      authorizedRole = registeredAccount.role === "organizer" ? "organizer" : "player";
-      displayName = registeredAccount.name;
-    }
-
-    // 4. Reject unknown accounts
-    if (!accountExists) {
-      if (role === "organizer") {
-        setEmailError("No organizer account found with this email. Organizer access requires verified credentials.");
-      } else {
-        setEmailError("No account found with this email address. Please sign up first.");
-      }
-      return;
-    }
-
-    // 5. Role-Based Access Control (RBAC) Enforcement
-    if (role === "organizer" && authorizedRole !== "organizer") {
-      setEmailError("Access denied: This account is registered as a player and does not have organizer privileges.");
-      return;
-    }
-
-    if (role === "player" && authorizedRole === "organizer") {
-      setEmailError("This is an organizer account. Please switch to the Organizer tab to sign in.");
-      return;
-    }
-
-    // 6. Verify password
-    if (password !== expectedPassword) {
-      setPasswordError("Incorrect password. Please try again.");
-      return;
-    }
-
-    // 7. Successful login
     setLoading(true);
-    setTimeout(() => {
-      login(authorizedRole, normalizedEmail, displayName);
-      if (leagueId && authorizedRole === "player") {
-        navigate({ to: "/register/$leagueId", params: { leagueId } });
-      } else {
-        navigate({ to: authorizedRole === "organizer" ? "/organizer" : "/dashboard" });
-      }
-    }, 500);
+    try {
+      const user = await login(email.trim().toLowerCase(), password);
+      if (leagueId && user.role === "player") navigate({ to: "/register/$leagueId", params: { leagueId } });
+      else navigate({ to: user.role === "organizer" ? "/organizer" : "/dashboard" });
+    } catch (error) {
+      setPasswordError(error instanceof Error ? error.message : "Unable to sign in");
+    } finally { setLoading(false); }
   };
-
-  const creds = DEMO_CREDENTIALS[role];
 
   return (
     <div className="min-h-[90vh] bg-background px-4 py-10 sm:px-6">
@@ -313,44 +218,6 @@ function Login() {
               ))}
             </div>
 
-            {/* Demo credentials hint */}
-            <div className="flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/5 px-3.5 py-3">
-              <KeyRound className="mt-0.5 size-4 shrink-0 text-primary" />
-              <div className="text-xs leading-relaxed text-muted-foreground">
-                <span className="font-semibold text-foreground">
-                  Demo credentials
-                </span>{" "}
-                for{" "}
-                <span className="font-semibold capitalize text-primary">
-                  {role}
-                </span>
-                :
-                <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 font-mono text-[11px]">
-                  <span className="text-muted-foreground">Email</span>
-                  <button
-                    type="button"
-                    onClick={() => { setEmail(creds.email); clearErrors(); }}
-                    className="truncate text-left font-semibold text-primary underline-offset-2 hover:underline"
-                    title="Click to auto-fill"
-                  >
-                    {creds.email}
-                  </button>
-                  <span className="text-muted-foreground">Password</span>
-                  <button
-                    type="button"
-                    onClick={() => { setPassword(creds.password); clearErrors(); }}
-                    className="text-left font-semibold text-primary underline-offset-2 hover:underline"
-                    title="Click to auto-fill"
-                  >
-                    {creds.password}
-                  </button>
-                </div>
-                <p className="mt-1.5 text-[10px] text-muted-foreground/70">
-                  Click email or password above to auto-fill.
-                </p>
-              </div>
-            </div>
-
             {/* Email field */}
             <div>
               <label
@@ -368,7 +235,7 @@ function Login() {
                   setEmail(e.target.value);
                   if (emailError) setEmailError("");
                 }}
-                placeholder={creds.email}
+                placeholder="you@example.com"
                 className={`block w-full rounded-lg border bg-background px-3.5 py-2.5 text-sm shadow-sm transition focus:outline-none focus:ring-2 ${
                   emailError
                     ? "border-destructive focus:border-destructive focus:ring-destructive/20"
@@ -392,12 +259,7 @@ function Login() {
                 >
                   Password
                 </label>
-                <a
-                  href="#"
-                  className="text-xs font-semibold text-primary hover:underline"
-                >
-                  Forgot password?
-                </a>
+
               </div>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

@@ -19,7 +19,7 @@
 import http from "k6/http";
 import { sleep, check } from "k6";
 import { Counter, Rate } from "k6/metrics";
-import { BASE_URL, HOT_LEAGUE, JSON_HEADERS, playerEmail } from "./config.js";
+import { BASE_URL, HOT_LEAGUE, JSON_HEADERS, authHeaders, playerEmail } from "./config.js";
 
 const raceSuccess  = new Counter("registration_race_success");
 const raceRejected = new Counter("registration_race_rejected");
@@ -55,7 +55,7 @@ export default function () {
   const payload = JSON.stringify({ leagueId: HOT_LEAGUE, playerEmail: email });
 
   const res = http.post(`${BASE_URL}/api/registrations`, payload, {
-    headers: JSON_HEADERS,
+    headers: authHeaders(email),
   });
 
   if (res.status === 201) {

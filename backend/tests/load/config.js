@@ -36,3 +36,11 @@ export const COMMON_THRESHOLDS = {
   http_req_failed:   ["rate<0.01"],
   http_req_duration: ["p(95)<2000"],
 };
+
+// A local, uncommitted map of email -> session cookie from an isolated QA fixture.
+// Missing sessions fail rather than silently measuring HTTP 401 responses.
+const authSessions = __ENV.AUTH_SESSIONS_FILE ? JSON.parse(open(__ENV.AUTH_SESSIONS_FILE)) : {};
+export function authHeaders(email) {
+  if (!authSessions[email]) throw new Error("Provide AUTH_SESSIONS_FILE with a session for each test player");
+  return { ...JSON_HEADERS, Cookie: authSessions[email], Origin: __ENV.CLIENT_ORIGIN || BASE_URL };
+}

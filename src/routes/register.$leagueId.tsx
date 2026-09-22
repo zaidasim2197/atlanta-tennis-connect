@@ -2,13 +2,6 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { FORMAT_LABELS, formatMoney, formatDateRange } from "@/lib/tennis";
 import {
   ArrowLeft,
@@ -47,7 +40,7 @@ function RegisterLeague() {
       (user?.email && p.email.toLowerCase() === user.email.toLowerCase()),
   );
 
-  const [partnerId, setPartnerId] = useState("");
+  const [partnerEmail, setPartnerEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [reservation, setReservation] = useState<ActiveReservation | null>(null);
@@ -72,7 +65,7 @@ function RegisterLeague() {
     if (!id) return;
     let disposed = false;
     setLoading(true);
-    fetch(getApiUrl(`/api/payments/${id}/checkout`))
+    fetch(getApiUrl(`/api/payments/${id}/checkout`), { method: "POST", credentials: "include" })
       .then(async (res) => {
         const json = await res.json();
         if (!res.ok || !json.ok) throw new Error(json.error || "Could not restore checkout");
@@ -112,7 +105,7 @@ function RegisterLeague() {
     const id = reservation.id;
     return () => {
       if (!completed.current && !paying.current) {
-        void fetch(getApiUrl(`/api/payments/${id}/cancel`), { method: "POST", keepalive: true });
+        void fetch(getApiUrl(`/api/payments/${id}/cancel`), { method: "POST", credentials: "include", keepalive: true });
       }
     };
   }, [reservation?.id]);
@@ -126,15 +119,14 @@ function RegisterLeague() {
     busy.current = true;
     setLoading(true);
     setApiError(null);
-    const partner = partnerId ? players.find((p) => p.id === partnerId) : undefined;
     try {
       const res = await fetch(getApiUrl("/api/registrations"), {
-        method: "POST",
+        method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           leagueId: league.id,
           playerEmail: user.email,
-          ...(partner?.email ? { partnerEmail: partner.email } : {}),
+          ...(partnerEmail.trim() ? { partnerEmail: partnerEmail.trim().toLowerCase() } : {}),
         }),
       });
       const json = await res.json();
@@ -162,7 +154,7 @@ function RegisterLeague() {
   const handlePaymentSuccess = async () => {
     if (!reservation) return;
     const res = await fetch(getApiUrl(`/api/payments/${reservation.id}/reconcile`), {
-      method: "POST",
+      method: "POST", credentials: "include",
     });
     const json = await res.json();
     if (!res.ok || !json.ok)
@@ -184,7 +176,7 @@ function RegisterLeague() {
     setLoading(true);
     try {
       const res = await fetch(getApiUrl(`/api/payments/${reservation.id}/cancel`), {
-        method: "POST",
+        method: "POST", credentials: "include",
       });
       const json = await res.json();
       if (!res.ok || !json.ok || !json.data.released)
@@ -390,27 +382,13 @@ function RegisterLeague() {
                 <h3 className="font-bold text-lg">Doubles Partner</h3>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
-                This is a doubles league. Please select your partner. They must already be
+                This is a doubles league. Enter your partner’s account email. They must already be
                 registered on the platform.
               </p>
-              <Select
-                disabled={Boolean(reservation)}
-                value={partnerId}
-                onValueChange={setPartnerId}
-              >
-                <SelectTrigger className="h-11 px-4 text-sm bg-background">
-                  <SelectValue placeholder="Select a partner" />
-                </SelectTrigger>
-                <SelectContent>
-                  {players
-                    .filter((p) => p.id !== player.id)
-                    .map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.firstName} {p.lastName} (NTRP {p.ntrp})
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <label htmlFor="partner-email" className="mb-2 block text-sm font-medium">Partner’s account email</label>
+              <input id="partner-email" type="email" disabled={Boolean(reservation)}
+                value={partnerEmail} onChange={e => setPartnerEmail(e.target.value)}
+                placeholder="partner@example.com" className="h-11 w-full rounded-lg border border-input bg-background px-4 text-sm" />
             </div>
           )}
         </div>
@@ -494,7 +472,7 @@ function RegisterLeague() {
                   type="button"
                   size="lg"
                   className="w-full rounded-full font-bold shadow-md shadow-primary/20"
-                  disabled={loading || (league.format.includes("doubles") && !partnerId)}
+                  disabled={loading || (league.format.includes("doubles") && !partnerEmail)}
                   onClick={() => handleReserve()}
                 >
                   {loading ? (

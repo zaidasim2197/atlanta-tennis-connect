@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { Settings, LogOut, CheckCircle } from "lucide-react";
 import { useStore } from "@/lib/store";
@@ -13,8 +14,9 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function Dashboard() {
-  const { user, players, registrations, leagues, seasons, logout } = useStore();
+  const { hydrated, user, players, registrations, leagues, seasons, logout } = useStore();
 
+  if (!hydrated) return null;
   if (!user) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6">
@@ -61,7 +63,7 @@ function Dashboard() {
               <Settings className="mr-2 size-4" /> Edit Profile
             </Link>
           </Button>
-          <Button variant="ghost" size="sm" onClick={logout} className="rounded-full text-muted-foreground">
+          <Button variant="ghost" size="sm" onClick={() => void logout().catch(() => toast.error("Sign out failed. Please retry."))} className="rounded-full text-muted-foreground">
             <LogOut className="mr-2 size-4" /> Sign Out
           </Button>
         </div>

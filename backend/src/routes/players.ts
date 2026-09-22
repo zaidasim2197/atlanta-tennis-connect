@@ -1,18 +1,19 @@
 /**
  * POST /api/players
- *   Create or upsert a player record (used during signup flow).
+ *   Update the authenticated player; signup is handled by /api/auth/signup.
  *   Body: { firstName, lastName, email, phone?, ntrp, city? }
  *
  * GET /api/players/:email
- *   Look up a player by email.
+ *   Look up self, or a player for an authenticated organiser.
  */
 import { Router } from "express";
 import { z } from "zod";
 import { Player } from "../models/Player";
 import { wrap, ok, err } from "../lib/apiResponse";
-import { randomUUID } from "crypto";
+import { requireAuth, ownsEmail } from "../lib/auth";
 
 const router = Router();
+router.use(requireAuth);
 
 const SkillLevel = z.enum(["2.5", "3.0", "3.5", "4.0", "4.5+"]);
 
@@ -23,7 +24,7 @@ const PlayerBody = z.object({
   phone:     z.string().optional().default(""),
   ntrp:      SkillLevel,
   city:      z.string().optional().default(""),
-});
+}).strict();
 
 function playerToFrontend(p: InstanceType<typeof Player>) {
   return {
@@ -45,18 +46,18 @@ router.post(
     if (!parsed.success) return err(res, "Invalid request body", 400, parsed.error.flatten());
 
     const d = parsed.data;
-    const slug = `p-${randomUUID().slice(0, 8)}`;
+    if (!ownsEmail(req, d.email)) return err(res, "You can only update your own profile", 403);
 
     const player = await Player.findOneAndUpdate(
-      { email: d.email.toLowerCase() },
+      { slug: req.identity!.playerSlug, email: req.identity!.email },
       {
-        $setOnInsert: { slug },
         $set: { firstName: d.firstName, lastName: d.lastName, phone: d.phone, ntrp: d.ntrp, city: d.city },
       },
-      { upsert: true, new: true },
+      { new: true, runValidators: true },
     );
 
-    ok(res, playerToFrontend(player), 201);
+    if (!player) return err(res, "Player not found", 404);
+    ok(res, playerToFrontend(player));
   }),
 );
 
@@ -64,8 +65,10 @@ router.post(
 router.get(
   "/:email",
   wrap(async (req, res) => {
+    const email = String(req.params.email).toLowerCase();
+    if (!ownsEmail(req, email) && req.identity!.role !== "organizer") return err(res, "Access denied", 403);
     const player = await Player.findOne({
-      email: decodeURIComponent(req.params.email as string).toLowerCase(),
+      email,
     });
     if (!player) return err(res, "Player not found", 404);
     ok(res, playerToFrontend(player));

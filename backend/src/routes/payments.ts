@@ -1,12 +1,11 @@
 /**
  * POST /api/payments/webhook
  *   Receives Stripe or mock webhook events and advances reservation state.
- *   Uses atomic claim pattern: the lastWebhookEventId field prevents
- *   duplicate processing of replayed events.
+ *   Conditional database transitions prevent duplicate registration effects.
  *
  * GET /api/payments/status/:reservationId
  *   Polls current payment state for a reservation.
- *   Used by the frontend after returning from the Stripe checkout redirect.
+ *   Requires the reservation owner or an authenticated organiser.
  */
 import { Router } from "express";
 import type { Request, Response } from "express";
@@ -14,10 +13,11 @@ import { getPaymentProvider } from "../payment";
 import { confirmPayment, cancelReservation, reconcileReservation, resumeCheckout } from "../lib/reservationService";
 import { Reservation } from "../models/Reservation";
 import { wrap, ok, err } from "../lib/apiResponse";
+import { requireAuth, requireReservationOwner } from "../lib/auth";
 
 const router = Router();
 
-router.get("/:reservationId/checkout", wrap(async (req, res) => {
+router.post("/:reservationId/checkout", requireAuth, requireReservationOwner, wrap(async (req, res) => {
   const id = String(req.params.reservationId);
   res.setHeader("Cache-Control", "no-store");
   ok(res, { ...await resumeCheckout(id), publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY });
@@ -58,6 +58,8 @@ router.post("/webhook", async (req: Request, res: Response) => {
 // GET /api/payments/status/:reservationId
 router.get(
   "/status/:reservationId",
+  requireAuth,
+  requireReservationOwner,
   wrap(async (req, res) => {
     const rawId = req.params.reservationId;
     const reservationId = Array.isArray(rawId) ? rawId[0] : rawId;
@@ -89,8 +91,8 @@ const handleReconcile = wrap(async (req, res) => {
   ok(res, updated);
 });
 
-router.post("/:reservationId/reconcile", handleReconcile);
-router.post("/reconcile/:reservationId", handleReconcile);
+router.post("/:reservationId/reconcile", requireAuth, requireReservationOwner, handleReconcile);
+router.post("/reconcile/:reservationId", requireAuth, requireReservationOwner, handleReconcile);
 
 // POST /api/payments/:reservationId/cancel
 const handleCancel = wrap(async (req, res) => {
@@ -102,7 +104,7 @@ const handleCancel = wrap(async (req, res) => {
   ok(res, result);
 });
 
-router.post("/:reservationId/cancel", handleCancel);
-router.post("/cancel/:reservationId", handleCancel);
+router.post("/:reservationId/cancel", requireAuth, requireReservationOwner, handleCancel);
+router.post("/cancel/:reservationId", requireAuth, requireReservationOwner, handleCancel);
 
 export default router;

@@ -19,7 +19,7 @@ export const Route = createFileRoute("/organizer")({
 });
 
 function OrganizerHub() {
-  const { user, leagues, seasons, registrations, toggleRegistration, createLeague } = useStore();
+  const { hydrated, user, leagues, seasons, registrations, toggleRegistration, createLeague } = useStore();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<"leagues" | "create">("leagues");
@@ -37,13 +37,14 @@ function OrganizerHub() {
   const [description, setDescription] = useState("");
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!user) {
       navigate({ to: "/login", search: { leagueId: undefined } });
     } else if (user.role !== "organizer") {
       toast.error("Access denied. You do not have organizer privileges.");
       navigate({ to: "/dashboard" });
     }
-  }, [user, navigate]);
+  }, [hydrated, user, navigate]);
 
   if (!user || user.role !== "organizer") return null;
 
