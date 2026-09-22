@@ -30,7 +30,7 @@ async function userDTO(account: { _id: unknown; email: string; role: string; pla
 router.use((_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
 router.post("/signup", wrap(async (req, res) => {
   const parsed = signup.safeParse(req.body);
-  if (!parsed.success) return err(res, "Enter valid account details and a password of 15–128 characters", 400);
+  if (!parsed.success) return err(res, "Enter valid account details and a password of at least 6 characters", 400);
   const { password, email, ...profile } = parsed.data;
   await limitAuth(req, "signup", email);
   await Promise.all([Account.init(), Player.init()]);
