@@ -49,6 +49,20 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DemoBanner } from "@/components/demo-banner";
 import { toast } from "sonner";
 
+function cleanLeagueName(name: string): string {
+  if (!name) return "";
+  return name
+    .replace(/^(Midtown|Buckhead|Decatur|Sandy Springs|Alpharetta|Dunwoody|Roswell|Brookhaven|Smyrna|Marietta|Atlanta|Intown|Downtown)\s+/i, "")
+    .trim();
+}
+
+function cleanVenue(venue: string): string {
+  if (!venue) return "";
+  return venue
+    .replace(/,\s*(Midtown|Buckhead|Decatur|Sandy Springs|Alpharetta|Dunwoody|Roswell|Brookhaven|Smyrna|Marietta|Atlanta|Intown|Downtown)\b/gi, "")
+    .trim();
+}
+
 export const Route = createFileRoute("/organizer")({
   component: OrganizerHub,
 });
@@ -242,7 +256,96 @@ function OrganizerHub() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          {/* Mobile League Cards (<lg) */}
+          <div className="space-y-3.5 lg:hidden">
+            {leagues.map((league) => {
+              const season = seasons.find((s) => s.id === league.seasonId);
+              const leagueRegs = effectiveRegistrations.filter((r) => r.leagueId === league.id);
+              const paidCount = leagueRegs.filter((r) => r.paymentStatus === "paid").length;
+              const heldCount = leagueRegs.filter((r) => r.paymentStatus === "held").length;
+
+              return (
+                <div
+                  key={league.id}
+                  onClick={() => setSelectedLeague(league)}
+                  className="rounded-2xl border border-border bg-card p-4 shadow-sm active:scale-[0.99] transition-all cursor-pointer space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-base text-foreground leading-tight">{cleanLeagueName(league.name)}</h3>
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary">
+                          {FORMAT_LABELS[league.format] || league.format}
+                        </span>
+                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-foreground">
+                          NTRP {league.skillLevel}
+                        </span>
+                      </div>
+                    </div>
+                    {league.registrationOpen ? (
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-950/60 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 shrink-0">
+                        Open
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300 shrink-0">
+                        Closed
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="text-xs text-muted-foreground space-y-1 pt-1 border-t border-border/50">
+                    <div className="flex items-center gap-1.5">
+                      <Calendar className="size-3.5 text-primary shrink-0" />
+                      <span>{season?.name || "Season"}{league.startDate && league.endDate ? ` (${formatDateRange(league.startDate, league.endDate)})` : ""}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="size-3.5 text-primary shrink-0" />
+                      <span className="truncate">{cleanVenue(league.venue)}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-xl bg-muted/50 p-2.5">
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-foreground">
+                      <Users className="size-3.5 text-primary" />
+                      <span>{paidCount} / {league.playerLimit} confirmed</span>
+                    </div>
+                    {heldCount > 0 ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-bold px-2 py-0.5">
+                        <span className="size-1.5 rounded-full bg-amber-500 animate-ping" />
+                        {heldCount} on 15m hold
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground">
+                        {Math.max(0, league.playerLimit - paidCount)} spots left
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setSelectedLeague(league)}
+                      className="flex-1 rounded-full text-xs font-semibold h-9"
+                    >
+                      <Users className="size-3.5 mr-1.5 text-primary" /> View Participants ({paidCount + heldCount})
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleRegistration(league.id)}
+                      className="rounded-full text-xs h-9 px-3"
+                    >
+                      {league.registrationOpen ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table (>=lg) */}
+          <div className="hidden lg:block overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-muted-foreground">
                 <thead className="bg-secondary/50 text-xs uppercase text-foreground">
@@ -270,7 +373,7 @@ function OrganizerHub() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                              {league.name}
+                              {cleanLeagueName(league.name)}
                             </span>
                             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
                               {FORMAT_LABELS[league.format] || league.format}
@@ -279,7 +382,7 @@ function OrganizerHub() {
                           <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
                             <span>NTRP {league.skillLevel}</span>
                             <span>•</span>
-                            <span>{league.venue}</span>
+                            <span>{cleanVenue(league.venue)}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -702,7 +805,7 @@ function OrganizerHub() {
 
       {/* ─── League Participants Dialog Modal ─────────────────────────────── */}
       <Dialog open={Boolean(selectedLeague)} onOpenChange={(open) => { if (!open) { setSelectedLeague(null); setSearchQuery(""); setStatusFilter("all"); } }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-2xl border-border">
+        <DialogContent className="w-[calc(100vw-1.25rem)] sm:w-full sm:max-w-4xl max-h-[92vh] overflow-hidden flex flex-col p-0 gap-0 rounded-2xl border-border">
           {selectedLeague && (() => {
             const season = seasons.find((s) => s.id === selectedLeague.seasonId);
             const leagueParticipants = effectiveRegistrations.filter((r) => r.leagueId === selectedLeague.id);
@@ -744,12 +847,12 @@ function OrganizerHub() {
             };
 
             return (
-              <div>
+              <div className="flex flex-col overflow-y-auto overflow-x-hidden max-h-[92vh]">
                 {/* Modal Header */}
-                <div className="border-b border-border/80 bg-muted/40 p-6 sm:p-7">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <div className="border-b border-border/80 bg-muted/40 p-4 sm:p-7 pr-10 sm:pr-7">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 sm:gap-2 mb-2 flex-wrap">
                         <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
                           {FORMAT_LABELS[selectedLeague.format] || selectedLeague.format}
                         </span>
@@ -760,33 +863,33 @@ function OrganizerHub() {
                           {formatMoney(selectedLeague.feeCents)} per player
                         </span>
                       </div>
-                      <DialogTitle className="text-2xl font-bold text-foreground">
-                        {selectedLeague.name}
+                      <DialogTitle className="text-xl sm:text-2xl font-bold text-foreground break-words leading-tight">
+                        {cleanLeagueName(selectedLeague.name)}
                       </DialogTitle>
-                      <DialogDescription className="mt-1 text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+                      <DialogDescription className="mt-1.5 text-xs text-muted-foreground flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 flex-wrap">
                         <span className="flex items-center gap-1 font-medium text-foreground">
-                          <Calendar className="size-3.5 text-primary" />
-                          {season?.name || "Season"} ({formatDateRange(selectedLeague.startDate, selectedLeague.endDate)})
+                          <Calendar className="size-3.5 text-primary shrink-0" />
+                          {season?.name || "Season"}{selectedLeague.startDate && selectedLeague.endDate ? ` (${formatDateRange(selectedLeague.startDate, selectedLeague.endDate)})` : ""}
                         </span>
-                        <span>•</span>
+                        <span className="hidden sm:inline">•</span>
                         <span className="flex items-center gap-1">
-                          <MapPin className="size-3.5 text-primary" />
-                          {selectedLeague.venue}
+                          <MapPin className="size-3.5 text-primary shrink-0" />
+                          <span className="truncate">{cleanVenue(selectedLeague.venue)}</span>
                         </span>
-                        <span>•</span>
+                        <span className="hidden sm:inline">•</span>
                         <span className="flex items-center gap-1">
-                          <Clock className="size-3.5 text-primary" />
-                          {selectedLeague.scheduleDay}s at {selectedLeague.scheduleTime}
+                          <Clock className="size-3.5 text-primary shrink-0" />
+                          <span>{selectedLeague.scheduleDay}s at {selectedLeague.scheduleTime}</span>
                         </span>
                       </DialogDescription>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={copyAllEmails}
-                        className="rounded-full text-xs font-semibold h-9"
+                        className="rounded-full text-xs font-semibold h-8 sm:h-9 w-full sm:w-auto"
                       >
                         {copiedEmails ? (
                           <>
@@ -802,46 +905,48 @@ function OrganizerHub() {
                   </div>
 
                   {/* KPI Badges */}
-                  <div className="grid grid-cols-3 gap-3 mt-6">
-                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-left">
-                      <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
-                        Confirmed (Paid)
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mt-4 sm:mt-6">
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-2.5 sm:p-3 text-left">
+                      <div className="text-[10px] sm:text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider truncate">
+                        Paid (Confirmed)
                       </div>
-                      <div className="text-2xl font-bold text-emerald-800 dark:text-emerald-300 mt-0.5">
+                      <div className="text-xl sm:text-2xl font-bold text-emerald-800 dark:text-emerald-300 mt-0.5 flex items-baseline">
                         {paidParticipants.length}
-                        <span className="text-xs font-normal text-muted-foreground ml-1.5">
+                        <span className="text-[11px] sm:text-xs font-normal text-muted-foreground ml-1">
                           / {selectedLeague.playerLimit}
                         </span>
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-3 text-left">
-                      <div className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide flex items-center gap-1">
-                        <Clock className="size-3" />
-                        15-Min Holds
+                    <div className="rounded-xl border border-amber-500/25 bg-amber-500/5 p-2.5 sm:p-3 text-left">
+                      <div className="text-[10px] sm:text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1 truncate">
+                        <Clock className="size-3 shrink-0" />
+                        <span className="truncate">15m Holds</span>
                       </div>
-                      <div className="text-2xl font-bold text-amber-800 dark:text-amber-300 mt-0.5">
+                      <div className="text-xl sm:text-2xl font-bold text-amber-800 dark:text-amber-300 mt-0.5 flex items-baseline gap-1">
                         {heldParticipants.length}
-                        <span className="text-[11px] font-normal text-amber-600 dark:text-amber-400 ml-1.5">
-                          checkout in progress
+                        <span className="text-[10px] sm:text-[11px] font-normal text-amber-600 dark:text-amber-400 truncate hidden xs:inline">
+                          in progress
                         </span>
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-border bg-background p-3 text-left">
-                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-                        Available Spots
+                    <div className="col-span-2 sm:col-span-1 rounded-xl border border-border bg-background p-2.5 sm:p-3 text-left">
+                      <div className="text-[10px] sm:text-[11px] font-bold text-muted-foreground uppercase tracking-wider truncate">
+                        Spots Remaining
                       </div>
-                      <div className="text-2xl font-bold text-foreground mt-0.5">
+                      <div className="text-xl sm:text-2xl font-bold text-foreground mt-0.5 flex items-baseline">
                         {spotsRemaining}
-                        <span className="text-xs font-normal text-muted-foreground ml-1.5">open slots</span>
+                        <span className="text-[11px] sm:text-xs font-normal text-muted-foreground ml-1.5">
+                          open of {selectedLeague.playerLimit}
+                        </span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Filter and Search Bar */}
-                <div className="p-5 border-b border-border bg-card/60 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="p-3 sm:p-5 border-b border-border bg-card/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3">
                   <div className="relative w-full sm:w-72">
                     <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <input
@@ -853,11 +958,11 @@ function OrganizerHub() {
                     />
                   </div>
 
-                  <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 sm:pb-0 w-full sm:w-auto shrink-0">
                     <button
                       type="button"
                       onClick={() => setStatusFilter("all")}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                         statusFilter === "all"
                           ? "bg-primary text-primary-foreground shadow-sm"
                           : "bg-muted text-muted-foreground hover:text-foreground"
@@ -868,7 +973,7 @@ function OrganizerHub() {
                     <button
                       type="button"
                       onClick={() => setStatusFilter("paid")}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                         statusFilter === "paid"
                           ? "bg-emerald-600 text-white shadow-sm"
                           : "bg-muted text-muted-foreground hover:text-foreground"
@@ -879,7 +984,7 @@ function OrganizerHub() {
                     <button
                       type="button"
                       onClick={() => setStatusFilter("held")}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
                         statusFilter === "held"
                           ? "bg-amber-600 text-white shadow-sm"
                           : "bg-muted text-muted-foreground hover:text-foreground"
@@ -891,9 +996,9 @@ function OrganizerHub() {
                 </div>
 
                 {/* Participants Roster List / Table */}
-                <div className="p-6">
+                <div className="p-3 sm:p-6">
                   {filteredParticipants.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-border bg-card/40 p-12 text-center">
+                    <div className="rounded-2xl border border-dashed border-border bg-card/40 p-8 sm:p-12 text-center">
                       <Users className="size-10 mx-auto text-muted-foreground/50 mb-3" />
                       <h4 className="font-bold text-sm text-foreground">No participants found</h4>
                       <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
@@ -903,135 +1008,236 @@ function OrganizerHub() {
                       </p>
                     </div>
                   ) : (
-                    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs text-muted-foreground">
-                          <thead className="bg-secondary/60 text-[11px] uppercase tracking-wider text-foreground font-semibold">
-                            <tr>
-                              <th className="px-5 py-3.5">Participant</th>
-                              <th className="px-5 py-3.5">Contact Information</th>
-                              <th className="px-5 py-3.5">Rating</th>
-                              <th className="px-5 py-3.5">Payment Status</th>
-                              <th className="px-5 py-3.5 text-right">Registered</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border">
-                            {filteredParticipants.map((p, idx) => {
-                              const isPaid = p.paymentStatus === "paid";
-                              const isHeld = p.paymentStatus === "held";
-                              const initials = (p.name || "Player")
-                                .split(" ")
-                                .map((n: string) => n[0])
-                                .join("")
-                                .slice(0, 2)
-                                .toUpperCase();
+                    <>
+                      {/* Mobile Participant Cards (<md) */}
+                      <div className="space-y-3 md:hidden">
+                        {filteredParticipants.map((p, idx) => {
+                          const isPaid = p.paymentStatus === "paid";
+                          const isHeld = p.paymentStatus === "held";
+                          const initials = (p.name || "Player")
+                            .split(" ")
+                            .map((n: string) => n[0])
+                            .join("")
+                            .slice(0, 2)
+                            .toUpperCase();
 
-                              return (
-                                <tr key={p.id || idx} className="hover:bg-muted/40 transition-colors">
-                                  {/* Name */}
-                                  <td className="px-5 py-4">
-                                    <div className="flex items-center gap-3">
-                                      <Avatar className="size-9 border border-primary/20 shrink-0">
-                                        <AvatarFallback className="bg-primary font-bold text-primary-foreground text-xs">
-                                          {initials}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <div>
-                                        <div className="font-bold text-sm text-foreground">{p.name}</div>
-                                        <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                                          {p.city && <span>{p.city}</span>}
+                          return (
+                            <div
+                              key={p.id || idx}
+                              className="rounded-xl border border-border bg-card p-3.5 shadow-sm space-y-2.5"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <Avatar className="size-9 border border-primary/20 shrink-0">
+                                    <AvatarFallback className="bg-primary font-bold text-primary-foreground text-xs">
+                                      {initials}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="min-w-0">
+                                    <div className="font-bold text-sm text-foreground truncate">{p.name}</div>
+                                    <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                      <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] font-bold text-foreground">
+                                        NTRP {p.ntrp || "3.5"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Status Badge */}
+                                <div className="shrink-0">
+                                  {isPaid ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-950/70 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
+                                      <CheckCircle2 className="size-3" />
+                                      Paid
+                                    </span>
+                                  ) : isHeld ? (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-950/70 px-2.5 py-0.5 text-[11px] font-bold text-amber-800 dark:text-amber-300">
+                                      <span className="size-1.5 rounded-full bg-amber-500 animate-ping" />
+                                      15m Hold
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-400">
+                                      Expired
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Contact Information */}
+                              <div className="text-xs space-y-1 pt-2 border-t border-border/60">
+                                <a
+                                  href={`mailto:${p.email}`}
+                                  className="flex items-center gap-1.5 font-medium text-foreground hover:text-primary transition-colors truncate"
+                                  title={p.email}
+                                >
+                                  <Mail className="size-3.5 text-muted-foreground shrink-0" />
+                                  <span className="truncate">{p.email}</span>
+                                </a>
+                                {p.phone && p.phone !== "Not provided" && (
+                                  <a
+                                    href={`tel:${p.phone}`}
+                                    className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-[11px]"
+                                  >
+                                    <Phone className="size-3 shrink-0" />
+                                    <span>{p.phone}</span>
+                                  </a>
+                                )}
+                                {p.preferredCourt && (
+                                  <div className="flex items-center gap-1.5 text-muted-foreground text-[11px]">
+                                    <MapPin className="size-3 shrink-0 text-primary" />
+                                    <span className="truncate">{cleanVenue(p.preferredCourt)}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Footer note: timestamp & hold timer */}
+                              <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1.5 border-t border-border/40">
+                                <span>
+                                  {p.createdAt
+                                    ? `Registered ${new Date(p.createdAt).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                      })}`
+                                    : "Registered"}
+                                </span>
+                                {isHeld && (
+                                  <span className="font-semibold text-amber-600 dark:text-amber-400">
+                                    {formatHoldTime(p.expiresAt)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Desktop Table (>=md) */}
+                      <div className="hidden md:block overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs text-muted-foreground">
+                            <thead className="bg-secondary/60 text-[11px] uppercase tracking-wider text-foreground font-semibold">
+                              <tr>
+                                <th className="px-5 py-3.5">Participant</th>
+                                <th className="px-5 py-3.5">Contact Information</th>
+                                <th className="px-5 py-3.5">Rating</th>
+                                <th className="px-5 py-3.5">Payment Status</th>
+                                <th className="px-5 py-3.5 text-right">Registered</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                              {filteredParticipants.map((p, idx) => {
+                                const isPaid = p.paymentStatus === "paid";
+                                const isHeld = p.paymentStatus === "held";
+                                const initials = (p.name || "Player")
+                                  .split(" ")
+                                  .map((n: string) => n[0])
+                                  .join("")
+                                  .slice(0, 2)
+                                  .toUpperCase();
+
+                                return (
+                                  <tr key={p.id || idx} className="hover:bg-muted/40 transition-colors">
+                                    {/* Name */}
+                                    <td className="px-5 py-4">
+                                      <div className="flex items-center gap-3">
+                                        <Avatar className="size-9 border border-primary/20 shrink-0">
+                                          <AvatarFallback className="bg-primary font-bold text-primary-foreground text-xs">
+                                            {initials}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                          <div className="font-bold text-sm text-foreground">{p.name}</div>
                                           {p.preferredCourt && (
-                                            <>
-                                              <span>•</span>
-                                              <span>{p.preferredCourt}</span>
-                                            </>
+                                            <div className="text-[11px] text-muted-foreground mt-0.5">
+                                              {cleanVenue(p.preferredCourt)}
+                                            </div>
                                           )}
                                         </div>
                                       </div>
-                                    </div>
-                                  </td>
+                                    </td>
 
-                                  {/* Contact */}
-                                  <td className="px-5 py-4">
-                                    <div className="flex flex-col gap-1">
-                                      <a
-                                        href={`mailto:${p.email}`}
-                                        className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-primary transition-colors truncate max-w-[200px]"
-                                        title={p.email}
-                                      >
-                                        <Mail className="size-3.5 text-muted-foreground shrink-0" />
-                                        <span className="truncate">{p.email}</span>
-                                      </a>
-                                      {p.phone && p.phone !== "Not provided" && (
+                                    {/* Contact */}
+                                    <td className="px-5 py-4">
+                                      <div className="flex flex-col gap-1">
                                         <a
-                                          href={`tel:${p.phone}`}
-                                          className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-[11px]"
+                                          href={`mailto:${p.email}`}
+                                          className="inline-flex items-center gap-1.5 font-medium text-foreground hover:text-primary transition-colors truncate max-w-[200px]"
+                                          title={p.email}
                                         >
-                                          <Phone className="size-3 shrink-0" />
-                                          <span>{p.phone}</span>
+                                          <Mail className="size-3.5 text-muted-foreground shrink-0" />
+                                          <span className="truncate">{p.email}</span>
                                         </a>
-                                      )}
-                                    </div>
-                                  </td>
-
-                                  {/* NTRP */}
-                                  <td className="px-5 py-4">
-                                    <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 font-mono text-xs font-bold text-foreground">
-                                      NTRP {p.ntrp || "3.5"}
-                                    </span>
-                                  </td>
-
-                                  {/* Payment / Hold Status */}
-                                  <td className="px-5 py-4">
-                                    {isPaid ? (
-                                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 px-3 py-1 text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                                        <CheckCircle2 className="size-3.5" />
-                                        Paid &amp; Confirmed
-                                      </span>
-                                    ) : isHeld ? (
-                                      <div className="flex flex-col gap-0.5">
-                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 dark:bg-amber-950/70 px-3 py-1 text-xs font-bold text-amber-800 dark:text-amber-300 w-fit">
-                                          <span className="size-2 rounded-full bg-amber-500 animate-ping" />
-                                          On Hold (15 min)
-                                        </span>
-                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold pl-1">
-                                          {formatHoldTime(p.expiresAt)}
-                                        </span>
+                                        {p.phone && p.phone !== "Not provided" && (
+                                          <a
+                                            href={`tel:${p.phone}`}
+                                            className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-[11px]"
+                                          >
+                                            <Phone className="size-3 shrink-0" />
+                                            <span>{p.phone}</span>
+                                          </a>
+                                        )}
                                       </div>
-                                    ) : (
-                                      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-400">
-                                        Hold Expired
-                                      </span>
-                                    )}
-                                  </td>
+                                    </td>
 
-                                  {/* Registered date */}
-                                  <td className="px-5 py-4 text-right">
-                                    <div className="text-foreground font-medium">
-                                      {p.createdAt
-                                        ? new Date(p.createdAt).toLocaleDateString("en-US", {
-                                            month: "short",
-                                            day: "numeric",
-                                            year: "numeric",
-                                          })
-                                        : "—"}
-                                    </div>
-                                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                                      {p.createdAt
-                                        ? new Date(p.createdAt).toLocaleTimeString("en-US", {
-                                            hour: "numeric",
-                                            minute: "2-digit",
-                                          })
-                                        : ""}
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                                    {/* NTRP */}
+                                    <td className="px-5 py-4">
+                                      <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 font-mono text-xs font-bold text-foreground">
+                                        NTRP {p.ntrp || "3.5"}
+                                      </span>
+                                    </td>
+
+                                    {/* Payment / Hold Status */}
+                                    <td className="px-5 py-4">
+                                      {isPaid ? (
+                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 px-3 py-1 text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                                          <CheckCircle2 className="size-3.5" />
+                                          Paid &amp; Confirmed
+                                        </span>
+                                      ) : isHeld ? (
+                                        <div className="flex flex-col gap-0.5">
+                                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 dark:bg-amber-950/70 px-3 py-1 text-xs font-bold text-amber-800 dark:text-amber-300 w-fit">
+                                            <span className="size-2 rounded-full bg-amber-500 animate-ping" />
+                                            On Hold (15 min)
+                                          </span>
+                                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold pl-1">
+                                            {formatHoldTime(p.expiresAt)}
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-400">
+                                          Hold Expired
+                                        </span>
+                                      )}
+                                    </td>
+
+                                    {/* Registered date */}
+                                    <td className="px-5 py-4 text-right">
+                                      <div className="text-foreground font-medium">
+                                        {p.createdAt
+                                          ? new Date(p.createdAt).toLocaleDateString("en-US", {
+                                              month: "short",
+                                              day: "numeric",
+                                              year: "numeric",
+                                            })
+                                          : "—"}
+                                      </div>
+                                      <div className="text-[10px] text-muted-foreground mt-0.5">
+                                        {p.createdAt
+                                          ? new Date(p.createdAt).toLocaleTimeString("en-US", {
+                                              hour: "numeric",
+                                              minute: "2-digit",
+                                            })
+                                          : ""}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
-                    </div>
+                    </>
                   )}
                 </div>
               </div>

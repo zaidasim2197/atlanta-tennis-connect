@@ -240,7 +240,7 @@ export const FALLBACK_MOCK_LEAGUES: League[] = [
     feeCents: 3500,
     scheduleDay: "Tuesday",
     scheduleTime: "6:30 PM",
-    venue: "Piedmont Park Courts, Midtown",
+    venue: "Piedmont Park Courts",
     playerLimit: 24,
     registrationOpen: true,
     description:
