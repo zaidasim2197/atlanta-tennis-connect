@@ -101,6 +101,17 @@ function Signup() {
     e.preventDefault();
     setError(null);
 
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("Please enter your first and last name.");
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !normalizedEmail.includes("@")) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
     if (password.length < 6) {
       setError("Password must be at least 6 characters long.");
       return;
@@ -111,11 +122,24 @@ function Signup() {
       return;
     }
 
+    // Check if account already exists
+    let registeredUsers: Record<string, any> = {};
+    try {
+      registeredUsers = JSON.parse(localStorage.getItem("atl-registered-accounts") || "{}");
+    } catch {}
+
+    if (
+      registeredUsers[normalizedEmail] ||
+      normalizedEmail === "player@baselineatl.com" ||
+      normalizedEmail === "organizer@baselineatl.com"
+    ) {
+      setError("An account with this email address already exists. Please sign in instead.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const normalizedEmail = email.trim().toLowerCase();
-
       // 1. Persist player to backend MongoDB database
       let backendPlayerId: string | undefined;
       try {
@@ -143,6 +167,7 @@ function Signup() {
       }
 
       // 2. Save player in local store and localStorage
+      const displayName = `${firstName.trim()} ${lastName.trim()}`;
       const playerRecord = {
         id: backendPlayerId || `p-${Math.random().toString(36).slice(2, 9)}`,
         firstName: firstName.trim(),
@@ -155,19 +180,19 @@ function Signup() {
 
       upsertPlayer(playerRecord);
 
-      // Save custom registered credentials so the user can log in with their password later
+      // Save custom registered credentials with explicit role: "player"
       try {
-        const registeredUsers = JSON.parse(localStorage.getItem("atl-registered-accounts") || "{}");
         registeredUsers[normalizedEmail] = {
           password,
           role: "player",
-          name: `${firstName.trim()} ${lastName.trim()}`,
+          name: displayName,
+          playerId: playerRecord.id,
         };
         localStorage.setItem("atl-registered-accounts", JSON.stringify(registeredUsers));
       } catch {}
 
-      // 3. Log in user
-      const user = login("player", normalizedEmail);
+      // 3. Log in user as player
+      const user = login("player", normalizedEmail, displayName);
       if (user.playerId) {
         updatePlayer(user.playerId, { firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim(), city, ntrp });
       }

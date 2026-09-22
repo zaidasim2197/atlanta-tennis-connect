@@ -24,7 +24,7 @@ interface DataState {
 interface StoreValue extends DataState {
   hydrated: boolean;
   refreshFromDb: () => Promise<void>;
-  login: (role: "player" | "organizer", email: string) => AuthUser;
+  login: (role: "player" | "organizer", email: string, customName?: string) => AuthUser;
   logout: () => void;
   createSeason: (input: Omit<Season, "id">) => Season;
   createLeague: (input: Omit<League, "id">) => League;
@@ -175,7 +175,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ...state,
       hydrated,
       refreshFromDb: fetchDbData,
-      login: (role, email) => {
+      login: (role, email, customName) => {
         const normalized = email.trim().toLowerCase();
         let existingPlayer = state.players.find((p) => p.email.toLowerCase() === normalized);
         
@@ -183,8 +183,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (role === "player" && !existingPlayer) {
           const newPlayer: Player = {
             id: uid("p"),
-            firstName: email.split("@")[0] || "Player",
-            lastName: "",
+            firstName: customName ? customName.split(" ")[0] || "Player" : email.split("@")[0] || "Player",
+            lastName: customName ? customName.split(" ").slice(1).join(" ") : "",
             email: normalized,
             phone: "",
             ntrp: "3.5",
@@ -200,12 +200,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           role,
           email: normalized,
           name:
-            role === "organizer"
-              ? "Dana Whitfield"
-              : existingPlayer && (existingPlayer.firstName || existingPlayer.lastName)
-                ? `${existingPlayer.firstName} ${existingPlayer.lastName}`.trim()
-                : (email.split("@")[0] ?? email),
-          playerId: role === "player" ? playerId : undefined,
+            customName
+              ? customName
+              : role === "organizer"
+                ? "Dana Whitfield"
+                : existingPlayer && (existingPlayer.firstName || existingPlayer.lastName)
+                  ? `${existingPlayer.firstName} ${existingPlayer.lastName}`.trim()
+                  : (email.split("@")[0] ?? email),
+          playerId: role === "player" ? (playerId || existingPlayer?.id) : undefined,
         };
         setState((s) => ({ ...s, user }));
         return user;

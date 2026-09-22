@@ -132,49 +132,92 @@ function Login() {
     clearErrors();
 
     const normalizedEmail = email.trim().toLowerCase();
-    const creds = DEMO_CREDENTIALS[role];
 
-    // Check if user is using the demo account
-    const isDemoAccount = normalizedEmail === creds.email.toLowerCase();
-
-    // Check if user has an account registered in this browser
-    let registeredAccount: { password?: string; role?: string } | undefined;
-    try {
-      const registeredUsers = JSON.parse(localStorage.getItem("atl-registered-accounts") || "{}");
-      registeredAccount = registeredUsers[normalizedEmail];
-    } catch {}
-
-    let hasError = false;
-
-    if (isDemoAccount) {
-      if (password !== creds.password) {
-        setPasswordError("Incorrect password. Please try again.");
-        hasError = true;
-      }
-    } else if (registeredAccount) {
-      if (registeredAccount.password && password !== registeredAccount.password) {
-        setPasswordError("Incorrect password. Please try again.");
-        hasError = true;
-      }
-    } else {
-      // If neither demo nor local registered, check password length or accept password for seeded/remote accounts
-      if (password.length < 4) {
-        setPasswordError("Please enter a valid password.");
-        hasError = true;
-      }
+    if (!normalizedEmail || !normalizedEmail.includes("@")) {
+      setEmailError("Please enter a valid email address.");
+      return;
     }
 
-    if (hasError) return;
+    if (!password) {
+      setPasswordError("Please enter your password.");
+      return;
+    }
 
+    // 1. Check demo credentials
+    const isDemoPlayer = normalizedEmail === DEMO_CREDENTIALS.player.email.toLowerCase();
+    const isDemoOrganizer = normalizedEmail === DEMO_CREDENTIALS.organizer.email.toLowerCase();
+
+    // 2. Check registered accounts from localStorage
+    let registeredUsers: Record<
+      string,
+      { password?: string; role?: "player" | "organizer"; name?: string; playerId?: string }
+    > = {};
+    try {
+      registeredUsers = JSON.parse(localStorage.getItem("atl-registered-accounts") || "{}");
+    } catch {}
+
+    const registeredAccount = registeredUsers[normalizedEmail];
+
+    // 3. Determine if the account exists, its authorized role, password, and display name
+    let accountExists = false;
+    let expectedPassword = "";
+    let authorizedRole: "player" | "organizer" = "player";
+    let displayName: string | undefined = undefined;
+
+    if (isDemoPlayer) {
+      accountExists = true;
+      expectedPassword = DEMO_CREDENTIALS.player.password;
+      authorizedRole = "player";
+      displayName = "Alex Mercer";
+    } else if (isDemoOrganizer) {
+      accountExists = true;
+      expectedPassword = DEMO_CREDENTIALS.organizer.password;
+      authorizedRole = "organizer";
+      displayName = "Dana Whitfield";
+    } else if (registeredAccount) {
+      accountExists = true;
+      expectedPassword = registeredAccount.password || "";
+      authorizedRole = registeredAccount.role === "organizer" ? "organizer" : "player";
+      displayName = registeredAccount.name;
+    }
+
+    // 4. Reject unknown accounts
+    if (!accountExists) {
+      if (role === "organizer") {
+        setEmailError("No organizer account found with this email. Organizer access requires verified credentials.");
+      } else {
+        setEmailError("No account found with this email address. Please sign up first.");
+      }
+      return;
+    }
+
+    // 5. Role-Based Access Control (RBAC) Enforcement
+    if (role === "organizer" && authorizedRole !== "organizer") {
+      setEmailError("Access denied: This account is registered as a player and does not have organizer privileges.");
+      return;
+    }
+
+    if (role === "player" && authorizedRole === "organizer") {
+      setEmailError("This is an organizer account. Please switch to the Organizer tab to sign in.");
+      return;
+    }
+
+    // 6. Verify password
+    if (password !== expectedPassword) {
+      setPasswordError("Incorrect password. Please try again.");
+      return;
+    }
+
+    // 7. Successful login
     setLoading(true);
     setTimeout(() => {
-      login(role, normalizedEmail);
-      if (leagueId && role === "player") {
+      login(authorizedRole, normalizedEmail, displayName);
+      if (leagueId && authorizedRole === "player") {
         navigate({ to: "/register/$leagueId", params: { leagueId } });
       } else {
-        navigate({ to: role === "organizer" ? "/organizer" : "/dashboard" });
+        navigate({ to: authorizedRole === "organizer" ? "/organizer" : "/dashboard" });
       }
-    }, 600);
+    }, 500);
   };
 
   const creds = DEMO_CREDENTIALS[role];
