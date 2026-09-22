@@ -304,7 +304,7 @@ function OrganizerHub() {
           <div className="space-y-3.5 lg:hidden">
             {leagues.map((league) => {
               const season = seasons.find((s) => s.id === league.seasonId);
-              const leagueRegs = effectiveRegistrations.filter((r) => r.leagueId === league.id || (league.slug && r.leagueId === league.slug));
+              const leagueRegs = effectiveRegistrations.filter((r) => r.leagueId === league.id);
               const paidCount = leagueRegs.filter((r) => r.paymentStatus === "paid").length;
               const heldCount = leagueRegs.filter((r) => r.paymentStatus === "held").length;
 
@@ -404,7 +404,7 @@ function OrganizerHub() {
                 <tbody className="divide-y divide-border">
                   {leagues.map((league) => {
                     const season = seasons.find((s) => s.id === league.seasonId);
-                    const leagueRegs = effectiveRegistrations.filter((r) => r.leagueId === league.id || (league.slug && r.leagueId === league.slug));
+                    const leagueRegs = effectiveRegistrations.filter((r) => r.leagueId === league.id);
                     const paidCount = leagueRegs.filter((r) => r.paymentStatus === "paid").length;
                     const heldCount = leagueRegs.filter((r) => r.paymentStatus === "held").length;
 

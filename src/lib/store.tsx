@@ -83,10 +83,8 @@ const uid = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2,
 
 export const getApiUrl = (path: string) => {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  // In production, VITE_API_URL is baked in at build time via .env.production
-  // Locally, we use a relative path so Vite's proxy (vite.config.ts) forwards to :3001
-  const apiBase = (import.meta.env['VITE_API_URL'] || "").replace(/\/$/, "");
-  return `${apiBase}${cleanPath}`;
+  // Keep session cookies on the same origin. Vite proxies local /api requests.
+  return cleanPath;
 };
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
@@ -190,6 +188,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Remove the prototype's plaintext passwords and untrusted persisted identity.
     try {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem("atl-registered-accounts");
     } catch { /* Storage may be disabled. */ }
     void refreshSession()
       .catch(() => setState(s => ({ ...s, user: null })))
@@ -234,65 +233,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const user = await refreshSession();
           if (!user) throw new Error("Unable to establish your session");
           return user;
-        } catch (apiErr: any) {
-          // If the backend API returned an explicit auth error, propagate it
-          if (apiErr.message && !apiErr.message.includes("Failed to fetch") && !apiErr.message.includes("NetworkError")) {
-            throw apiErr;
+        } catch (error) {
+          if (error instanceof TypeError || error instanceof SyntaxError) {
+            throw new Error("Unable to reach sign-in. Please try again when the service is available.");
           }
-          // Backend server is offline (e.g. port 3001 not running). Fall back to offline credentials!
-          console.warn("⚠️ Backend auth server offline, using local offline authentication:", apiErr);
-          const normalizedEmail = email.trim().toLowerCase();
-          const isPlayerDemo = normalizedEmail === "player@baselineatl.com";
-          const isOrganizerDemo = normalizedEmail === "organizer@baselineatl.com";
-
-          let registeredAccount: any = null;
-          try {
-            const accounts = JSON.parse(localStorage.getItem("atl-registered-accounts") || "{}");
-            registeredAccount = accounts[normalizedEmail];
-          } catch { }
-
-          if (!isPlayerDemo && !isOrganizerDemo && !registeredAccount) {
-            throw new Error("No account found with this email. Please create an account to get started.");
-          }
-
-          if (isPlayerDemo) {
-            if (password !== "password123") throw new Error("Incorrect password. Please try again.");
-          } else if (isOrganizerDemo) {
-            if (password !== "organizer123") throw new Error("Incorrect password. Please try again.");
-          } else if (registeredAccount) {
-            if (password !== registeredAccount.password) throw new Error("Incorrect password. Please try again.");
-          }
-
-          const role = isOrganizerDemo || registeredAccount?.role === "organizer" ? "organizer" : "player";
-          const existingPlayer = state.players.find((p) => p.email.toLowerCase() === normalizedEmail);
-          const user: AuthUser = {
-            id: uid("u"),
-            email: normalizedEmail,
-            role,
-            name: isOrganizerDemo
-              ? "Organizer"
-              : registeredAccount?.name || (existingPlayer ? `${existingPlayer.firstName} ${existingPlayer.lastName}` : normalizedEmail.split("@")[0] || normalizedEmail),
-            playerId: role === "player" ? (registeredAccount?.playerId || existingPlayer?.id || "p-1") : undefined,
-          };
-
-          setState((s) => ({
-            ...s,
-            user,
-            players: existingPlayer
-              ? s.players
-              : [
-                ...s.players,
-                {
-                  id: user.playerId || "p-1",
-                  firstName: user.name.split(" ")[0] || "Demo",
-                  lastName: user.name.split(" ")[1] || "Player",
-                  email: user.email,
-                  ntrp: "3.0",
-                  city: "Midtown",
-                },
-              ],
-          }));
-          return user;
+          throw error;
         }
       },
       logout: async () => {

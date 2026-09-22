@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { leagueId?: string | undefined; redirect?: string | undefined } => ({
     leagueId:
       typeof search["leagueId"] === "string"
         ? (search["leagueId"] as string)
@@ -116,13 +116,8 @@ function Login() {
   const handleRoleChange = (r: "player" | "organizer") => {
     setRole(r);
     clearErrors();
-    if (r === "organizer") {
-      setEmail("organizer@baselineatl.com");
-      setPassword("organizer123");
-    } else {
-      setEmail("");
-      setPassword("");
-    }
+    setEmail("");
+    setPassword("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -251,10 +246,10 @@ function Login() {
               <div className="rounded-xl border border-primary/25 bg-primary/5 p-3.5 text-xs">
                 <div className="flex items-center gap-2 font-semibold text-foreground">
                   <ShieldCheck className="size-4 text-primary shrink-0" />
-                  <span>Demo Organizer Credentials</span>
+                  <span>Organizer Sign-in</span>
                 </div>
                 <p className="mt-1 leading-relaxed text-muted-foreground">
-                  Organizer accounts are restricted to administrators. Demo credentials have been pre-filled below for evaluation.
+                  Use your administrator-provided account. Organizer access is verified by the server.
                 </p>
               </div>
             )}

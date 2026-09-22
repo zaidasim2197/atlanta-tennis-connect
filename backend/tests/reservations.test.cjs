@@ -78,7 +78,7 @@ beforeEach(async () => {
     slug: "l-test",
     seasonSlug: "s-test",
     name: "Test",
-    format: "senior-singles",
+    format: "men-singles",
     skillLevel: "3.5",
     feeCents: 5000,
     scheduleDay: "Tuesday",

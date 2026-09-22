@@ -8,7 +8,7 @@ import { MapPin, CalendarDays, Calendar, ShieldAlert, Lock, Eye, EyeOff, AlertCi
 import { ModernDobPicker } from "@/components/modern-dob-picker";
 
 export const Route = createFileRoute("/signup")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { leagueId?: string | undefined; redirect?: string | undefined } => ({
     leagueId:
       typeof search["leagueId"] === "string"
         ? (search["leagueId"] as string)
@@ -82,7 +82,7 @@ function Stepper({ current }: { current: number }) {
 }
 
 function Signup() {
-  const { refreshSession, leagueById, upsertPlayer, login } = useStore();
+  const { refreshSession, leagueById } = useStore();
   const navigate = useNavigate();
   const { leagueId, redirect } = Route.useSearch();
   const targetLeagueId = leagueId || (redirect?.startsWith("/leagues/") ? redirect.replace("/leagues/", "") : undefined);
@@ -163,91 +163,25 @@ function Signup() {
       return;
     }
 
-    // Check if account already exists
-    let registeredUsers: Record<string, any> = {};
-    try {
-      registeredUsers = JSON.parse(localStorage.getItem("atl-registered-accounts") || "{}");
-    } catch { }
-
-    if (
-      registeredUsers[normalizedEmail] ||
-      normalizedEmail === "player@baselineatl.com" ||
-      normalizedEmail === "organizer@baselineatl.com"
-    ) {
-      setError("An account with this email address already exists. Please sign in instead.");
-      return;
-    }
-
     setLoading(true);
     try {
-      // 1. Attempt backend session-based signup
-      let backendSuccess = false;
-      try {
-        const res = await fetch(getApiUrl("/api/auth/signup"), {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-            email: normalizedEmail,
-            password,
-            phone: phone.trim() || undefined,
-            city: city.trim() || "Atlanta",
-            ntrp,
-            dateOfBirth,
-            parentName: isUnder18 ? parentName.trim() : undefined,
-            parentPhone: isUnder18 ? parentPhone.trim() : undefined,
-            isJunior: isUnder18,
-          }),
-        });
-        const json = await res.json();
-        if (res.ok && json.ok) {
-          backendSuccess = true;
-          await refreshSession();
-        } else if (res.status === 409 || json.error?.includes("Unable to create this account") || json.error?.includes("already exists")) {
-          throw new Error("An account with this email address already exists. Please sign in instead.");
-        }
-      } catch (apiErr) {
-        if (apiErr instanceof Error && apiErr.message.includes("already exists")) {
-          throw apiErr;
-        }
-        console.warn("Backend auth offline or error, falling back locally:", apiErr);
+      const res = await fetch(getApiUrl("/api/auth/signup"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: firstName.trim(), lastName: lastName.trim(), email: normalizedEmail,
+          password, phone: phone.trim() || undefined, city: city.trim() || "Atlanta", ntrp,
+          dateOfBirth, parentName: isUnder18 ? parentName.trim() : undefined,
+          parentPhone: isUnder18 ? parentPhone.trim() : undefined, isJunior: isUnder18,
+          zipCode: zipCode.trim(), preferredCourt: preferredCourt.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || "Unable to create your account. Please try again.");
       }
-
-      // 2. Save player in local store and localStorage for offline compatibility
-      const displayName = `${firstName.trim()} ${lastName.trim()}`;
-      const playerRecord = {
-        id: `p-${Math.random().toString(36).slice(2, 9)}`,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        email: normalizedEmail,
-        dateOfBirth,
-        parentName: isUnder18 ? parentName.trim() : undefined,
-        parentPhone: isUnder18 ? parentPhone.trim() : undefined,
-        isJunior: isUnder18,
-        phone: phone.trim(),
-        city: city.trim() || "Atlanta",
-        zipCode: zipCode.trim() || "30309",
-        preferredCourt: preferredCourt.trim() || "Piedmont Park Courts",
-        ntrp,
-      };
-
-      upsertPlayer(playerRecord);
-
-      try {
-        registeredUsers[normalizedEmail] = {
-          password,
-          role: "player",
-          name: displayName,
-          playerId: playerRecord.id,
-        };
-        localStorage.setItem("atl-registered-accounts", JSON.stringify(registeredUsers));
-      } catch { }
-
-      if (!backendSuccess) {
-        await login(normalizedEmail, password).catch(() => null);
-      }
+      if (!await refreshSession()) throw new Error("Unable to establish your session. Please sign in.");
 
       // 3. Navigate to redirect, registration payment or dashboard
       if (redirect) {

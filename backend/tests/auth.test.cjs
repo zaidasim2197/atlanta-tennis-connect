@@ -55,7 +55,7 @@ beforeEach(async () => {
     await AuthSession.create({ accountId: account._id, tokenHash: crypto.createHash("sha256").update(token).digest("hex"), expiresAt: new Date(Date.now() + 60000) });
     cookies[name] = `__Host-atl-session=${token}`;
   }
-  await League.create({ slug: "l-sec", seasonSlug: "s-sec", name: "Security test", format: "senior-singles", skillLevel: "3.5", feeCents: 100, scheduleDay: "Tuesday", scheduleTime: "6 PM", venue: "Test", playerLimit: 3, spotsRemaining: 3 });
+  await League.create({ slug: "l-sec", seasonSlug: "s-sec", name: "Security test", format: "men-singles", skillLevel: "3.5", feeCents: 100, scheduleDay: "Tuesday", scheduleTime: "6 PM", venue: "Test", playerLimit: 3, spotsRemaining: 3 });
 });
 after(async () => { if (server) await new Promise(resolve => server.close(resolve)); await mongoose.disconnect(); if (db) await db.stop(); });
 const profile = email => ({ email, firstName: "Changed", lastName: "Name", phone: "changed", city: "Atlanta", ntrp: "3.5" });
@@ -137,6 +137,15 @@ test("login validates password; logout revokes cookie; expired sessions fail bef
   assert.equal((await request("/api/auth/me", { cookie })).status, 401);
   await AuthSession.updateMany({}, { expiresAt: new Date(Date.now() - 1) });
   assert.equal((await request("/api/auth/me", { who: "a" })).status, 401);
+});
+
+test("public demo credentials cannot create an organizer account", async () => {
+  const email = "organizer@baselineatl.com";
+  const result = await request("/api/auth/login", {
+    method: "POST", body: { email, password: "organizer123" },
+  });
+  assert.equal(result.status, 401);
+  assert.equal(await Account.countDocuments({ email }), 0);
 });
 test("tampered sessions, disabled accounts and role revocation take effect immediately", async () => {
   assert.equal((await request("/api/auth/me", { cookie: "__Host-atl-session=forged" })).status, 401);

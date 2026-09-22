@@ -142,3 +142,42 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+Local sign-in also requires the Express API and MongoDB. The command above
+starts only the frontend. In a second terminal, from the repository root, run:
+
+```sh
+npm install --prefix backend
+npm run dev:api
+```
+
+The API reads `backend/.env`; set `MONGODB_URI` there and keep `PORT=3001`
+and `NODE_ENV=development` for local development. Wait for the API startup
+message, then open the URL printed by Vite. Vite forwards `/api` requests to
+`http://localhost:3001`. Check `http://localhost:3001/api/health` to confirm
+the API has started. An `.env` file configures the API but does not start it.
+
+Use an account created in the connected database. Mock league data can appear
+even when the API is offline, so a working homepage does not confirm sign-in
+is available.
+
+### Production checks
+
+Run `npm run build` before deploying. It runs TypeScript checks and the frontend
+regression tests before creating production output, and stops if either fails.
+Use this same build command in the deployment configuration so these checks are
+not bypassed. Run `npm test` to check league browsing independently; the tests
+cover player sign-in/session restoration, season selection, and missing season
+data. They use local fixtures and do not require database credentials.
+
+Authentication uses same-origin `/api` routes in production and the Vite proxy
+locally. Remove obsolete production `VITE_API_URL` settings; the frontend no
+longer uses them. Configure `MONGODB_URI` on the production Vercel project itself.
+Login and signup require a server session; old browser-only accounts and saved
+plaintext passwords are not accepted. Existing users must use their database
+account password. Provision organizer accounts through an administrator, and
+rotate any existing public demo credentials before a public release.
+
+Run `npm test --prefix backend` to validate authentication and reservation
+behavior against an isolated temporary MongoDB database. Its first run downloads
+a MongoDB test binary. These tests do not modify the configured application database.

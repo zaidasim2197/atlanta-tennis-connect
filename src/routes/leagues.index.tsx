@@ -88,6 +88,7 @@ function BrowseLeagues() {
   const [format, setFormat] = React.useState<"all" | LeagueFormat>("all");
   const [skill, setSkill] = React.useState<"all" | SkillLevel>(playerSkill || "all");
   const [seasonId, setSeasonId] = React.useState<string>("all");
+  const activeSeason = seasons.find((season) => season.id === seasonId);
   const [city, setCity] = React.useState<string>("all");
   const [query, setQuery] = React.useState("");
 
@@ -180,7 +181,7 @@ function BrowseLeagues() {
       }
       return true;
     });
-  }, [leagues, seasons, format, skill, seasonId, city, query]);
+  }, [leagues, seasons, format, skill, playerSkill, seasonId, city, query]);
 
   return (
     <div>
@@ -370,7 +371,7 @@ function BrowseLeagues() {
               ? format === "all" && skill === "all" && seasonId === "all" && city === "all"
                 ? `All ${results.length} leagues available across Atlanta`
                 : `${results.length} league${results.length === 1 ? "" : "s"} found${format !== "all" ? ` for ${FORMAT_LABELS[format as LeagueFormat]}` : ""
-                }${skill !== "all" ? ` (NTRP ${skill})` : ""}${seasonId !== "all" ? ` in ${cleanSeasonTitle(activeSeason?.name || "this season")}` : ""
+                }${skill !== "all" ? ` (NTRP ${skill})` : ""}${seasonId !== "all" ? ` in ${activeSeason ? cleanSeasonTitle(activeSeason.name) : "this season"}` : ""
                 }${city !== "all" ? ` in ${city}` : ""}`
               : "Loading leagues…"}
           </p>

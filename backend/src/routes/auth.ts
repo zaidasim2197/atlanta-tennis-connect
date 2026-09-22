@@ -58,17 +58,7 @@ router.post("/login", wrap(async (req, res) => {
   const parsed = credentials.strict().safeParse(req.body);
   if (!parsed.success) return err(res, "Invalid email or password", 400);
   await limitAuth(req, "login", parsed.data.email);
-  let account = await Account.findOne({ email: parsed.data.email }).select("+passwordHash");
-  if (!account && parsed.data.email === "organizer@baselineatl.com") {
-    const passwordHash = await hashPassword("organizer123");
-    account = await Account.create({
-      email: "organizer@baselineatl.com",
-      playerSlug: "p-demo-organizer",
-      passwordHash,
-      role: "organizer",
-      disabled: false,
-    });
-  }
+  const account = await Account.findOne({ email: parsed.data.email }).select("+passwordHash");
   if (!await verifyPassword(parsed.data.password, account?.passwordHash) || !account || account.disabled) return err(res, "Invalid email or password", 401);
   const user = await userDTO(account);
   await beginSession(req, res, account._id.toString());
