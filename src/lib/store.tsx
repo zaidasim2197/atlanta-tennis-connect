@@ -83,10 +83,8 @@ const uid = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2,
 
 export const getApiUrl = (path: string) => {
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
-    return `http://localhost:3001${cleanPath}`;
-  }
-  // In production, use the dedicated backend API URL
+  // In production, VITE_API_URL is baked in at build time via .env.production
+  // Locally, we use a relative path so Vite's proxy (vite.config.ts) forwards to :3001
   const apiBase = (import.meta.env['VITE_API_URL'] || "").replace(/\/$/, "");
   return `${apiBase}${cleanPath}`;
 };
