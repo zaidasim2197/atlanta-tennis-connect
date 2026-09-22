@@ -24,8 +24,13 @@ export async function verifyPassword(password: string, encoded?: string) {
   return Boolean(valid && timingSafeEqual(key, Buffer.from(parts![2], "hex")));
 }
 function sessionToken(req: Request) {
-  const value = req.headers.cookie?.split(";").map(v => v.trim()).find(v => v.startsWith(`${cookieName()}=`))?.slice(cookieName().length + 1);
-  return value && /^[a-f0-9]{64}$/.test(value) ? value : undefined;
+  const tokens = req.headers.cookie
+    ?.split(";")
+    .map(v => v.trim())
+    .filter(v => v.startsWith(`${cookieName()}=`))
+    .map(v => v.slice(cookieName().length + 1))
+    .filter(v => /^[a-f0-9]{64}$/.test(v));
+  return tokens && tokens.length > 0 ? tokens[tokens.length - 1] : undefined;
 }
 export async function endSession(req: Request, res: Response) {
   const token = sessionToken(req);

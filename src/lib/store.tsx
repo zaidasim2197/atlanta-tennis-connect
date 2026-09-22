@@ -191,7 +191,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch { /* Storage may be disabled. */ }
-    void refreshSession().catch(() => setState(s => ({ ...s, user: null, players: [], registrations: [] }))).finally(() => setHydrated(true));
+    void refreshSession()
+      .catch(() => setState(s => ({ ...s, user: null })))
+      .finally(() => {
+        try {
+          const stored = JSON.parse(localStorage.getItem("atl-user-registrations") || "[]");
+          if (Array.isArray(stored) && stored.length > 0) {
+            setState((prev) => ({
+              ...prev,
+              registrations: [
+                ...prev.registrations,
+                ...stored.filter((sr: any) => !prev.registrations.some((r) => r.id === sr.id)),
+              ],
+              players: [
+                ...prev.players,
+                ...stored.map((sr: any) => sr.player).filter((p: any) => p && !prev.players.some((pl) => pl.id === p.id)),
+              ],
+            }));
+          }
+        } catch { }
+        setHydrated(true);
+      });
     void fetchDbData();
   }, [fetchDbData, refreshSession]);
 
@@ -325,6 +345,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           registrations: [...s.registrations, registration],
           user: s.user ? { ...s.user, playerId: s.user.role === "player" ? saved.id : s.user.playerId } : s.user,
         }));
+        try {
+          const stored = JSON.parse(localStorage.getItem("atl-user-registrations") || "[]");
+          localStorage.setItem("atl-user-registrations", JSON.stringify([...stored, { ...registration, player: saved }]));
+        } catch { }
         return { registration, player: saved };
       },
       updatePlayer: (playerId, patch) =>

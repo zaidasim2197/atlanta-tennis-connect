@@ -132,28 +132,72 @@ function OrganizerHub() {
     }
   }, [hydrated, user, navigate]);
 
-  // Combine live registrations with fallback
+  // Combine live registrations with local store and persisted registrations
   const effectiveRegistrations = useMemo(() => {
-    if (allRegistrations.length > 0) return allRegistrations;
-    return registrations.map((r) => {
-      const p = players.find((player) => player.id === r.playerId);
-      const isPaid = r.paymentStatus === "paid";
-      return {
-        id: r.id,
-        leagueId: r.leagueId,
-        playerId: r.playerId,
-        name: p ? `${p.firstName} ${p.lastName}` : "Registered Player",
-        email: p?.email || "player@example.com",
-        phone: p?.phone || "(404) 555-0100",
-        ntrp: p?.ntrp || r.skillLevelSnapshot || "3.5",
-        city: p?.city || "Atlanta",
-        status: isPaid ? "registered" : "held",
-        paymentStatus: isPaid ? "paid" : "held",
-        amountCents: r.amountCents || 3500,
-        createdAt: r.createdAt || new Date().toISOString(),
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-      };
+    const list: any[] = [...allRegistrations];
+    const seen = new Set<string>();
+    list.forEach((r) => {
+      seen.add(`${r.leagueId}:${r.email?.toLowerCase() || r.playerId}`);
+      if (r.id) seen.add(r.id);
     });
+
+    registrations.forEach((r) => {
+      const p = players.find((player) => player.id === r.playerId);
+      const email = (p?.email || "").toLowerCase();
+      const key = `${r.leagueId}:${email || r.playerId}`;
+      if (!seen.has(key) && !seen.has(r.id)) {
+        seen.add(key);
+        seen.add(r.id);
+        const isPaid = r.paymentStatus === "paid" || r.registrationStatus === "confirmed";
+        list.push({
+          id: r.id,
+          leagueId: r.leagueId,
+          playerId: r.playerId,
+          name: p ? `${p.firstName} ${p.lastName}`.trim() : "Registered Player",
+          email: p?.email || "player@example.com",
+          phone: p?.phone || "(404) 555-0100",
+          ntrp: p?.ntrp || r.skillLevelSnapshot || "3.5",
+          city: p?.city || "Atlanta",
+          status: isPaid ? "registered" : "held",
+          paymentStatus: isPaid ? "paid" : "held",
+          amountCents: r.amountCents || 3500,
+          createdAt: r.createdAt || new Date().toISOString(),
+          expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+        });
+      }
+    });
+
+    try {
+      const saved = JSON.parse(localStorage.getItem("atl-user-registrations") || "[]");
+      if (Array.isArray(saved)) {
+        saved.forEach((sr: any) => {
+          const email = (sr.player?.email || sr.email || "").toLowerCase();
+          const key = `${sr.leagueId}:${email || sr.playerId}`;
+          if (!seen.has(key) && (!sr.id || !seen.has(sr.id))) {
+            if (sr.id) seen.add(sr.id);
+            seen.add(key);
+            const isPaid = sr.paymentStatus === "paid" || sr.registrationStatus === "confirmed";
+            list.push({
+              id: sr.id || `local-${Math.random()}`,
+              leagueId: sr.leagueId,
+              playerId: sr.playerId || sr.player?.id,
+              name: sr.player ? `${sr.player.firstName} ${sr.player.lastName}`.trim() : sr.name || "Registered Player",
+              email: sr.player?.email || sr.email || "player@example.com",
+              phone: sr.player?.phone || sr.phone || "(404) 555-0100",
+              ntrp: sr.player?.ntrp || sr.ntrp || sr.skillLevelSnapshot || "3.5",
+              city: sr.player?.city || sr.city || "Atlanta",
+              status: isPaid ? "registered" : "held",
+              paymentStatus: isPaid ? "paid" : "held",
+              amountCents: sr.amountCents || 3500,
+              createdAt: sr.createdAt || new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+            });
+          }
+        });
+      }
+    } catch { }
+
+    return list;
   }, [allRegistrations, registrations, players]);
 
   if (!user || user.role !== "organizer") return null;
@@ -260,7 +304,7 @@ function OrganizerHub() {
           <div className="space-y-3.5 lg:hidden">
             {leagues.map((league) => {
               const season = seasons.find((s) => s.id === league.seasonId);
-              const leagueRegs = effectiveRegistrations.filter((r) => r.leagueId === league.id);
+              const leagueRegs = effectiveRegistrations.filter((r) => r.leagueId === league.id || (league.slug && r.leagueId === league.slug));
               const paidCount = leagueRegs.filter((r) => r.paymentStatus === "paid").length;
               const heldCount = leagueRegs.filter((r) => r.paymentStatus === "held").length;
 
@@ -360,7 +404,7 @@ function OrganizerHub() {
                 <tbody className="divide-y divide-border">
                   {leagues.map((league) => {
                     const season = seasons.find((s) => s.id === league.seasonId);
-                    const leagueRegs = effectiveRegistrations.filter((r) => r.leagueId === league.id);
+                    const leagueRegs = effectiveRegistrations.filter((r) => r.leagueId === league.id || (league.slug && r.leagueId === league.slug));
                     const paidCount = leagueRegs.filter((r) => r.paymentStatus === "paid").length;
                     const heldCount = leagueRegs.filter((r) => r.paymentStatus === "held").length;
 
@@ -807,7 +851,7 @@ function OrganizerHub() {
         <DialogContent className="w-[calc(100vw-1.25rem)] sm:w-full sm:max-w-4xl max-h-[92vh] overflow-hidden flex flex-col p-0 gap-0 rounded-2xl border-border">
           {selectedLeague && (() => {
             const season = seasons.find((s) => s.id === selectedLeague.seasonId);
-            const leagueParticipants = effectiveRegistrations.filter((r) => r.leagueId === selectedLeague.id);
+            const leagueParticipants = effectiveRegistrations.filter((r) => r.leagueId === selectedLeague.id || ((selectedLeague as any).slug && r.leagueId === (selectedLeague as any).slug));
             const paidParticipants = leagueParticipants.filter((r) => r.paymentStatus === "paid");
             const heldParticipants = leagueParticipants.filter((r) => r.paymentStatus === "held");
             const spotsRemaining = Math.max(0, selectedLeague.playerLimit - paidParticipants.length - heldParticipants.length);

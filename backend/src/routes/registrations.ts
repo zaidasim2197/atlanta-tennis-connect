@@ -23,6 +23,67 @@ import { wrap, ok, err } from "../lib/apiResponse";
 import { requireAuth, requireOrganizer, ownsEmail } from "../lib/auth";
 
 const router = Router();
+
+// POST /api/registrations/confirm (Called upon checkout / payment success)
+router.post(
+  "/confirm",
+  wrap(async (req, res) => {
+    const { leagueId, playerEmail, playerName, ntrp, phone, preferredCourt, amountCents } = req.body;
+    if (!leagueId || !playerEmail) return err(res, "leagueId and playerEmail are required", 400);
+
+    const email = String(playerEmail).trim().toLowerCase();
+    let player = await Player.findOne({ email });
+    if (!player) {
+      const parts = String(playerName || "Player").split(" ");
+      player = await Player.create({
+        slug: `p-${Math.random().toString(36).slice(2, 9)}`,
+        firstName: parts[0] || "Player",
+        lastName: parts.slice(1).join(" ") || "",
+        email,
+        phone: phone || "(404) 555-0100",
+        ntrp: ntrp || "3.5",
+        city: "Atlanta",
+        preferredCourt: preferredCourt || "Piedmont Park Courts",
+        accountStatus: "active",
+        profileStatus: "complete",
+      });
+    }
+
+    // Decrement league spots if league exists in database
+    await League.findOneAndUpdate(
+      { slug: leagueId, spotsRemaining: { $gt: 0 } },
+      { $inc: { spotsRemaining: -1 } },
+    );
+
+    const reservation = await Reservation.findOneAndUpdate(
+      { leagueSlug: leagueId, playerEmail: email },
+      {
+        $set: {
+          leagueSlug: leagueId,
+          playerSlug: player.slug,
+          playerEmail: email,
+          status: "registered",
+          amountCents: amountCents || 3500,
+          paidAt: new Date(),
+          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        },
+        $setOnInsert: {
+          idempotencyKey: `client-conf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+
+    return ok(res, {
+      id: reservation._id.toString(),
+      leagueId: reservation.leagueSlug,
+      playerId: reservation.playerSlug,
+      status: "registered",
+      paymentStatus: "paid",
+    }, 201);
+  }),
+);
+
 router.use(requireAuth);
 
 const CreateBody = z.object({
@@ -59,6 +120,7 @@ router.post(
 
 import { Reservation } from "../models/Reservation";
 import { Player } from "../models/Player";
+import { League } from "../models/League";
 
 // GET /api/registrations?email=&leagueId=
 router.get(
@@ -91,8 +153,9 @@ router.get(
         const player = playerBySlug.get(r.playerSlug) || playerByEmail.get(r.playerEmail.toLowerCase());
         const isHold = ["held", "payment_pending"].includes(r.status);
         const isExpired = isHold && new Date() > new Date(r.expiresAt);
+        const isPaid = ["paid", "registered", "completed"].includes(r.status);
         const status = isExpired ? "expired" : r.status;
-        const paymentStatus = ["paid", "registered"].includes(r.status)
+        const paymentStatus = isPaid
           ? "paid"
           : isHold && !isExpired
           ? "held"

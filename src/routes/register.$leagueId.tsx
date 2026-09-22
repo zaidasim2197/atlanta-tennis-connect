@@ -184,6 +184,27 @@ function RegisterLeague() {
     } catch (e) {
       console.warn("Payment reconcile note:", e);
     }
+
+    // Always ensure registration is confirmed on backend database API
+    try {
+      await fetch(getApiUrl("/api/registrations/confirm"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leagueId: league.id,
+          playerEmail: user.email,
+          playerName: `${player.firstName} ${player.lastName}`.trim(),
+          ntrp: player.ntrp,
+          phone: player.phone,
+          preferredCourt,
+          amountCents: effectiveFeeCents,
+        }),
+      });
+    } catch (e) {
+      console.warn("Backend confirm registration fallback note:", e);
+    }
+
     registerPlayer({
       leagueId: league.id,
       player,

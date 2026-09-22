@@ -4,13 +4,12 @@ const path = require('path');
 const crypto = require('crypto');
 require('dotenv').config({ path: 'backend/.env' });
 
-// Simple scrypt hash matching backend/src/lib/auth.ts
 function hashPassword(password) {
   return new Promise((resolve, reject) => {
     const salt = crypto.randomBytes(16).toString('hex');
-    crypto.scrypt(password, salt, 64, (err, derivedKey) => {
+    crypto.scrypt(password, salt, 64, { N: 131072, r: 8, p: 1, maxmem: 160 * 1024 * 1024 }, (err, derivedKey) => {
       if (err) reject(err);
-      resolve(`${salt}:${derivedKey.toString('hex')}`);
+      resolve(`scrypt$${salt}$${derivedKey.toString('hex')}`);
     });
   });
 }
@@ -89,6 +88,28 @@ async function run() {
       updatedAt: new Date(),
     };
   });
+
+  // Also include Tuesday Singles (l-1) for backward compatibility
+  leaguesToInsert.push({
+    slug: 'l-1',
+    seasonSlug: 's-fall-26',
+    name: 'Tuesday Singles',
+    format: 'men-singles',
+    skillLevel: '3.0',
+    feeCents: 3500,
+    scheduleDay: 'Tuesday',
+    scheduleTime: '6:30 PM',
+    venue: 'Piedmont Park Courts',
+    playerLimit: 24,
+    spotsRemaining: 23,
+    registrationOpen: true,
+    description: 'Ten weeks of competitive singles under the lights at Piedmont Park.',
+    startDate: '2026-10-06',
+    endDate: '2026-12-15',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
   await db.collection('leagues').insertMany(leaguesToInsert);
 
   // 3. Players
@@ -153,6 +174,23 @@ async function run() {
     updatedAt: new Date(),
   });
 
+  playersToInsert.push({
+    slug: 'p-j6h3iho',
+    firstName: 'Zaid',
+    lastName: 'Bin',
+    email: 'zaid@baselineatl.com',
+    phone: '(404) 555-0199',
+    ntrp: '3.0',
+    city: 'Atlanta',
+    zipCode: '30309',
+    preferredCourt: 'Piedmont Park Courts',
+    preferredFormat: 'men-singles',
+    accountStatus: 'active',
+    profileStatus: 'complete',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
   await db.collection('players').insertMany(playersToInsert);
 
   // 4. Accounts (for auth)
@@ -187,21 +225,41 @@ async function run() {
   const reservationsToInsert = dataPack.registrations.map((r) => {
     const leagueSlug = seasonToLeague[r.season_id] || 'LG-MS-35';
     const isPaid = r.payment_status === 'succeeded';
-    const status = isPaid ? 'completed' : r.payment_status === 'failed' ? 'expired' : 'active';
+    const status = isPaid ? 'registered' : r.payment_status === 'failed' ? 'expired' : 'held';
     const league = leaguesToInsert.find((l) => l.slug === leagueSlug);
+    const player = playersToInsert.find((p) => p.slug === r.player_id);
+    const playerEmail = player ? player.email : `player-${r.player_id.toLowerCase()}@example.com`;
 
     return {
       leagueSlug,
       playerSlug: r.player_id,
+      playerEmail,
       skillLevel: r.skill_level_snapshot ? r.skill_level_snapshot.replace('SKL-', '').replace(/(\d)(\d)/, '$1.$2') : '3.5',
       status,
       amountCents: league ? league.feeCents : 3000,
       idempotencyKey: 'seed-reg-' + r.registration_id,
       createdAt: new Date(r.registered_at),
       updatedAt: new Date(r.confirmed_at || r.registered_at),
+      paidAt: isPaid ? new Date(r.confirmed_at || r.registered_at) : null,
       expiresAt: new Date(Date.now() + 15 * 60 * 1000),
     };
   });
+
+  // Add Zaid Bin confirmed registration for Tuesday Singles (l-1)
+  reservationsToInsert.push({
+    leagueSlug: 'l-1',
+    playerSlug: 'p-j6h3iho',
+    playerEmail: 'zaid@baselineatl.com',
+    skillLevel: '3.0',
+    status: 'registered',
+    amountCents: 3500,
+    idempotencyKey: 'seed-reg-zaid-l1',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    paidAt: new Date(),
+    expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+  });
+
   await db.collection('reservations').insertMany(reservationsToInsert);
 
   console.log('Seeding completed successfully!');
