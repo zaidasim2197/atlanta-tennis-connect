@@ -11,6 +11,7 @@ import {
   EyeOff,
   Lock,
   AlertCircle,
+  ShieldCheck,
 } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
@@ -109,9 +110,14 @@ function Login() {
 
   const handleRoleChange = (r: "player" | "organizer") => {
     setRole(r);
-    setEmail("");
-    setPassword("");
     clearErrors();
+    if (r === "organizer") {
+      setEmail("organizer@baselineatl.com");
+      setPassword("organizer123");
+    } else {
+      setEmail("");
+      setPassword("");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -218,6 +224,19 @@ function Login() {
               ))}
             </div>
 
+            {/* Organizer demo note */}
+            {role === "organizer" && (
+              <div className="rounded-xl border border-primary/25 bg-primary/5 p-3.5 text-xs">
+                <div className="flex items-center gap-2 font-semibold text-foreground">
+                  <ShieldCheck className="size-4 text-primary shrink-0" />
+                  <span>Demo Organizer Credentials</span>
+                </div>
+                <p className="mt-1 leading-relaxed text-muted-foreground">
+                  Organizer accounts are restricted to administrators. Demo credentials have been pre-filled below for evaluation.
+                </p>
+              </div>
+            )}
+
             {/* Email field */}
             <div>
               <label
@@ -314,15 +333,21 @@ function Login() {
             </Button>
           </form>
 
-          <p className="mt-5 text-center text-sm text-muted-foreground">
-            Don't have an account?{" "}
-            <a
-              href={leagueId ? `/signup?leagueId=${leagueId}` : "/signup"}
-              className="font-semibold text-primary hover:underline"
-            >
-              Create one
-            </a>
-          </p>
+          {role === "player" ? (
+            <p className="mt-5 text-center text-sm text-muted-foreground">
+              Don't have an account?{" "}
+              <a
+                href={leagueId ? `/signup?leagueId=${leagueId}` : "/signup"}
+                className="font-semibold text-primary hover:underline"
+              >
+                Create one
+              </a>
+            </p>
+          ) : (
+            <p className="mt-5 text-center text-xs text-muted-foreground">
+              Organizer accounts are managed by administrators and cannot be created via public signup.
+            </p>
+          )}
         </div>
 
         {/* Safety note */}

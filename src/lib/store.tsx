@@ -248,7 +248,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             email: normalizedEmail,
             role,
             name: isOrganizerDemo
-              ? "Dana Whitfield"
+              ? "Organizer Only"
               : registeredAccount?.name || (existingPlayer ? `${existingPlayer.firstName} ${existingPlayer.lastName}` : normalizedEmail.split("@")[0] || normalizedEmail),
             playerId: role === "player" ? (registeredAccount?.playerId || existingPlayer?.id || "p-1") : undefined,
           };

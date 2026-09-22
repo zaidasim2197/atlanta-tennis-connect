@@ -22,8 +22,8 @@ async function main() {
     },
     {
       slug: "p-demo-organizer",
-      firstName: "Dana",
-      lastName: "Whitfield",
+      firstName: "Organizer",
+      lastName: "Only",
       email: "organizer@baselineatl.com",
       phone: "(404) 555-0101",
       ntrp: "4.0",

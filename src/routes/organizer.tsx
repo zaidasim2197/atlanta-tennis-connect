@@ -109,7 +109,7 @@ function OrganizerHub() {
         >
           Manage Leagues
         </button>
-        <button
+        {/* <button
           className={`pb-2 font-medium flex items-center gap-1.5 ${activeTab === "scores" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
           onClick={() => setActiveTab("scores")}
         >
@@ -119,7 +119,7 @@ function OrganizerHub() {
               {results.filter((r) => r.status === "awaiting-confirmation").length}
             </span>
           )}
-        </button>
+        </button> */}
         <button
           className={`pb-2 font-medium ${activeTab === "create" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
           onClick={() => setActiveTab("create")}
