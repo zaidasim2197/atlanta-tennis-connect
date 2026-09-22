@@ -2,13 +2,6 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { FORMAT_LABELS, formatMoney, formatDateRange } from "@/lib/tennis";
 import {
   ArrowLeft,
@@ -50,6 +43,7 @@ function RegisterLeague() {
   const [partnerChoice, setPartnerChoice] = useState<"have-partner" | "no-partner">("no-partner");
   const [partnerQuery, setPartnerQuery] = useState("");
   const [partnerId, setPartnerId] = useState("");
+  const [partnerEmail, setPartnerEmail] = useState("");
   const [preferredCourt, setPreferredCourt] = useState(player?.preferredCourt || "Piedmont Park Courts");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -80,7 +74,7 @@ function RegisterLeague() {
     if (!id) return;
     let disposed = false;
     setLoading(true);
-    fetch(getApiUrl(`/api/payments/${id}/checkout`))
+    fetch(getApiUrl(`/api/payments/${id}/checkout`), { method: "POST", credentials: "include" })
       .then(async (res) => {
         const json = await res.json();
         if (!res.ok || !json.ok) throw new Error(json.error || "Could not restore checkout");
@@ -119,7 +113,7 @@ function RegisterLeague() {
     const id = reservation.id;
     return () => {
       if (!completed.current && !paying.current) {
-        void fetch(getApiUrl(`/api/payments/${id}/cancel`), { method: "POST", keepalive: true });
+        void fetch(getApiUrl(`/api/payments/${id}/cancel`), { method: "POST", credentials: "include", keepalive: true });
       }
     };
   }, [reservation?.id]);
@@ -133,15 +127,14 @@ function RegisterLeague() {
     busy.current = true;
     setLoading(true);
     setApiError(null);
-    const partner = partnerId ? players.find((p) => p.id === partnerId) : undefined;
     try {
       const res = await fetch(getApiUrl("/api/registrations"), {
-        method: "POST",
+        method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           leagueId: league.id,
           playerEmail: user.email,
-          ...(partner?.email ? { partnerEmail: partner.email } : {}),
+          ...(partnerEmail.trim() ? { partnerEmail: partnerEmail.trim().toLowerCase() } : {}),
         }),
       });
       const json = await res.json();
@@ -183,6 +176,7 @@ function RegisterLeague() {
       if (!reservation.clientSecret?.includes("mock")) {
         const res = await fetch(getApiUrl(`/api/payments/${reservation.id}/reconcile`), {
           method: "POST",
+          credentials: "include",
         });
         const json = await res.json();
         if (!res.ok || !json.ok) throw new Error(json.error || "Verification pending.");
@@ -209,7 +203,13 @@ function RegisterLeague() {
     setLoading(true);
     try {
       if (!reservation.clientSecret?.includes("mock")) {
-        await fetch(getApiUrl(`/api/payments/${reservation.id}/cancel`), { method: "POST" });
+        const res = await fetch(getApiUrl(`/api/payments/${reservation.id}/cancel`), {
+          method: "POST",
+          credentials: "include",
+        });
+        const json = await res.json();
+        if (!res.ok || !json.ok || !json.data?.released)
+          throw new Error(json.error || "Cancellation is not confirmed. Please retry.");
       }
       completed.current = true;
       sessionStorage.removeItem(storageKey);

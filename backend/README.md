@@ -1,3 +1,5 @@
+> Security: server sessions and ownership checks are required on player, registration and payment endpoints. Shared admin-key access and browser demo passwords are disabled. See [security controls](../docs/security-controls.md) for the current API and test requirements; older prototype examples below do not override these controls.
+
 # Atlanta Tennis Connect – Backend
 
 Real Express/MongoDB backend for the Atlanta Tennis Connect platform.  

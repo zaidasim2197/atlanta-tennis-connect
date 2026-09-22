@@ -1,6 +1,8 @@
 {
   "version": 2,
   "rewrites": [
+    { "source": "/api/auth/:path+", "destination": "/api/auth" },
+    { "source": "/api/players/:path+", "destination": "/api/players" },
     { "source": "/api/payments/:path+", "destination": "/api/payments" },
     { "source": "/api/registrations/:path+", "destination": "/api/registrations" }
   ],

@@ -39,6 +39,7 @@ export const Route = createFileRoute("/dashboard")({
 
 function Dashboard() {
   const {
+    hydrated,
     user,
     players,
     registrations,
@@ -66,6 +67,7 @@ function Dashboard() {
   const [set3Opponent, setSet3Opponent] = React.useState("7");
   const [winnerChoice, setWinnerChoice] = React.useState<"player" | "opponent">("player");
 
+  if (!hydrated) return null;
   if (!user) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6">
@@ -157,7 +159,16 @@ function Dashboard() {
             Manage your registered leagues, match schedules, home court, and official statistics.
           </p>
         </div>
-
+        <div className="flex items-center gap-3">
+          <Button asChild variant="outline" size="sm" className="rounded-full">
+            <Link to="/profile">
+              <Settings className="mr-2 size-4" /> Edit Profile
+            </Link>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => void logout().catch(() => toast.error("Sign out failed. Please retry."))} className="rounded-full text-muted-foreground">
+            <LogOut className="mr-2 size-4" /> Sign Out
+          </Button>
+        </div>
       </div>
 
       {/* Main Grid */}

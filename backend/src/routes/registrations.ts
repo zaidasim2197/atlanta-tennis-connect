@@ -8,9 +8,9 @@
  *   Returns all active reservations for a player email.
  *
  * POST /api/registrations/admin
- *   Manual/admin registration – same underlying logic, bypasses TTL.
+ *   Organiser reservation using the same capacity, TTL and payment rules.
  *   Body: { leagueId, playerEmail, partnerEmail? }
- *   Header: x-admin-key (checked against ADMIN_KEY env var)
+ *   Requires a server-authenticated organiser session.
  */
 import { Router } from "express";
 import { z } from "zod";
@@ -20,8 +20,10 @@ import {
   getPlayerReservations,
 } from "../lib/reservationService";
 import { wrap, ok, err } from "../lib/apiResponse";
+import { requireAuth, requireOrganizer, ownsEmail } from "../lib/auth";
 
 const router = Router();
+router.use(requireAuth);
 
 const CreateBody = z.object({
   leagueId:     z.string().min(1),
@@ -37,6 +39,7 @@ router.post(
     if (!parsed.success) return err(res, "Invalid request body", 400, parsed.error.flatten());
 
     const { leagueId, playerEmail, partnerEmail } = parsed.data;
+    if (!ownsEmail(req, playerEmail)) return err(res, "You can only register your own account", 403);
 
     const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY;
     if (process.env.PAYMENT_PROVIDER !== "mock" && !publishableKey?.startsWith("pk_")) {
@@ -45,7 +48,7 @@ router.post(
 
     const result = await createReservation({
       leagueSlug: leagueId,
-      playerEmail,
+      playerEmail: req.identity!.email,
       partnerEmail,
     });
 
@@ -58,8 +61,8 @@ router.post(
 router.get(
   "/",
   wrap(async (req, res) => {
-    const email = req.query.email as string | undefined;
-    if (!email) return err(res, "email query param required", 400);
+    const email = typeof req.query.email === "string" ? req.query.email : req.identity!.email;
+    if (!ownsEmail(req, email) && req.identity!.role !== "organizer") return err(res, "Access denied", 403);
 
     const reservations = await getPlayerReservations(email);
     ok(res, reservations);
@@ -69,14 +72,8 @@ router.get(
 // POST /api/registrations/admin
 router.post(
   "/admin",
+  requireOrganizer,
   wrap(async (req, res) => {
-    // Lightweight key check – not full RBAC (out of scope per spec)
-    const key = req.headers["x-admin-key"];
-    const expected = process.env.ADMIN_KEY;
-    if (!expected || key !== expected) {
-      return err(res, "Unauthorized", 401);
-    }
-
     const parsed = CreateBody.safeParse(req.body);
     if (!parsed.success) return err(res, "Invalid request body", 400, parsed.error.flatten());
 

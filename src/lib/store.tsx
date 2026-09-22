@@ -2,8 +2,6 @@ import * as React from "react";
 import {
   FALLBACK_MOCK_LEAGUES,
   FALLBACK_MOCK_MATCHES,
-  FALLBACK_MOCK_PLAYERS,
-  FALLBACK_MOCK_REGISTRATIONS,
   FALLBACK_MOCK_RESULTS,
   FALLBACK_MOCK_SEASONS,
   type AuthUser,
@@ -31,8 +29,9 @@ interface DataState {
 interface StoreValue extends DataState {
   hydrated: boolean;
   refreshFromDb: () => Promise<void>;
-  login: (role: "player" | "organizer", email: string, customName?: string) => AuthUser;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<AuthUser>;
+  refreshSession: () => Promise<AuthUser | null>;
+  logout: () => Promise<void>;
   createSeason: (input: Omit<Season, "id">) => Season;
   createLeague: (input: Omit<League, "id">) => League;
   toggleRegistration: (leagueId: string) => void;
@@ -69,8 +68,8 @@ const STORAGE_KEY = "atl-tennis-league-state-v6";
 const initial: DataState = {
   seasons: FALLBACK_MOCK_SEASONS,
   leagues: FALLBACK_MOCK_LEAGUES,
-  players: FALLBACK_MOCK_PLAYERS,
-  registrations: FALLBACK_MOCK_REGISTRATIONS,
+  players: [],
+  registrations: [],
   matches: FALLBACK_MOCK_MATCHES,
   results: FALLBACK_MOCK_RESULTS,
   user: null,
@@ -100,7 +99,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (!state.user?.email || !state.dbConnected) return;
     let disposed = false;
     const email = state.user.email;
-    fetch(getApiUrl(`/api/registrations?email=${encodeURIComponent(email)}`))
+    fetch(getApiUrl(`/api/registrations?email=${encodeURIComponent(email)}`), { credentials: "include" })
       .then(async (res) => {
         const json = await res.json();
         if (!res.ok || !json.ok || !Array.isArray(json.data)) return;
@@ -161,84 +160,55 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  React.useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<DataState>;
-        // Do not persist connection flags across reloads
-        delete parsed.dbConnected;
-        delete parsed.fallbackActive;
-        setState((prev) => ({ ...prev, ...parsed }));
-      }
-    } catch {
-      /* ignore corrupt storage */
+  const refreshSession = React.useCallback(async () => {
+    const res = await fetch(getApiUrl("/api/auth/me"), { credentials: "include" });
+    const json = await res.json();
+    if (res.status === 401) {
+      setState(s => ({ ...s, user: null, players: [], registrations: [] }));
+      return null;
     }
-    setHydrated(true);
-    fetchDbData();
-  }, [fetchDbData]);
+    if (!res.ok || !json.ok) throw new Error("Unable to verify your session");
+    const user = json.data as AuthUser;
+    const profileRes = await fetch(getApiUrl(`/api/players/${encodeURIComponent(user.email)}`), { credentials: "include" });
+    const profile = await profileRes.json();
+    if (!profileRes.ok || !profile.ok) throw new Error("Unable to load your profile");
+    setState(s => ({ ...s, user, players: [profile.data], registrations: [] }));
+    return user;
+  }, []);
 
   React.useEffect(() => {
-    if (!hydrated) return;
+    // Remove the prototype's plaintext passwords and untrusted persisted identity.
     try {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          seasons: state.seasons,
-          leagues: state.leagues,
-          players: state.players,
-          registrations: state.registrations,
-          user: state.user,
-        }),
-      );
-    } catch {
-      /* storage full or unavailable */
-    }
-  }, [state, hydrated]);
+      localStorage.removeItem("atl-registered-accounts");
+      localStorage.removeItem(STORAGE_KEY);
+    } catch { /* Storage may be disabled. */ }
+    void refreshSession().catch(() => setState(s => ({ ...s, user: null, players: [], registrations: [] }))).finally(() => setHydrated(true));
+    void fetchDbData();
+  }, [fetchDbData, refreshSession]);
 
   const value = React.useMemo<StoreValue>(() => {
     return {
       ...state,
       hydrated,
       refreshFromDb: fetchDbData,
-      login: (role, email, customName) => {
-        const normalized = email.trim().toLowerCase();
-        let existingPlayer = state.players.find((p) => p.email.toLowerCase() === normalized);
-        
-        let playerId = existingPlayer?.id;
-        if (role === "player" && !existingPlayer) {
-          const newPlayer: Player = {
-            id: uid("p"),
-            firstName: customName ? customName.split(" ")[0] || "Player" : email.split("@")[0] || "Player",
-            lastName: customName ? customName.split(" ").slice(1).join(" ") : "",
-            email: normalized,
-            phone: "",
-            ntrp: "3.5",
-            city: "Atlanta",
-          };
-          playerId = newPlayer.id;
-          existingPlayer = newPlayer;
-          setState((s) => ({ ...s, players: [...s.players, newPlayer] }));
-        }
-
-        const user: AuthUser = {
-          id: uid("u"),
-          role,
-          email: normalized,
-          name:
-            customName
-              ? customName
-              : role === "organizer"
-                ? "Dana Whitfield"
-                : existingPlayer && (existingPlayer.firstName || existingPlayer.lastName)
-                  ? `${existingPlayer.firstName} ${existingPlayer.lastName}`.trim()
-                  : (email.split("@")[0] ?? email),
-          playerId: role === "player" ? (playerId || existingPlayer?.id) : undefined,
-        };
-        setState((s) => ({ ...s, user }));
+      refreshSession,
+      login: async (email, password) => {
+        const res = await fetch(getApiUrl("/api/auth/login"), {
+          method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const json = await res.json();
+        if (!res.ok || !json.ok) throw new Error(json.error || "Unable to sign in");
+        const user = await refreshSession();
+        if (!user) throw new Error("Unable to establish your session");
         return user;
       },
-      logout: () => setState((s) => ({ ...s, user: null })),
+      logout: async () => {
+        const res = await fetch(getApiUrl("/api/auth/logout"), { method: "POST", credentials: "include" });
+        if (!res.ok) throw new Error("Sign out failed. Please retry.");
+        setState(s => ({ ...s, user: null, players: [], registrations: [] }));
+        sessionStorage.clear();
+      },
       createSeason: (input) => {
         const season: Season = { ...input, id: uid("s") };
         setState((s) => ({ ...s, seasons: [season, ...s.seasons] }));
@@ -416,7 +386,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           );
       },
     };
-  }, [state, hydrated, fetchDbData]);
+  }, [state, hydrated, fetchDbData, refreshSession]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

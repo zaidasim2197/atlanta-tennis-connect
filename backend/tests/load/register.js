@@ -14,7 +14,7 @@
 import http from "k6/http";
 import { sleep, check } from "k6";
 import { Rate, Trend, Counter } from "k6/metrics";
-import { BASE_URL, LEAGUE_SLUGS, JSON_HEADERS, COMMON_THRESHOLDS, playerEmail } from "./config.js";
+import { BASE_URL, LEAGUE_SLUGS, JSON_HEADERS, COMMON_THRESHOLDS, authHeaders, playerEmail } from "./config.js";
 
 const regSuccess    = new Rate("registration_success");
 const regDuration   = new Trend("registration_duration_ms");
@@ -61,7 +61,7 @@ export default function () {
 
   const start = Date.now();
   const res   = http.post(`${BASE_URL}/api/registrations`, payload, {
-    headers: JSON_HEADERS,
+    headers: authHeaders(email),
     // Tell k6 not to count 4xx as automatic failures – we handle them explicitly
     tags: { name: "register" },
   });
@@ -113,7 +113,7 @@ export default function () {
 
     sleep(0.3);
     const statusRes = http.get(`${BASE_URL}/api/payments/status/${reservationId}`, {
-      headers: JSON_HEADERS,
+      headers: authHeaders(email),
     });
     check(statusRes, {
       "payment status 200":    (r) => r.status === 200,

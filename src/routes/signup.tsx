@@ -78,7 +78,7 @@ function Stepper({ current }: { current: number }) {
 }
 
 function Signup() {
-  const { login, upsertPlayer, updatePlayer, leagueById } = useStore();
+  const { refreshSession, leagueById, upsertPlayer, login } = useStore();
   const navigate = useNavigate();
   const { leagueId } = Route.useSearch();
   const leagueData = leagueId ? leagueById(leagueId) : undefined;
@@ -179,44 +179,46 @@ function Signup() {
     }
 
     setLoading(true);
-
     try {
-      // 1. Persist player to backend MongoDB database
-      let backendPlayerId: string | undefined;
+      // 1. Attempt backend session-based signup
+      let backendSuccess = false;
       try {
-        const res = await fetch(getApiUrl("/api/players"), {
+        const res = await fetch(getApiUrl("/api/auth/signup"), {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             firstName: firstName.trim(),
             lastName: lastName.trim(),
             email: normalizedEmail,
+            password,
+            phone: phone.trim() || undefined,
+            city: city.trim() || "Atlanta",
+            ntrp,
             dateOfBirth,
             parentName: isUnder18 ? parentName.trim() : undefined,
             parentPhone: isUnder18 ? parentPhone.trim() : undefined,
             isJunior: isUnder18,
-            phone: phone.trim() || undefined,
-            city: city.trim() || "Atlanta",
-            zipCode: zipCode.trim() || "30309",
-            preferredCourt: preferredCourt.trim() || "Piedmont Park Courts",
-            ntrp,
           }),
         });
-
-        if (res.ok) {
-          const json = await res.json();
-          if (json.ok && json.data?.id) {
-            backendPlayerId = json.data.id;
-          }
+        const json = await res.json();
+        if (res.ok && json.ok) {
+          backendSuccess = true;
+          await refreshSession();
+        } else if (res.status === 409 || json.error?.includes("Unable to create this account") || json.error?.includes("already exists")) {
+          throw new Error("An account with this email address already exists. Please sign in instead.");
         }
       } catch (apiErr) {
-        console.warn("Backend player registration offline or failed, using local store:", apiErr);
+        if (apiErr instanceof Error && apiErr.message.includes("already exists")) {
+          throw apiErr;
+        }
+        console.warn("Backend auth offline or error, falling back locally:", apiErr);
       }
 
-      // 2. Save player in local store and localStorage
+      // 2. Save player in local store and localStorage for offline compatibility
       const displayName = `${firstName.trim()} ${lastName.trim()}`;
       const playerRecord = {
-        id: backendPlayerId || `p-${Math.random().toString(36).slice(2, 9)}`,
+        id: `p-${Math.random().toString(36).slice(2, 9)}`,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: normalizedEmail,
@@ -233,7 +235,6 @@ function Signup() {
 
       upsertPlayer(playerRecord);
 
-      // Save custom registered credentials with explicit role: "player"
       try {
         registeredUsers[normalizedEmail] = {
           password,
@@ -244,23 +245,11 @@ function Signup() {
         localStorage.setItem("atl-registered-accounts", JSON.stringify(registeredUsers));
       } catch { }
 
-      // 3. Log in user as player
-      const user = login("player", normalizedEmail, displayName);
-      if (user.playerId) {
-        updatePlayer(user.playerId, {
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          phone: phone.trim(),
-          city,
-          ntrp,
-          dateOfBirth,
-          parentName: isUnder18 ? parentName.trim() : undefined,
-          parentPhone: isUnder18 ? parentPhone.trim() : undefined,
-          isJunior: isUnder18,
-        });
+      if (!backendSuccess) {
+        await login(normalizedEmail, password).catch(() => null);
       }
 
-      // 4. Navigate to registration payment or dashboard
+      // 3. Navigate to registration payment or dashboard
       if (leagueId) {
         navigate({ to: "/register/$leagueId", params: { leagueId } });
       } else {
@@ -268,7 +257,7 @@ function Signup() {
       }
     } catch (err: unknown) {
       console.error("Signup error:", err);
-      setError("An unexpected error occurred. Please try again.");
+      setError(err instanceof Error ? err.message : "An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -532,10 +521,10 @@ function Signup() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     required
-                    minLength={6}
+                    minLength={15}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="At least 6 characters"
+                    placeholder="At least 15 characters"
                     className="block w-full rounded-lg border border-input bg-background py-2.5 pl-9 pr-10 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
@@ -558,7 +547,7 @@ function Signup() {
                     id="confirmPassword"
                     type={showPassword ? "text" : "password"}
                     required
-                    minLength={6}
+                    minLength={15}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Repeat password"

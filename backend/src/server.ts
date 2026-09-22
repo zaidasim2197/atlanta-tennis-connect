@@ -16,32 +16,27 @@ import leaguesRouter from "./routes/leagues";
 import registrationsRouter from "./routes/registrations";
 import paymentsRouter from "./routes/payments";
 import playersRouter from "./routes/players";
+import authRouter from "./routes/auth";
+import { allowedOrigin, protectOrigin } from "./lib/origins";
 import { expireReservations } from "./jobs/expireReservations";
 import { reconcilePayments } from "./jobs/reconcilePayments";
 import { wrap, ok, err } from "./lib/apiResponse";
 
 export const app = express();
+app.disable("x-powered-by");
 
 // ─── Middleware ──────────────────────────────────────────────────────────────
 
+app.use(protectOrigin);
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps/curl),
       // any localhost port, or the production frontend
-      if (
-        !origin ||
-        /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
-        origin === process.env.CLIENT_URL ||
-        /\.vercel\.app$/.test(origin)
-      ) {
-        callback(null, true);
-      } else {
-        callback(null, true);
-      }
+      callback(null, !origin || allowedOrigin(origin));
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   }),
 );
@@ -52,7 +47,7 @@ app.use(
   express.raw({ type: "application/json" }),
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "16kb" }));
 
 // ─── Health check ────────────────────────────────────────────────────────────
 
@@ -66,6 +61,7 @@ app.use("/api/leagues", leaguesRouter);
 app.use("/api/registrations", registrationsRouter);
 app.use("/api/payments", paymentsRouter);
 app.use("/api/players", playersRouter);
+app.use("/api/auth", authRouter);
 app.get("/api/cron/:job", wrap(async (req, res) => {
   if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
     return err(res, "Unauthorized", 401);
@@ -79,6 +75,13 @@ app.get("/api/cron/:job", wrap(async (req, res) => {
 
 app.use((_req, res) => {
   res.status(404).json({ ok: false, error: "Not found" });
+});
+
+// Do not expose database details or stacks when middleware fails.
+app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error("API request failed", error instanceof Error ? error.name : "Unknown error");
+  const status = (error as { status?: number }).status;
+  err(res, status === 413 ? "Request too large" : status === 400 ? "Invalid request" : "Internal server error", status === 413 ? 413 : status === 400 ? 400 : 500);
 });
 
 // ─── Start (local only) ──────────────────────────────────────────────────────

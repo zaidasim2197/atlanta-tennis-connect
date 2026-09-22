@@ -1,4 +1,5 @@
 import * as React from "react";
+import { toast } from "sonner";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Menu, X, LogOut, Copy, Check, LayoutDashboard, User, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "sonner";
 
 const navItems = [
   { to: "/", label: "Home" },
@@ -173,9 +173,13 @@ export function SiteHeader() {
                 <DropdownMenuSeparator className="my-1 border-border/60" />
 
                 <DropdownMenuItem
-                  onClick={() => {
-                    logout();
-                    navigate({ to: "/" });
+                  onClick={async () => {
+                    try {
+                      await logout();
+                      navigate({ to: "/" });
+                    } catch {
+                      toast.error("Sign out failed. Please retry.");
+                    }
                   }}
                   className="cursor-pointer rounded-lg py-2 text-xs font-semibold text-destructive focus:bg-destructive/10 focus:text-destructive"
                 >
@@ -258,10 +262,9 @@ export function SiteHeader() {
                   )}
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      logout();
-                      setOpen(false);
-                      navigate({ to: "/" });
+                    onClick={async () => {
+                      try { await logout(); setOpen(false); navigate({ to: "/" }); }
+                      catch { toast.error("Sign out failed. Please retry."); }
                     }}
                   >
                     Sign out

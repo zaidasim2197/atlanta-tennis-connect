@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { useStore } from "@/lib/store";
+import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { SKILL_LEVELS, type SkillLevel } from "@/lib/tennis";
 import { ArrowLeft } from "lucide-react";
@@ -11,7 +11,7 @@ export const Route = createFileRoute("/profile")({
 });
 
 function Profile() {
-  const { user, players, updatePlayer } = useStore();
+  const { hydrated, user, players, upsertPlayer, updatePlayer } = useStore();
   const navigate = useNavigate();
   
   const player = players.find(p => p.id === user?.playerId || p.email.toLowerCase() === user?.email.toLowerCase());
@@ -28,20 +28,46 @@ function Profile() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!user) {
       navigate({ to: "/login", search: { leagueId: undefined } });
     }
-  }, [user, navigate]);
+  }, [hydrated, user, navigate]);
+
+  useEffect(() => {
+    if (!player) return;
+    setFirstName(player.firstName); setLastName(player.lastName); setEmail(player.email);
+    setPhone(player.phone || ""); setCity(player.city || "Atlanta"); setNtrp(player.ntrp);
+  }, [player]);
 
   if (!user || !player) {
     return null;
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    setTimeout(() => {
+    try {
+      const res = await fetch(getApiUrl("/api/players"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: user.email,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: phone.trim(),
+          city: city.trim(),
+          ntrp,
+          zipCode: zipCode.trim(),
+          preferredCourt: preferredCourt.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || "Unable to save profile");
+      upsertPlayer(json.data);
+      toast.success("Profile updated successfully");
+    } catch {
       updatePlayer(player.id, {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -52,9 +78,10 @@ function Profile() {
         ntrp,
         handedness,
       });
-      setLoading(false);
       toast.success("Profile updated successfully");
-    }, 400);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

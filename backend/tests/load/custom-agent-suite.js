@@ -13,7 +13,7 @@ import { sleep, check } from "k6";
 import { Counter, Rate, Trend } from "k6/metrics";
 import {
   BASE_URL, LEAGUE_SLUGS, HOT_LEAGUE, JSON_HEADERS,
-  COMMON_THRESHOLDS, playerEmail,
+  COMMON_THRESHOLDS, authHeaders, playerEmail,
 } from "./config.js";
 
 http.setResponseCallback(http.expectedStatuses(
@@ -48,12 +48,12 @@ export default function () {
   const skill = SKILL_FILTERS[vuIdx % SKILL_FILTERS.length];
 
   // 1. Browse with filter (exercises database compound index)
-  const browseRes = http.get(`${BASE_URL}/api/leagues?skillLevel=${skill}&open=true`, { headers: JSON_HEADERS });
+  const browseRes = http.get(`${BASE_URL}/api/leagues?skillLevel=${skill}&open=true`, { headers: authHeaders(email) });
   check(browseRes, { "browse filtered 200": (r) => r.status === 200 });
   sleep(0.3 + Math.random() * 0.2);
 
   // 2. Fetch player profile
-  const playerRes = http.get(`${BASE_URL}/api/players/${encodeURIComponent(email)}`, { headers: JSON_HEADERS });
+  const playerRes = http.get(`${BASE_URL}/api/players/${encodeURIComponent(email)}`, { headers: authHeaders(email) });
   check(playerRes, { "player profile status valid": (r) => r.status === 200 || r.status === 404 });
   sleep(0.2);
 
@@ -63,7 +63,7 @@ export default function () {
   const regRes = http.post(
     `${BASE_URL}/api/registrations`,
     JSON.stringify({ leagueId: targetLeague, playerEmail: email }),
-    { headers: JSON_HEADERS },
+    { headers: authHeaders(email) },
   );
   customResDuration.add(Date.now() - start);
 
@@ -78,7 +78,7 @@ export default function () {
     // 4. Reconcile payment for the held reservation
     if (resId) {
       sleep(0.2);
-      const payRes = http.post(`${BASE_URL}/api/payments/${resId}/reconcile`, {}, { headers: JSON_HEADERS });
+      const payRes = http.post(`${BASE_URL}/api/payments/${resId}/reconcile`, {}, { headers: authHeaders(email) });
       check(payRes, { "payment reconcile 200": (r) => r.status === 200 });
     }
   } else if (regRes.status === 409) {
