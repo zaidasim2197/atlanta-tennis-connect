@@ -15,9 +15,9 @@ export function wrap(
   return (req, res, next) => {
     fn(req, res).catch((e: unknown) => {
       const status = (e as { statusCode?: number }).statusCode ?? 500;
-      const message = status >= 500 ? "Internal server error" : e instanceof Error ? e.message : "Request failed";
-      if (status >= 500) console.error(e);
-      err(res, message, status);
+      const message = e instanceof Error ? e.message : "Internal server error";
+      if (status >= 500) console.error("Unhandled route error:", e);
+      err(res, message, status, { raw: String(e) });
       next; // keep signature; never call next so express default handler is skipped
     });
   };

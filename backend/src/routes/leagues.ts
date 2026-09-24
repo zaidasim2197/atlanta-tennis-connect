@@ -46,7 +46,11 @@ function leagueToFrontend(l: InstanceType<typeof League>) {
 router.get(
   "/",
   wrap(async (req, res) => {
-    await expireReservations();
+    try {
+      await expireReservations();
+    } catch (e) {
+      console.warn("[leagues] expireReservations skipped:", e instanceof Error ? e.message : e);
+    }
     const { format, skillLevel, open, season } = req.query as Record<string, string>;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
