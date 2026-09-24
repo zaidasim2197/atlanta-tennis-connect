@@ -154,8 +154,8 @@ function Signup() {
       }
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
       return;
     }
 
@@ -486,10 +486,10 @@ function Signup() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     required
-                    minLength={15}
+                    minLength={8}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="At least 15 characters"
+                    placeholder="At least 8 characters"
                     className="block w-full rounded-lg border border-input bg-background py-2.5 pl-9 pr-10 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                   <button
@@ -512,7 +512,7 @@ function Signup() {
                     id="confirmPassword"
                     type={showPassword ? "text" : "password"}
                     required
-                    minLength={15}
+                    minLength={8}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Repeat password"
