@@ -102,6 +102,7 @@ function Signup() {
   const [zipCode, setZipCode] = useState("30309");
   const [preferredCourt, setPreferredCourt] = useState("Piedmont Park Courts");
   const [ntrp, setNtrp] = useState<SkillLevel>("3.5");
+  const [gender, setGender] = useState<"male" | "female" | "prefer-not-to-say">("prefer-not-to-say");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -175,6 +176,7 @@ function Signup() {
           dateOfBirth, parentName: isUnder18 ? parentName.trim() : undefined,
           parentPhone: isUnder18 ? parentPhone.trim() : undefined, isJunior: isUnder18,
           zipCode: zipCode.trim(), preferredCourt: preferredCourt.trim(),
+          gender,
         }),
       });
       const json = await res.json();
@@ -440,9 +442,36 @@ function Signup() {
                 placeholder="e.g. Piedmont Park Courts"
                 className="block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Notice: Setting your home court does not automatically reserve it.
-              </p>
+            </div>
+
+            {/* Gender selection */}
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <label className="text-sm font-medium text-foreground">
+                  <span className="text-red-500 font-bold text-xs mr-1 select-none" aria-hidden="true">*</span>Gender
+                </label>
+                <span className="text-[11px] text-muted-foreground">Used for demographic grouping; not shared publicly</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { value: "male", label: "Male" },
+                  { value: "female", label: "Female" },
+                  { value: "prefer-not-to-say", label: "Prefer not to say" },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setGender(opt.value as any)}
+                    className={`rounded-lg py-2 text-xs font-semibold border transition-all ${
+                      gender === opt.value
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        : "bg-muted/60 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Password & Confirm Password */}

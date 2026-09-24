@@ -21,6 +21,8 @@ export interface IPlayer extends Document {
   parentName?: string;
   parentPhone?: string;
   isJunior?: boolean;
+  gender?: "male" | "female" | "prefer-not-to-say";
+  dataSource?: string;
 }
 
 const PlayerSchema = new Schema<IPlayer>(
@@ -39,6 +41,8 @@ const PlayerSchema = new Schema<IPlayer>(
     parentName:      { type: String, default: "" },
     parentPhone:     { type: String, default: "" },
     isJunior:        { type: Boolean, default: false },
+    gender:          { type: String, enum: ["male", "female", "prefer-not-to-say"], default: undefined },
+    dataSource:      { type: String, default: undefined },
     accountStatus:   { type: String, enum: ["active", "suspended", "closed"], default: "active" },
     profileStatus:   { type: String, enum: ["incomplete", "complete", "needs-review"], default: "complete" },
     rating:          { type: Number, default: 3.5 },

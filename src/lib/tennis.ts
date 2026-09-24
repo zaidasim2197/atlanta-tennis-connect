@@ -83,6 +83,8 @@ export interface Player {
   parentName?: string | undefined;
   parentPhone?: string | undefined;
   isJunior?: boolean | undefined;
+  gender?: "male" | "female" | "prefer-not-to-say" | undefined;
+  dataSource?: string | undefined;
   eligibilityStatus?: "eligible" | "pending-verification" | "ineligible" | undefined;
   privacyPreferences?: {
     showPhoneToOpponent: boolean;

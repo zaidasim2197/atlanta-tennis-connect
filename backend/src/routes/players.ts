@@ -31,6 +31,7 @@ const PlayerBody = z.object({
   parentName:      z.string().optional().default(""),
   parentPhone:     z.string().optional().default(""),
   isJunior:        z.boolean().optional().default(false),
+  gender:          z.enum(["male", "female", "prefer-not-to-say"]).optional(),
 }).strict();
 
 function playerToFrontend(p: InstanceType<typeof Player>) {
@@ -49,6 +50,7 @@ function playerToFrontend(p: InstanceType<typeof Player>) {
     parentName:      p.parentName,
     parentPhone:     p.parentPhone,
     isJunior:        p.isJunior,
+    gender:          p.gender,
     accountStatus:   p.accountStatus,
     profileStatus:   p.profileStatus,
   };
@@ -80,6 +82,7 @@ router.post(
           parentName: d.parentName,
           parentPhone: d.parentPhone,
           isJunior: d.isJunior,
+          ...(d.gender ? { gender: d.gender } : {}),
         },
       },
       { new: true, runValidators: true },

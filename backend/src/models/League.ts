@@ -24,6 +24,10 @@ export interface ILeague extends Document {
   description: string;
   startDate?: string;
   endDate?: string;
+  ageCategory?: "open" | "junior";
+  ageMin?: number;
+  ageMax?: number;
+  dataSource?: string;
 }
 
 const LeagueSchema = new Schema<ILeague>(
@@ -52,6 +56,10 @@ const LeagueSchema = new Schema<ILeague>(
     description:      { type: String, default: "" },
     startDate:        { type: String },
     endDate:          { type: String },
+    ageCategory:      { type: String, enum: ["open", "junior"], default: "open" },
+    ageMin:           { type: Number },
+    ageMax:           { type: Number },
+    dataSource:       { type: String },
   },
   { timestamps: true },
 );

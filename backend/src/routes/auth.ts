@@ -21,6 +21,7 @@ const signup = credentials.extend({
   isJunior: z.boolean().optional(),
   zipCode: z.string().optional(),
   preferredCourt: z.string().optional(),
+  gender: z.enum(["male", "female", "prefer-not-to-say"]).optional(),
 }).strict();
 async function userDTO(account: { _id: unknown; email: string; role: string; playerSlug: string }) {
   const player = await Player.findOne({ slug: account.playerSlug });
