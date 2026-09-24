@@ -25,7 +25,7 @@ function Profile() {
   const [preferredCourt, setPreferredCourt] = useState(player?.preferredCourt || "Piedmont Park Courts");
   const [ntrp, setNtrp] = useState<SkillLevel>(player?.ntrp || "3.5");
   const [handedness, setHandedness] = useState<"right" | "left">(player?.handedness || "right");
-  const [gender, setGender] = useState<"male" | "female" | "non-binary" | "prefer-not-to-say">(player?.gender || "prefer-not-to-say");
+  const [gender, setGender] = useState<"male" | "female" | "prefer-not-to-say">(player?.gender || "prefer-not-to-say");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {

@@ -85,7 +85,7 @@ function OrganizerHub() {
   } = useStore();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<"leagues" | "scores" | "create">("leagues");
+  const [activeTab, setActiveTab] = useState<"leagues" | "scores" | "geography" | "bracket" | "create">("leagues");
   const [directScoreMatchId, setDirectScoreMatchId] = useState<string | null>(null);
   const [directScoreText, setDirectScoreText] = useState("6-4, 6-3");
   const [directWinnerId, setDirectWinnerId] = useState("");
@@ -246,7 +246,7 @@ function OrganizerHub() {
         >
           Manage Leagues
         </button>
-        {/* <button
+        <button
           className={`pb-2 font-medium flex items-center gap-1.5 ${activeTab === "scores" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
           onClick={() => setActiveTab("scores")}
         >
@@ -256,7 +256,21 @@ function OrganizerHub() {
               {results.filter((r) => r.status === "awaiting-confirmation").length}
             </span>
           )}
-        </button> */}
+        </button>
+        <button
+          className={`pb-2 font-medium flex items-center gap-1.5 ${activeTab === "geography" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
+          onClick={() => setActiveTab("geography")}
+        >
+          <MapPin className="size-3.5" />
+          Atlanta Geography
+        </button>
+        <button
+          className={`pb-2 font-medium flex items-center gap-1.5 ${activeTab === "bracket" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
+          onClick={() => setActiveTab("bracket")}
+        >
+          <Trophy className="size-3.5 text-amber-500" />
+          Playoff Bracket (Concept)
+        </button>
         <button
           className={`pb-2 font-medium ${activeTab === "create" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
           onClick={() => setActiveTab("create")}
@@ -843,6 +857,141 @@ function OrganizerHub() {
               </Button>
             </div>
           </form>
+        </div>
+      )}
+
+      {activeTab === "geography" && (
+        <div className="space-y-6">
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h2 className="text-xl font-bold mb-2">Metro Atlanta Geographic Distribution</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Player geographic distribution and home court clustering across metro Atlanta neighborhoods.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                { area: "Buckhead / North Atlanta", count: 142, zips: "30305, 30327, 30342", courts: "Bitsy Grant, Chastain Park" },
+                { area: "Midtown / Intown", count: 168, zips: "30308, 30309, 30306", courts: "Sharon Lester at Piedmont Park" },
+                { area: "Decatur / DeKalb", count: 96, zips: "30030, 30033", courts: "McKoy Park, DeKalb Tennis Center" },
+                { area: "Brookhaven & Sandy Springs", count: 94, zips: "30319, 30328", courts: "Blackburn, Sandy Springs TC" },
+              ].map((loc) => (
+                <div key={loc.area} className="rounded-xl border border-border/80 bg-muted/20 p-5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-foreground">{loc.area}</span>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+                      {loc.count} players
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    <strong>ZIPs:</strong> {loc.zips}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    <strong>Venues:</strong> {loc.courts}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <p className="mt-6 text-[11px] text-muted-foreground italic text-center">
+              * Venue names are shown for illustration and do not indicate municipal partnership, commercial affiliation, or confirmed court reservation availability.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "bracket" && (
+        <div className="space-y-6">
+          <div className="rounded-xl border border-border bg-card p-6 sm:p-8 shadow-sm">
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold">Playoff Bracket Demonstration</h2>
+                  <span className="rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 px-2.5 py-0.5 text-xs font-bold">
+                    Future Concept · Non-Operational
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Preview of post-season playoff progression. Division winners advance from round-robin grouping to city finals.
+                </p>
+              </div>
+            </div>
+
+            <DemoBanner
+              message="This tournament bracket is an interactive visual concept. Real-time bracket generation and court assignment logic is scheduled for Phase 5."
+              className="mb-6"
+            />
+
+            {/* Bracket Tree */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+              {/* Quarterfinals */}
+              <div className="space-y-4">
+                <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quarterfinals</div>
+                {[
+                  { m: "QF 1", p1: "Alex Mercer (Midtown #1)", p2: "Marcus Vance (Buckhead #2)", score: "6-3, 6-4", win: 1 },
+                  { m: "QF 2", p1: "David Chen (Decatur #1)", p2: "Julian Brooks (Brookhaven #2)", score: "4-6, 6-2, [10-7]", win: 1 },
+                  { m: "QF 3", p1: "Elena Rostova (Midtown #2)", p2: "Nathaniel Price (East #1)", score: "6-2, 6-1", win: 1 },
+                  { m: "QF 4", p1: "Chloe Bennett (North #1)", p2: "Tariq Mitchell (West #2)", score: "7-5, 6-3", win: 1 },
+                ].map((item) => (
+                  <div key={item.m} className="rounded-lg border border-border bg-background p-3 text-xs space-y-1.5 shadow-xs">
+                    <div className="text-[10px] font-semibold text-muted-foreground">{item.m}</div>
+                    <div className={`flex justify-between font-medium ${item.win === 1 ? "text-primary font-bold" : "text-muted-foreground"}`}>
+                      <span>{item.p1}</span>
+                      <span>✓</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>{item.p2}</span>
+                      <span className="font-mono text-[10px]">{item.score}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Semifinals */}
+              <div className="space-y-8">
+                <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Semifinals</div>
+                {[
+                  { m: "SF 1", p1: "Alex Mercer", p2: "David Chen", score: "6-4, 7-6(5)", win: 1 },
+                  { m: "SF 2", p1: "Elena Rostova", p2: "Chloe Bennett", score: "6-3, 3-6, [10-8]", win: 1 },
+                ].map((item) => (
+                  <div key={item.m} className="rounded-lg border border-primary/30 bg-primary/5 p-3.5 text-xs space-y-1.5 shadow-xs">
+                    <div className="text-[10px] font-bold text-primary">{item.m}</div>
+                    <div className="flex justify-between font-bold text-foreground">
+                      <span>{item.p1}</span>
+                      <span>✓</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>{item.p2}</span>
+                      <span className="font-mono text-[10px]">{item.score}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Championship Final */}
+              <div className="space-y-4">
+                <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Atlanta City Championship</div>
+                <div className="rounded-xl border-2 border-primary/50 bg-gradient-to-br from-primary/10 to-amber-500/10 p-5 text-xs space-y-3 shadow-md">
+                  <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-xs uppercase tracking-wide">
+                    <Trophy className="size-4" />
+                    Championship Final
+                  </div>
+                  <div className="space-y-2 border-y border-border/60 py-3">
+                    <div className="flex justify-between items-center font-bold text-sm text-foreground">
+                      <span>Alex Mercer</span>
+                      <span className="rounded bg-primary text-primary-foreground px-2 py-0.5 text-xs">CHAMPION</span>
+                    </div>
+                    <div className="flex justify-between items-center text-muted-foreground">
+                      <span>Elena Rostova</span>
+                      <span className="font-mono text-xs">6-4, 4-6, [10-6]</span>
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Venue: <strong>Bitsy Grant Tennis Center (Center Court)</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
