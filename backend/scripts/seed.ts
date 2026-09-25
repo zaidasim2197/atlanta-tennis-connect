@@ -58,24 +58,6 @@ export const SEASONS = [
 
 export const LEAGUES = [
   {
-    slug: "l-1",
-    seasonSlug: "s-fall-26",
-    name: "Tuesday Singles",
-    format: "senior-singles" as const,
-    skillLevel: "3.0" as const,
-    feeCents: 3500,
-    scheduleDay: "Tuesday",
-    scheduleTime: "6:30 PM",
-    venue: "Piedmont Park Courts",
-    playerLimit: 24,
-    spotsRemaining: 24, // will be decremented as registrations are seeded
-    registrationOpen: true,
-    description:
-      "Ten weeks of competitive 3.0 singles under the lights. Weekly match assignments, live standings and an end-of-season playoff for the top eight.",
-    startDate: "2026-10-06",
-    endDate: "2026-12-15",
-  },
-  {
     slug: "l-2",
     seasonSlug: "s-fall-26",
     name: "Thursday Mixed Doubles",

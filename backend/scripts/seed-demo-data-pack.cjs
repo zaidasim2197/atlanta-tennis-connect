@@ -36,12 +36,8 @@ async function run() {
     'FMT-MXD': 'mixed-doubles',
   };
 
-  const courtMap = {
-    'LG-MS-35': 'Northside Tennis Center',
-    'LG-WS-35': 'Midtown Court',
-    'LG-MD-40': 'Brookhaven Area Court',
-    'LG-MXD-35': 'Piedmont Area Court',
-  };
+  const courtMap = {};
+  const EXCLUDED_LEAGUES = new Set(['LG-MS-35', 'LG-WS-35', 'LG-MD-40', 'LG-MXD-35', 'l-1']);
 
   // 1. Seasons
   console.log('Seeding Seasons...');
@@ -62,7 +58,9 @@ async function run() {
   // 2. Leagues
   console.log('Seeding Leagues...');
   await db.collection('leagues').deleteMany({});
-  const leaguesToInsert = dataPack.leagues.map((lg) => {
+  const leaguesToInsert = dataPack.leagues
+    .filter((lg) => !EXCLUDED_LEAGUES.has(lg.league_id))
+    .map((lg) => {
     const season = dataPack.seasons.find((s) => s.league_id === lg.league_id) || dataPack.seasons[0];
     const format = formatMap[lg.format_id] || 'men-singles';
     const cleanName = lg.name.replace(/^Baseline\s+/i, '');
@@ -89,28 +87,9 @@ async function run() {
     };
   });
 
-  // Also include Tuesday Singles (l-1) for backward compatibility
-  leaguesToInsert.push({
-    slug: 'l-1',
-    seasonSlug: 's-fall-26',
-    name: 'Tuesday Singles',
-    format: 'men-singles',
-    skillLevel: '3.0',
-    feeCents: 3500,
-    scheduleDay: 'Tuesday',
-    scheduleTime: '6:30 PM',
-    venue: 'Piedmont Park Courts',
-    playerLimit: 24,
-    spotsRemaining: 23,
-    registrationOpen: true,
-    description: 'Ten weeks of competitive singles under the lights at Piedmont Park.',
-    startDate: '2026-10-06',
-    endDate: '2026-12-15',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-
-  await db.collection('leagues').insertMany(leaguesToInsert);
+  if (leaguesToInsert.length > 0) {
+    await db.collection('leagues').insertMany(leaguesToInsert);
+  }
 
   // 3. Players
   console.log('Seeding Players...');
@@ -222,13 +201,18 @@ async function run() {
     'SEA-F26-MXD35': 'LG-MXD-35',
   };
 
-  const reservationsToInsert = dataPack.registrations.map((r) => {
-    const leagueSlug = seasonToLeague[r.season_id] || 'LG-MS-35';
-    const isPaid = r.payment_status === 'succeeded';
-    const status = isPaid ? 'registered' : r.payment_status === 'failed' ? 'expired' : 'held';
-    const league = leaguesToInsert.find((l) => l.slug === leagueSlug);
-    const player = playersToInsert.find((p) => p.slug === r.player_id);
-    const playerEmail = player ? player.email : `player-${r.player_id.toLowerCase()}@example.com`;
+  const reservationsToInsert = dataPack.registrations
+    .filter((r) => {
+      const leagueSlug = seasonToLeague[r.season_id];
+      return leagueSlug && !EXCLUDED_LEAGUES.has(leagueSlug);
+    })
+    .map((r) => {
+      const leagueSlug = seasonToLeague[r.season_id];
+      const isPaid = r.payment_status === 'succeeded';
+      const status = isPaid ? 'registered' : r.payment_status === 'failed' ? 'expired' : 'held';
+      const league = leaguesToInsert.find((l) => l.slug === leagueSlug);
+      const player = playersToInsert.find((p) => p.slug === r.player_id);
+      const playerEmail = player ? player.email : `player-${r.player_id.toLowerCase()}@example.com`;
 
     return {
       leagueSlug,
@@ -245,22 +229,9 @@ async function run() {
     };
   });
 
-  // Add Zaid Bin confirmed registration for Tuesday Singles (l-1)
-  reservationsToInsert.push({
-    leagueSlug: 'l-1',
-    playerSlug: 'p-j6h3iho',
-    playerEmail: 'zaid@baselineatl.com',
-    skillLevel: '3.0',
-    status: 'registered',
-    amountCents: 3500,
-    idempotencyKey: 'seed-reg-zaid-l1',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    paidAt: new Date(),
-    expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-  });
-
-  await db.collection('reservations').insertMany(reservationsToInsert);
+  if (reservationsToInsert.length > 0) {
+    await db.collection('reservations').insertMany(reservationsToInsert);
+  }
 
   console.log('Seeding completed successfully!');
   console.log(`Seeded ${leaguesToInsert.length} leagues, ${playersToInsert.length} players, ${reservationsToInsert.length} registrations.`);

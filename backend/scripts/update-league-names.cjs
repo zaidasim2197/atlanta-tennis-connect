@@ -5,7 +5,6 @@ async function run() {
   await mongoose.connect(process.env.MONGODB_URI);
   const col = mongoose.connection.collection('leagues');
 
-  await col.updateOne({ slug: 'l-1' }, { $set: { name: 'Tuesday Singles', venue: 'Piedmont Park Courts' } });
   await col.updateOne({ slug: 'l-2' }, { $set: { name: 'Thursday Mixed Doubles', venue: 'Bitsy Grant Tennis Center' } });
   await col.updateOne({ slug: 'l-3' }, { $set: { name: 'Saturday Junior Singles', venue: 'McKoy Park Courts' } });
   await col.updateOne({ slug: 'l-4' }, { $set: { name: 'Monday Indoor Singles', venue: 'Sandy Springs Indoor Club' } });

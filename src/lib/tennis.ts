@@ -226,76 +226,7 @@ export const FALLBACK_MOCK_SEASONS: Season[] = [
 ];
 export const SEED_SEASONS = FALLBACK_MOCK_SEASONS;
 
-export const FALLBACK_MOCK_LEAGUES: League[] = [
-  {
-    id: "LG-MS-35",
-    seasonId: "s-fall-26",
-    name: "Men's Singles 3.5",
-    format: "men-singles",
-    skillLevel: "3.5",
-    geographicGroup: "Atlanta",
-    feeCents: 3000,
-    scheduleDay: "Saturday",
-    scheduleTime: "9:00 AM",
-    venue: "Northside Tennis Center",
-    playerLimit: 16,
-    registrationOpen: true,
-    description: "Official Baseline ATL Flight.",
-    startDate: "2026-10-10",
-    endDate: "2026-12-19",
-  },
-  {
-    id: "LG-WS-35",
-    seasonId: "s-fall-26",
-    name: "Women's Singles 3.5",
-    format: "women-singles",
-    skillLevel: "3.5",
-    geographicGroup: "Atlanta",
-    feeCents: 3000,
-    scheduleDay: "Sunday",
-    scheduleTime: "10:30 AM",
-    venue: "Midtown Court",
-    playerLimit: 16,
-    registrationOpen: false,
-    description: "Official Baseline ATL Flight.",
-    startDate: "2026-10-11",
-    endDate: "2026-12-20",
-  },
-  {
-    id: "LG-MD-40",
-    seasonId: "s-fall-26",
-    name: "Men's Doubles 4.0",
-    format: "men-doubles",
-    skillLevel: "4.0",
-    geographicGroup: "Atlanta",
-    feeCents: 3500,
-    scheduleDay: "Tuesday",
-    scheduleTime: "7:00 PM",
-    venue: "Brookhaven Area Court",
-    playerLimit: 12,
-    registrationOpen: true,
-    description: "Official Baseline ATL Flight.",
-    startDate: "2026-10-13",
-    endDate: "2026-12-22",
-  },
-  {
-    id: "LG-MXD-35",
-    seasonId: "s-fall-26",
-    name: "Mixed Doubles 3.5",
-    format: "mixed-doubles",
-    skillLevel: "3.5",
-    geographicGroup: "Atlanta",
-    feeCents: 3500,
-    scheduleDay: "Thursday",
-    scheduleTime: "7:00 PM",
-    venue: "Piedmont Area Court",
-    playerLimit: 12,
-    registrationOpen: true,
-    description: "Official Baseline ATL Flight.",
-    startDate: "2026-10-15",
-    endDate: "2026-12-24",
-  },
-];
+export const FALLBACK_MOCK_LEAGUES: League[] = [];
 export const SEED_LEAGUES = FALLBACK_MOCK_LEAGUES;
 
 export const FALLBACK_MOCK_PLAYERS: Player[] = [
@@ -314,37 +245,10 @@ export const FALLBACK_MOCK_PLAYERS: Player[] = [
 ];
 export const SEED_PLAYERS = FALLBACK_MOCK_PLAYERS;
 
-export const FALLBACK_MOCK_REGISTRATIONS: Registration[] = [
-  { id: "REG-001", leagueId: "LG-MS-35", playerId: "PLY-001", createdAt: "2026-09-01T10:14:22Z", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 3000, skillLevelSnapshot: "3.5", preferredCourt: "Northside Tennis Center" },
-  { id: "REG-002", leagueId: "LG-WS-35", playerId: "PLY-002", createdAt: "2026-09-01T11:05:01Z", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 3000, skillLevelSnapshot: "3.5", preferredCourt: "Midtown Court" },
-  { id: "REG-003", leagueId: "LG-MD-40", playerId: "PLY-003", createdAt: "2026-09-02T08:30:10Z", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 3500, skillLevelSnapshot: "4.0", preferredCourt: "Brookhaven Area Court" },
-  { id: "REG-004", leagueId: "LG-MXD-35", playerId: "PLY-004", createdAt: "2026-09-02T09:44:00Z", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 3500, skillLevelSnapshot: "3.5", preferredCourt: "Piedmont Area Court" },
-  { id: "REG-005", leagueId: "LG-MS-35", playerId: "PLY-005", createdAt: "2026-09-02T13:12:45Z", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 3000, skillLevelSnapshot: "3.5", preferredCourt: "Northside Tennis Center" },
-  { id: "REG-006", leagueId: "LG-WS-35", playerId: "PLY-006", createdAt: "2026-09-03T14:20:19Z", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 3000, skillLevelSnapshot: "3.5", preferredCourt: "Midtown Court" },
-  { id: "REG-007", leagueId: "LG-MD-40", playerId: "PLY-007", createdAt: "2026-09-03T16:05:50Z", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 3500, skillLevelSnapshot: "4.0", preferredCourt: "Brookhaven Area Court" },
-  { id: "REG-008", leagueId: "LG-MXD-35", playerId: "PLY-008", createdAt: "2026-09-04T10:11:04Z", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 3500, skillLevelSnapshot: "3.5", preferredCourt: "Piedmont Area Court" },
-  { id: "REG-009", leagueId: "LG-MS-35", playerId: "PLY-009", createdAt: "2026-09-04T12:00:00Z", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 3000, skillLevelSnapshot: "3.5", preferredCourt: "Northside Tennis Center" },
-  { id: "REG-010", leagueId: "LG-WS-35", playerId: "PLY-010", createdAt: "2026-09-05T09:15:30Z", registrationStatus: "confirmed", paymentStatus: "paid", amountCents: 3000, skillLevelSnapshot: "3.5", preferredCourt: "Midtown Court" },
-];
+export const FALLBACK_MOCK_REGISTRATIONS: Registration[] = [];
 export const SEED_REGISTRATIONS = FALLBACK_MOCK_REGISTRATIONS;
 
-export const FALLBACK_MOCK_MATCHES: Match[] = [
-  {
-    id: "m-1",
-    seasonId: "s-fall-26",
-    leagueId: "LG-MS-35",
-    playerId: "p-demo-player",
-    opponentId: "PLY-001",
-    opponentName: "Marcus Vance",
-    opponentLevel: "3.5",
-    homeAway: "home",
-    matchDate: "2026-10-17",
-    matchTime: "9:00 AM",
-    court: "Northside Tennis Center - Court 1",
-    matchStatus: "scheduled",
-    courtBookingOwner: "Alex Mercer (Home Player)",
-  },
-];
+export const FALLBACK_MOCK_MATCHES: Match[] = [];
 
 export const FALLBACK_MOCK_RESULTS: MatchResult[] = [
   {

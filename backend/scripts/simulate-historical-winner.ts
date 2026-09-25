@@ -35,7 +35,7 @@ async function simulateHistoricalWinner() {
   console.log(`  • Division/Skill:  ${championHistory.division} (${championHistory.skillLevel})`);
   console.log(`  • Year:            ${championHistory.year}`);
 
-  // Find matching league (e.g. Midtown Tuesday Singles l-1 is 3.5 skill level)
+  // Find matching league by skill level
   const targetLeague = await League.findOne({ skillLevel: championHistory.skillLevel, spotsRemaining: { $gt: 0 } });
   if (!targetLeague) throw new Error("No open league found matching skill level");
 

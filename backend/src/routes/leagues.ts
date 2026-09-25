@@ -30,7 +30,7 @@ function leagueToFrontend(l: InstanceType<typeof League>) {
     name: l.name,
     format: l.format,
     skillLevel: l.skillLevel,
-    offeredSkillLevels: (l as any).offeredSkillLevels || (l.slug === "l-1" ? ["2.5", "3.0", "3.5", "4.0"] : [l.skillLevel]),
+    offeredSkillLevels: (l as any).offeredSkillLevels || [l.skillLevel],
     geographicGroup: (l as any).geographicGroup || (l.venue?.toLowerCase().includes("piedmont") ? "Midtown" : "Midtown"),
     feeCents: l.feeCents,
     scheduleDay: l.scheduleDay,

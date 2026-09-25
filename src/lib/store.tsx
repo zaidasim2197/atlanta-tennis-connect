@@ -123,7 +123,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         name: l.name,
         format: l.format,
         skillLevel: l.skillLevel,
-        offeredSkillLevels: l.offeredSkillLevels || (l.slug === "l-1" || l.id === "l-1" ? ["2.5", "3.0", "3.5", "4.0"] : l.skillLevel ? [l.skillLevel] : ["3.0", "3.5"]),
+        offeredSkillLevels: l.offeredSkillLevels || (l.skillLevel ? [l.skillLevel] : ["3.0", "3.5"]),
         geographicGroup: l.geographicGroup || (l.venue?.toLowerCase().includes("piedmont") ? "Midtown" : "Midtown"),
         feeCents: l.feeCents,
         scheduleDay: l.scheduleDay,
