@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { TennisBall } from "@/components/tennis-ball";
 import { useStore } from "@/lib/store";
 import { toast } from "sonner";
@@ -6,7 +6,9 @@ import { toast } from "sonner";
 export function SiteFooter() {
   const { user, logout } = useStore();
   const navigate = useNavigate();
-  const isOrganizer = user?.role === "organizer";
+  const location = useLocation();
+  const isOrganizerRoute = location.pathname.startsWith("/organizer");
+  const isOrganizer = user?.role === "organizer" || isOrganizerRoute;
 
   return (
     <footer className="court-lines mt-24 bg-primary-deep text-white/80">

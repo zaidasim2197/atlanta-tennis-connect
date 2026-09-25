@@ -36,7 +36,7 @@ const PlayerSchema = new Schema<IPlayer>(
     city:            { type: String, default: "" },
     zipCode:         { type: String, required: true, default: "30309" },
     preferredCourt:  { type: String, default: "" },
-    preferredFormat: { type: String, default: "senior-singles" },
+    preferredFormat: { type: String, default: "men-singles" },
     dateOfBirth:     { type: String, default: "" },
     parentName:      { type: String, default: "" },
     parentPhone:     { type: String, default: "" },

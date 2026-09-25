@@ -1,6 +1,6 @@
 import * as React from "react";
 import { toast } from "sonner";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { Menu, X, LogOut, Copy, Check, LayoutDashboard, User, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TennisBall } from "@/components/tennis-ball";
@@ -21,7 +21,7 @@ const navItems = [
 ] as const;
 
 export function SiteHeader() {
-  const { user, logout, dbConnected, fallbackActive } = useStore();
+  const { user, logout, dbConnected, fallbackActive, hydrated } = useStore();
   const [open, setOpen] = React.useState(false);
   const [copiedId, setCopiedId] = React.useState(false);
   const navigate = useNavigate();
@@ -35,7 +35,9 @@ export function SiteHeader() {
     }
   };
 
-  const isOrganizer = user?.role === "organizer";
+  const location = useLocation();
+  const isOrganizerRoute = location.pathname.startsWith("/organizer");
+  const isOrganizer = user?.role === "organizer" || isOrganizerRoute;
   const homeTo = isOrganizer ? "/organizer" : "/";
   const dashboardTo = isOrganizer ? "/organizer" : "/dashboard";
   const currentNavItems = isOrganizer
@@ -193,6 +195,14 @@ export function SiteHeader() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          ) : !hydrated ? (
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-20 rounded-full bg-muted/20 animate-pulse" />
+            </div>
+          ) : isOrganizerRoute ? (
+            <Button asChild size="sm">
+              <Link to="/organizer">Organizer Hub</Link>
+            </Button>
           ) : (
             <>
               <Button asChild variant="ghost" size="sm">
@@ -280,6 +290,12 @@ export function SiteHeader() {
                     Sign out
                   </Button>
                 </>
+              ) : !hydrated ? (
+                <div className="h-10 w-full rounded-lg bg-muted/20 animate-pulse" />
+              ) : isOrganizerRoute ? (
+                <Button asChild onClick={() => setOpen(false)}>
+                  <Link to="/organizer">Organizer Hub</Link>
+                </Button>
               ) : (
                 <>
                   <Button asChild onClick={() => setOpen(false)}>

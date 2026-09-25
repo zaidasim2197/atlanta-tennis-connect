@@ -12,6 +12,8 @@ import {
   type PlayerStats,
   type Registration,
   type Season,
+  type LeagueFormat,
+  type SkillLevel,
 } from "./tennis";
 
 interface DataState {
@@ -64,6 +66,33 @@ interface StoreValue extends DataState {
 }
 
 const STORAGE_KEY = "atl-tennis-league-state-v6";
+const AUTH_CACHE_KEY = "atl-active-user-session";
+
+const getCachedUser = (): AuthUser | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(AUTH_CACHE_KEY) || sessionStorage.getItem(AUTH_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.email === "string" && (parsed.role === "player" || parsed.role === "organizer")) {
+      return parsed as AuthUser;
+    }
+  } catch {}
+  return null;
+};
+
+export const setCachedUser = (user: AuthUser | null) => {
+  if (typeof window === "undefined") return;
+  try {
+    if (user) {
+      localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(user));
+      sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(AUTH_CACHE_KEY);
+      sessionStorage.removeItem(AUTH_CACHE_KEY);
+    }
+  } catch {}
+};
 
 const initial: DataState = {
   seasons: FALLBACK_MOCK_SEASONS,
@@ -88,7 +117,10 @@ export const getApiUrl = (path: string) => {
 };
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = React.useState<DataState>(initial);
+  const [state, setState] = React.useState<DataState>(() => ({
+    ...initial,
+    user: getCachedUser(),
+  }));
   const [hydrated, setHydrated] = React.useState(false);
 
   React.useEffect(() => {
@@ -117,26 +149,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const json = await res.json();
       if (!json.ok || !Array.isArray(json.data)) throw new Error("Invalid API response format");
 
-      const dbLeagues: League[] = json.data.map((l: any) => ({
-        id: l.id || l.slug,
-        seasonId: l.seasonId || l.seasonSlug,
-        name: l.name,
-        format: l.format,
-        skillLevel: l.skillLevel,
-        offeredSkillLevels: l.offeredSkillLevels || (l.skillLevel ? [l.skillLevel] : ["3.0", "3.5"]),
-        geographicGroup: l.geographicGroup || (l.venue?.toLowerCase().includes("piedmont") ? "Midtown" : "Midtown"),
-        feeCents: l.feeCents,
-        scheduleDay: l.scheduleDay,
-        scheduleTime: l.scheduleTime,
-        venue: l.venue,
-        playerLimit: l.playerLimit,
-        spotsRemaining: l.spotsRemaining,
-        registeredCount: typeof l.registeredCount === "number" ? l.registeredCount : Math.max(0, l.playerLimit - (l.spotsRemaining ?? 0)),
-        registrationOpen: l.registrationOpen,
-        description: l.description,
-        startDate: l.startDate,
-        endDate: l.endDate,
-      }));
+      const dbLeagues: League[] = json.data.map((l: any) => {
+        // Enforce unified client-facing league taxonomy
+        let format: LeagueFormat = "men-singles";
+        const rawFormat = String(l.format || "").toLowerCase().trim();
+        if (rawFormat === "women-singles") format = "women-singles";
+        else if (rawFormat === "men-doubles" || rawFormat === "senior-doubles" || rawFormat === "junior-doubles" || rawFormat === "doubles") format = "men-doubles";
+        else if (rawFormat === "mixed-doubles") format = "mixed-doubles";
+        else if (rawFormat === "men-singles" || rawFormat === "senior-singles" || rawFormat === "junior-singles" || rawFormat === "singles") format = "men-singles";
+
+        let skillLevel: SkillLevel = "3.5";
+        const rawSkill = String(l.skillLevel || "").trim();
+        if (["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"].includes(rawSkill)) {
+          skillLevel = rawSkill as SkillLevel;
+        } else if (rawSkill === "4.5+") {
+          skillLevel = "4.5";
+        } else if (rawSkill === "5.0+") {
+          skillLevel = "5.0";
+        }
+
+        return {
+          id: l.id || l.slug,
+          seasonId: l.seasonId || l.seasonSlug || "s-fall-26",
+          name: l.name,
+          format,
+          skillLevel,
+          offeredSkillLevels: [skillLevel],
+          geographicGroup: l.geographicGroup || (l.venue?.toLowerCase().includes("piedmont") ? "Midtown" : "Midtown"),
+          feeCents: l.feeCents,
+          scheduleDay: l.scheduleDay,
+          scheduleTime: l.scheduleTime,
+          venue: l.venue,
+          playerLimit: l.playerLimit,
+          spotsRemaining: l.spotsRemaining,
+          registeredCount: typeof l.registeredCount === "number" ? l.registeredCount : Math.max(0, l.playerLimit - (l.spotsRemaining ?? 0)),
+          registrationOpen: l.registrationOpen,
+          description: l.description,
+          startDate: l.startDate,
+          endDate: l.endDate,
+        };
+      });
 
       console.info("🎾 [DB_CONNECTED] Successfully loaded live leagues from MongoDB backend.");
 
@@ -164,6 +216,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch(getApiUrl("/api/auth/me"), { credentials: "include" });
       const json = await res.json();
       if (res.status === 401) {
+        setCachedUser(null);
         setState(s => ({ ...s, user: null, players: [], registrations: [] }));
         return null;
       }
@@ -172,6 +225,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const profileRes = await fetch(getApiUrl(`/api/players/${encodeURIComponent(user.email)}`), { credentials: "include" });
       const profile = await profileRes.json();
       if (!profileRes.ok || !profile.ok) throw new Error("Unable to load your profile");
+      setCachedUser(user);
       setState(s => ({ ...s, user, players: [profile.data], registrations: [] }));
       return user;
     } catch (err: any) {
@@ -181,6 +235,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         // Backend offline — leave existing in-memory user state intact
         return null;
       }
+      setCachedUser(null);
       throw err;
     }
   }, []);
@@ -196,7 +251,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     void fetchDbData();
 
     void refreshSession()
-      .catch(() => setState(s => ({ ...s, user: null })))
+      .catch((err) => {
+        const isNetwork = err?.message?.includes("Failed to fetch") || err?.message?.includes("NetworkError");
+        if (!isNetwork) {
+          setCachedUser(null);
+          setState(s => ({ ...s, user: null }));
+        }
+      })
       .finally(() => {
         try {
           const stored = JSON.parse(localStorage.getItem("atl-user-registrations") || "[]");
@@ -236,6 +297,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (!res.ok || !json.ok) throw new Error(json.error || "Invalid email or password");
           const user = await refreshSession();
           if (!user) throw new Error("Unable to establish your session");
+          setCachedUser(user);
           return user;
         } catch (error) {
           if (error instanceof TypeError || error instanceof SyntaxError) {
@@ -248,6 +310,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         try {
           await fetch(getApiUrl("/api/auth/logout"), { method: "POST", credentials: "include" });
         } catch { }
+        setCachedUser(null);
         setState((s) => ({ ...s, user: null, players: [], registrations: [] }));
         sessionStorage.clear();
       },

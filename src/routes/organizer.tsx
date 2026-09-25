@@ -286,6 +286,7 @@ function OrganizerHub() {
             <span>Manage Leagues</span>
           </button>
 
+          {/* Future Concept - Not Included in V1: Score Verification (hidden for V1)
           <button
             type="button"
             role="tab"
@@ -302,16 +303,12 @@ function OrganizerHub() {
             }}
           >
             <ShieldCheck className="size-4 shrink-0" />
-            <span>Score Verification</span>
+            <span>Future Concept - Not Included in V1</span>
             <span className="rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold">
               Future Concept
             </span>
-            {results.filter((r) => r.status === "awaiting-confirmation").length > 0 && (
-              <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
-                {results.filter((r) => r.status === "awaiting-confirmation").length}
-              </span>
-            )}
           </button>
+          */}
 
           <button
             type="button"
@@ -332,6 +329,7 @@ function OrganizerHub() {
             <span>Atlanta Geography</span>
           </button>
 
+          {/* Future Concept - Not Included in V1: Playoff Bracket (hidden for V1)
           <button
             type="button"
             role="tab"
@@ -348,8 +346,9 @@ function OrganizerHub() {
             }}
           >
             <Trophy className="size-4 shrink-0 text-amber-500" />
-            <span>Playoff Bracket (Concept)</span>
+            <span>Future Concept - Not Included in V1</span>
           </button>
+          */}
 
           <button
             type="button"
@@ -614,7 +613,8 @@ function OrganizerHub() {
         </div>
       )}
 
-      {activeTab === "scores" && (
+      {/* Future Concept - Not Included in V1: Score Verification (hidden for V1) */}
+      {false && activeTab === "scores" && (
         <div className="space-y-6">
           {/* Future Concept Banner */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5 text-amber-900 dark:text-amber-200">
@@ -1032,7 +1032,8 @@ function OrganizerHub() {
         </div>
       )}
 
-      {activeTab === "bracket" && <PlayoffBracket />}
+      {/* Future Concept - Not Included in V1: Playoff Bracket (hidden for V1) */}
+      {false && activeTab === "bracket" && <PlayoffBracket />}
 
       {/* ─── League Participants Dialog Modal ─────────────────────────────── */}
       <Dialog open={Boolean(selectedLeague)} onOpenChange={(open) => { if (!open) { setSelectedLeague(null); setSearchQuery(""); setStatusFilter("all"); } }}>

@@ -26,7 +26,7 @@ const PlayerBody = z.object({
   city:            z.string().optional().default(""),
   zipCode:         z.string().optional().default("30309"),
   preferredCourt:  z.string().optional().default(""),
-  preferredFormat: z.string().optional().default("senior-singles"),
+  preferredFormat: z.string().optional().default("men-singles"),
   dateOfBirth:     z.string().optional().default(""),
   parentName:      z.string().optional().default(""),
   parentPhone:     z.string().optional().default(""),

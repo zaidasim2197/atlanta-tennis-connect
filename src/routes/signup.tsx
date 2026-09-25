@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { SKILL_LEVELS, FORMAT_LABELS, formatMoney, type SkillLevel } from "@/lib/tennis";
@@ -84,6 +84,12 @@ function Stepper({ current }: { current: number }) {
 function Signup() {
   const { user, hydrated, logout, refreshSession, leagueById } = useStore();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (hydrated && user?.role === "organizer") {
+      navigate({ to: "/organizer", replace: true });
+    }
+  }, [hydrated, user, navigate]);
 
   if (hydrated && user?.role === "organizer") {
     return (

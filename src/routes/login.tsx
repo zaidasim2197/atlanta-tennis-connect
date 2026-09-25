@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { FORMAT_LABELS, formatMoney } from "@/lib/tennis";
@@ -108,6 +108,12 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+
+  useEffect(() => {
+    if (hydrated && user?.role === "organizer") {
+      navigate({ to: "/organizer", replace: true });
+    }
+  }, [hydrated, user, navigate]);
 
   if (hydrated && user?.role === "organizer") {
     return (

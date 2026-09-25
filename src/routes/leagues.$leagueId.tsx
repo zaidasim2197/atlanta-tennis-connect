@@ -81,6 +81,8 @@ function LeagueDetail() {
   const registeredCount = typeof league.registeredCount === "number" ? league.registeredCount : Math.max(0, league.playerLimit - left);
   const isRegistered = user?.playerId ? registrationsForPlayer(user.playerId).some((r) => r.leagueId === league.id) : false;
   const canRegister = league.registrationOpen && left > 0 && !isRegistered;
+  const formatLabel = FORMAT_LABELS[league.format as keyof typeof FORMAT_LABELS] ||
+    (league.format ? league.format.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") : "Standard League");
 
   return (
     <div>
@@ -105,7 +107,7 @@ function LeagueDetail() {
           <div className="animate-rise mt-8 max-w-3xl">
             <div className="flex flex-wrap gap-2">
               <span className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-accent-foreground shadow-sm">
-                {FORMAT_LABELS[league.format]}
+                {formatLabel}
               </span>
               <span className="rounded-full border border-white/40 px-3 py-1 text-xs font-semibold shadow-sm backdrop-blur-sm bg-black/20">
                 NTRP {league.skillLevel}
@@ -120,73 +122,88 @@ function LeagueDetail() {
         </div>
       </section>
 
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[1.6fr_1fr]">
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[1.6fr_1fr] items-start">
+        {/* Left Column: How Registration Works on top + Match Details */}
         <div className="space-y-8">
-          <Reveal className="grid gap-4 sm:grid-cols-2">
-            {[
-              { icon: CalendarDays, label: "Match night", value: `${league.scheduleDay}s at ${league.scheduleTime}` },
-              { icon: MapPin, label: "Venue", value: league.venue },
-              {
-                icon: Clock,
-                label: "Season dates",
-                value:
-                  league.startDate && league.endDate
-                    ? formatDateRange(league.startDate, league.endDate)
-                    : season
-                      ? formatDateRange(season.startDate, season.endDate)
-                      : "TBA",
-              },
-              { icon: Users, label: "League size", value: `${registeredCount} registered · ${league.playerLimit} max` },
-            ].map((item) => (
-              <div key={item.label} className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <item.icon className="size-4 text-primary" />
-                  <p className="eyebrow">{item.label}</p>
-                </div>
-                <p className="mt-2 font-semibold text-foreground">{item.value}</p>
-              </div>
-            ))}
-          </Reveal>
+          {/* How league registration works - positioned at top beside season fee card */}
+          <div>
+            <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              How league registration works
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Simple, transparent 3-step registration with instant spot reservation.
+            </p>
 
-          <Reveal>
-            <h2 className="text-2xl font-bold">How league registration works</h2>
-            <ol className="mt-5 space-y-4">
+            <ol className="mt-5 space-y-3.5">
               {ENROLLMENT_STEPS.map((step, i) => (
                 <li
                   key={step.title}
-                  className="flex gap-4 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]"
+                  className="flex gap-4 rounded-2xl border border-border/80 bg-card p-5 shadow-sm transition-all hover:border-primary/40"
                 >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary font-display font-bold text-primary">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 font-display font-bold text-primary">
                     {i + 1}
                   </span>
                   <div>
                     <p className="eyebrow text-muted-foreground">{step.time}</p>
-                    <h3 className="mt-1 font-bold">{step.title}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>
+                    <h3 className="mt-0.5 font-bold text-base text-foreground">{step.title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{step.body}</p>
                   </div>
                 </li>
               ))}
             </ol>
-          </Reveal>
+          </div>
 
-          <Reveal className="rounded-2xl border border-border bg-secondary/60 p-6">
+          {/* Capacity guarantee notice */}
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
             <div className="flex items-start gap-3">
-              <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" />
-              <p className="text-sm leading-relaxed text-secondary-foreground">
-                Registration is limited to {league.playerLimit} players per league to ensure a balanced group. Once enrolled, your registration status and league details are immediately accessible in your dashboard.
+              <ShieldCheck className="mt-0.5 size-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <p className="text-xs sm:text-sm leading-relaxed text-foreground/90">
+                Registration is limited to <strong className="font-semibold text-foreground">{league.playerLimit} players</strong> per league to ensure a balanced group with zero overselling. Once enrolled, your registration status and league details are immediately accessible in your dashboard.
               </p>
             </div>
-          </Reveal>
+          </div>
+
+          {/* Match & Venue Details */}
+          <div>
+            <h3 className="text-lg font-bold text-foreground mb-4">
+              Competition & Venue Details
+            </h3>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {[
+                { icon: CalendarDays, label: "Match night", value: `${league.scheduleDay}s at ${league.scheduleTime}` },
+                { icon: MapPin, label: "Venue", value: league.venue },
+                {
+                  icon: Clock,
+                  label: "Season dates",
+                  value:
+                    league.startDate && league.endDate
+                      ? formatDateRange(league.startDate, league.endDate)
+                      : season
+                        ? formatDateRange(season.startDate, season.endDate)
+                        : "TBA",
+                },
+                { icon: Users, label: "League size", value: `${registeredCount} registered · ${league.playerLimit} max` },
+              ].map((item) => (
+                <div key={item.label} className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <item.icon className="size-4 text-primary" />
+                    <p className="eyebrow">{item.label}</p>
+                  </div>
+                  <p className="mt-2 font-semibold text-foreground">{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Sticky signup card */}
+        {/* Sticky signup / Season fee card */}
         <div className="lg:sticky lg:top-24 lg:self-start">
-          <div className="animate-rise rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-lift)]">
+          <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-md shadow-black/[0.04]">
             <p className="eyebrow text-muted-foreground">Season fee</p>
             <p className="mt-1 font-display text-4xl font-bold text-primary">{formatMoney(league.feeCents)}</p>
             <p className="mt-1 text-sm text-muted-foreground">Includes official league entry, venue reservation, and member registration.</p>
 
-            <div className="mt-5 rounded-xl bg-secondary/70 p-4 text-sm">
+            <div className="mt-5 rounded-xl bg-muted/40 p-4 text-sm border border-border/60">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Spots remaining</span>
                 <span className="font-bold text-foreground">
@@ -195,7 +212,7 @@ function LeagueDetail() {
               </div>
               <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-border">
                 <div
-                  className="h-full rounded-full bg-accent transition-all duration-500"
+                  className="h-full rounded-full bg-primary transition-all duration-500"
                   style={{ width: `${Math.min(100, (registeredCount / league.playerLimit) * 100)}%` }}
                 />
               </div>
@@ -206,18 +223,18 @@ function LeagueDetail() {
                 <div className="rounded-xl border border-primary/30 bg-primary/10 p-3 text-center text-sm font-semibold text-primary">
                   ✓ You are registered for this league
                 </div>
-                <Button asChild size="lg" className="w-full">
+                <Button asChild size="lg" className="w-full rounded-full font-bold">
                   <Link to="/dashboard">View in Player Dashboard →</Link>
                 </Button>
               </div>
             ) : canRegister ? (
-              <Button asChild size="lg" className="mt-5 w-full">
+              <Button asChild size="lg" className="mt-5 w-full rounded-full font-bold shadow-md shadow-primary/20">
                 <Link to="/register/$leagueId" params={{ leagueId: league.id }}>
                   {user ? "Continue to payment →" : "Sign up and pay"}
                 </Link>
               </Button>
             ) : (
-              <Button size="lg" className="mt-5 w-full" disabled>
+              <Button size="lg" className="mt-5 w-full rounded-full font-bold" disabled>
                 {left === 0 ? "League is full" : "Registration closed"}
               </Button>
             )}

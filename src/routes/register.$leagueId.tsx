@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect, useRef } from "react";
 import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { FORMAT_LABELS, formatMoney, formatDateRange } from "@/lib/tennis";
+import { FORMAT_LABELS, formatMoney, formatDateRange, type Season, type LeagueFormat } from "@/lib/tennis";
 import {
   ArrowLeft,
   CreditCard,
@@ -11,10 +11,24 @@ import {
   CalendarDays,
   MapPin,
   ShieldCheck,
+  Check,
+  CheckCircle2,
+  Clock,
+  Trophy,
+  UserCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { StripeCheckoutForm } from "@/components/stripe-checkout-form";
 import { BallLoader } from "@/components/tennis-ball";
+
+const POPULAR_COURTS = [
+  "Piedmont Park Courts",
+  "Chastain Park Tennis Center",
+  "Bitsy Grant Tennis Center",
+  "Sharon Lester Tennis Center",
+  "Sandy Springs Tennis Center",
+  "Washington Park Courts",
+];
 
 export const Route = createFileRoute("/register/$leagueId")({
   component: RegisterLeague,
@@ -34,12 +48,31 @@ function RegisterLeague() {
   const navigate = useNavigate();
 
   const league = leagues.find((l) => l.id === leagueId);
-  const season = seasons.find((s) => s.id === league?.seasonId);
+  const defaultSeason: Season = {
+    id: "s-fall-26",
+    name: "Fall 2026",
+    startDate: "2026-10-10",
+    endDate: "2026-12-19",
+    status: "active",
+  };
+  const season: Season = seasons.find((s) => s.id === league?.seasonId) || seasons[0] || defaultSeason;
   const player = players.find(
     (p) =>
       p.id === user?.playerId ||
-      (user?.email && p.email.toLowerCase() === user.email.toLowerCase()),
-  );
+      (user?.email && p.email?.toLowerCase() === user.email.toLowerCase()),
+  ) || (user ? {
+    id: user.playerId || "player-current",
+    firstName: user.name?.split(" ")[0] || "Player",
+    lastName: user.name?.split(" ").slice(1).join(" ") || "",
+    email: user.email,
+    phone: "(404) 555-0100",
+    ntrp: "3.5",
+    city: "Atlanta",
+    zipCode: "30309",
+    preferredCourt: "Piedmont Park Courts",
+    accountStatus: "active" as const,
+    profileStatus: "complete" as const,
+  } : undefined);
 
   const [partnerChoice, setPartnerChoice] = useState<"have-partner" | "no-partner">("no-partner");
   const [partnerQuery, setPartnerQuery] = useState("");
@@ -56,6 +89,11 @@ function RegisterLeague() {
   const hasPartner = isDoubles && partnerChoice === "have-partner" && !!partnerId;
   const effectiveFeeCents = league ? league.feeCents : 3500;
   const partnerSearchResults = partnerQuery.trim() && player ? searchPartners(partnerQuery, player.id) : [];
+
+  const formatLabel = league?.format
+    ? (FORMAT_LABELS[league.format as LeagueFormat] ||
+       league.format.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "))
+    : "Standard League";
 
   useEffect(() => {
     if (hydrated && !user) {
@@ -126,7 +164,33 @@ function RegisterLeague() {
     };
   }, [reservation?.id]);
 
-  if (!league || !season || !user || !player) {
+  if (!hydrated || (!league && leagues.length === 0)) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <BallLoader label="Loading registration..." />
+      </div>
+    );
+  }
+
+  if (!league) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+          <h2 className="text-xl font-bold text-foreground">League Not Found</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            The league you selected could not be found or may have been removed.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <Button asChild>
+              <Link to="/leagues">Browse open leagues</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !player) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <BallLoader label="Loading registration..." />
@@ -328,7 +392,7 @@ function RegisterLeague() {
                   </p>
                 </div>
                 <span className="shrink-0 rounded-full bg-primary-foreground/15 px-3 py-1 text-xs font-bold">
-                  {FORMAT_LABELS[league.format]}
+                  {formatLabel}
                 </span>
               </div>
 
@@ -355,7 +419,7 @@ function RegisterLeague() {
               </div>
               <div className="flex justify-between border-b border-border/40 pb-2">
                 <span className="text-muted-foreground">Skill Rating Snapshot</span>
-                <span className="font-semibold text-foreground">NTRP {player.ntrp} (Declared)</span>
+                <span className="font-semibold text-foreground">NTRP {player.ntrp} (Snapshot)</span>
               </div>
               <div className="flex justify-between border-b border-border/40 pb-2">
                 <span className="text-muted-foreground">Declared Home Court</span>
@@ -398,113 +462,183 @@ function RegisterLeague() {
   }
 
   // ─── Registration Form ─────────────────────────────────────────────────────
+  const stepCount = isDoubles ? 4 : 3;
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-6 flex items-center justify-between">
-        <Button asChild variant="ghost" size="sm" className="-ml-3 text-muted-foreground hover:text-foreground">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+      {/* Top Navigation & Status Bar */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <Button asChild variant="ghost" size="sm" className="-ml-2 text-muted-foreground hover:text-foreground">
           <Link to="/leagues/$leagueId" params={{ leagueId: league.id }}>
             <ArrowLeft className="mr-1.5 size-4" /> Back to League Details
           </Link>
         </Button>
+        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+          <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Registration Open · Atomic Spot Reservation</span>
+        </div>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2 lg:gap-10">
-        {/* Left Column: League Review & Partner & Court */}
-        <div className="space-y-6">
-          <div>
-            <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              League Registration
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Review details, configure your home court, and complete registration.
-            </p>
-          </div>
+      {/* Page Header */}
+      <div className="mb-8 border-b border-border/60 pb-6">
+        <div className="flex flex-wrap items-baseline gap-3">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            League Registration
+          </h1>
+          <span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-0.5 text-xs font-semibold text-primary">
+            {season.name}
+          </span>
+        </div>
+        <p className="mt-1.5 text-sm text-muted-foreground max-w-2xl">
+          Review your player details, choose court preferences, and reserve your official spot in <strong className="text-foreground font-semibold">{league.name}</strong>.
+        </p>
+      </div>
 
-          {/* League Review Card */}
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-            <h3 className="font-bold text-base border-b border-border/60 pb-3 mb-3 text-foreground">
-              1. League Review
-            </h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Competition</span>
-                <span className="font-semibold text-foreground text-right">{league.name}</span>
+      {/* Main Grid: Form Steps (7 cols) + Sticky Summary/Payment (5 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Registration Details */}
+        <div className="lg:col-span-7 space-y-6">
+          
+          {/* Card 1: Competition & Division Details */}
+          <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
+            <div className="flex items-center justify-between border-b border-border/60 pb-4 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Trophy className="size-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-foreground leading-none">1. Competition Summary</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">League structure and schedule information</p>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Format</span>
-                <span className="font-medium text-foreground text-right">{FORMAT_LABELS[league.format]}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Skill Level</span>
-                <span className="font-medium text-foreground text-right">NTRP {league.skillLevel}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Schedule</span>
-                <span className="font-medium text-foreground text-right">
-                  {league.scheduleDay}s at {league.scheduleTime}
+              <div className="flex items-center gap-1.5">
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
+                  {formatLabel}
+                </span>
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                  NTRP {league.skillLevel}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Season</span>
-                <span className="font-medium text-foreground text-right">{season.name}</span>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                <h4 className="font-bold text-lg text-foreground">{league.name}</h4>
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <CalendarDays className="size-4 shrink-0 text-primary" />
+                    <span>{league.scheduleDay}s at {league.scheduleTime}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <MapPin className="size-4 shrink-0 text-primary" />
+                    <span>{league.venue}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Trophy className="size-4 shrink-0 text-primary" />
+                    <span>NTRP {league.skillLevel} Division</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Clock className="size-4 shrink-0 text-primary" />
+                    <span>{season.name} Season</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between border-t border-border/60 pt-3 font-bold">
-                <span className="text-foreground">Entry Fee</span>
-                <span className="text-lg text-primary">{formatMoney(effectiveFeeCents)}</span>
-              </div>
+
               {isDoubles && (
-                <div className="mt-2 rounded-lg bg-muted/60 p-2.5 text-[11px] text-muted-foreground leading-relaxed">
-                  <strong>Fee Policy:</strong> Registration fee is {formatMoney(effectiveFeeCents)} per player entry. Team pricing responsibility vs individual registration split policy is TBD pending league committee confirmation.
+                <div className="rounded-xl border border-border/60 bg-muted/40 p-3 text-xs text-muted-foreground leading-relaxed">
+                  <strong className="text-foreground">Doubles Entry Policy:</strong> The registration fee of {formatMoney(effectiveFeeCents)} is charged per player entry. Team pricing responsibility vs individual registration split policy is handled per league guidelines.
                 </div>
               )}
             </div>
           </div>
 
-          {/* Player Profile Snapshot */}
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-            <div className="flex items-center justify-between border-b border-border/60 pb-3 mb-3">
-              <h3 className="font-bold text-base text-foreground">2. Player Information</h3>
-              <span className="font-mono text-xs font-bold text-primary">ID: {player.id}</span>
+          {/* Card 2: Player Information Snapshot */}
+          <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
+            <div className="flex items-center justify-between border-b border-border/60 pb-4 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <UserCheck className="size-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-foreground leading-none">2. Player Information</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Verified profile and skill snapshot</p>
+                </div>
+              </div>
+              <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-md">
+                ID: {player.id}
+              </span>
             </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Name</span>
-                <span className="font-medium text-foreground">{player.firstName} {player.lastName}</span>
+
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+              <div className="flex items-center gap-4">
+                <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground text-sm shadow-sm">
+                  {`${player.firstName?.[0] || ""}${player.lastName?.[0] || ""}`.toUpperCase() || "PL"}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-bold text-base text-foreground">
+                      {player.firstName} {player.lastName}
+                    </p>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      <Check className="size-3" /> Snapshot Locked
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{player.email}</p>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Email</span>
-                <span className="font-medium text-foreground">{player.email}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Declared Skill Level</span>
-                <span className="font-semibold text-foreground">NTRP {player.ntrp} (Snapshot)</span>
+
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-border/60 pt-3 text-xs">
+                <div>
+                  <span className="text-muted-foreground">Declared Skill Rating:</span>
+                  <p className="font-bold text-foreground mt-0.5">NTRP {player.ntrp}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Metro Location:</span>
+                  <p className="font-medium text-foreground mt-0.5">{player.city || "Atlanta"}, GA {player.zipCode || "30309"}</p>
+                </div>
               </div>
             </div>
+
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              Note: Skill ratings are frozen at the time of registration to ensure balanced brackets and verified division integrity.
+            </p>
           </div>
 
-          {/* Step 3: Doubles Partner (Only if doubles format) */}
+          {/* Card 3: Doubles Partner (Only if doubles format) */}
           {isDoubles && (
-            <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-center gap-2 text-primary mb-3">
-                <Users className="size-5" />
-                <h3 className="font-bold text-base text-foreground">3. Doubles Partner</h3>
+            <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
+              <div className="flex items-center justify-between border-b border-border/60 pb-4 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Users className="size-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-foreground leading-none">3. Doubles Partner</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Link a partner or register as awaiting partner</p>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex gap-3">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => {
-                      setPartnerChoice("have-partner");
-                    }}
-                    className={`flex-1 rounded-xl border p-3 text-left text-xs font-semibold transition-all ${
+                    onClick={() => setPartnerChoice("have-partner")}
+                    className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-all ${
                       partnerChoice === "have-partner"
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border bg-background text-muted-foreground hover:border-primary/40"
+                        ? "border-primary bg-primary/5 ring-1 ring-primary shadow-sm"
+                        : "border-border bg-background hover:border-primary/40 text-muted-foreground"
                     }`}
                   >
-                    I have a partner
+                    <div className={`mt-0.5 size-4 rounded-full border flex items-center justify-center ${partnerChoice === "have-partner" ? "border-primary bg-primary text-white" : "border-muted-foreground"}`}>
+                      {partnerChoice === "have-partner" && <Check className="size-2.5" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground">I have a partner</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Search and select by name or ID</p>
+                    </div>
                   </button>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -512,26 +646,32 @@ function RegisterLeague() {
                       setPartnerId("");
                       setPartnerQuery("");
                     }}
-                    className={`flex-1 rounded-xl border p-3 text-left text-xs font-semibold transition-all ${
+                    className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-all ${
                       partnerChoice === "no-partner"
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border bg-background text-muted-foreground hover:border-primary/40"
+                        ? "border-primary bg-primary/5 ring-1 ring-primary shadow-sm"
+                        : "border-border bg-background hover:border-primary/40 text-muted-foreground"
                     }`}
                   >
-                    I don't have a partner yet
+                    <div className={`mt-0.5 size-4 rounded-full border flex items-center justify-center ${partnerChoice === "no-partner" ? "border-primary bg-primary text-white" : "border-muted-foreground"}`}>
+                      {partnerChoice === "no-partner" && <Check className="size-2.5" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground">I don't have a partner yet</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Join as awaiting partner</p>
+                    </div>
                   </button>
                 </div>
 
                 {partnerChoice === "have-partner" ? (
-                  <div className="space-y-3 pt-2">
+                  <div className="space-y-3 pt-1">
                     {selectedPartner ? (
-                      <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 p-3 text-xs">
+                      <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 p-4 text-xs">
                         <div>
-                          <p className="font-bold text-foreground">
+                          <p className="font-bold text-sm text-foreground">
                             {selectedPartner.firstName} {selectedPartner.lastName}
                           </p>
-                          <p className="text-muted-foreground font-mono">
-                            Player ID: {selectedPartner.id} · NTRP {selectedPartner.ntrp}
+                          <p className="text-muted-foreground font-mono mt-0.5">
+                            Player ID: {selectedPartner.id} · Rating: NTRP {selectedPartner.ntrp}
                           </p>
                         </div>
                         <Button
@@ -539,14 +679,14 @@ function RegisterLeague() {
                           variant="ghost"
                           size="sm"
                           onClick={() => setPartnerId("")}
-                          className="h-7 text-xs text-destructive hover:bg-destructive/10"
+                          className="h-8 text-xs text-destructive hover:bg-destructive/10"
                         >
                           Change
                         </Button>
                       </div>
                     ) : (
                       <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+                        <label className="block text-xs font-semibold text-foreground mb-1.5">
                           Search by Player Name or Player ID
                         </label>
                         <input
@@ -554,11 +694,11 @@ function RegisterLeague() {
                           value={partnerQuery}
                           onChange={(e) => setPartnerQuery(e.target.value)}
                           placeholder="e.g. Jordan Ellis or p-1"
-                          className="block w-full rounded-lg border border-input bg-background px-3.5 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                          className="block w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                         />
 
                         {partnerSearchResults.length > 0 && (
-                          <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-border bg-background p-1 divide-y divide-border/50 shadow-sm">
+                          <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-border bg-background p-1 divide-y divide-border/50 shadow-md">
                             {partnerSearchResults.map((p) => (
                               <button
                                 key={p.id}
@@ -567,15 +707,15 @@ function RegisterLeague() {
                                   setPartnerId(p.id);
                                   setPartnerQuery("");
                                 }}
-                                className="flex w-full items-center justify-between p-2.5 text-left text-xs hover:bg-muted rounded-md transition-colors"
+                                className="flex w-full items-center justify-between p-3 text-left text-xs hover:bg-muted rounded-lg transition-colors"
                               >
                                 <div>
                                   <p className="font-bold text-foreground">{p.firstName} {p.lastName}</p>
-                                  <p className="text-muted-foreground font-mono text-[10px]">
-                                    ID: {p.id} · Rating: NTRP {p.ntrp}
+                                  <p className="text-muted-foreground font-mono text-[11px] mt-0.5">
+                                    ID: {p.id} · Rating: NTRP {p.ntrp} · {p.city || "Atlanta"}
                                   </p>
                                 </div>
-                                <span className="text-primary font-semibold">Select</span>
+                                <span className="text-primary font-bold">Select</span>
                               </button>
                             ))}
                           </div>
@@ -583,44 +723,85 @@ function RegisterLeague() {
                       </div>
                     )}
                     <p className="text-[11px] text-muted-foreground">
-                      Notice: Searching and selecting a partner initiates a partnership request. Partnership confirmation occurs after partner acceptance.
+                      Notice: Partner invitations are confirmed once the invited partner registers or accepts the pairing in their dashboard.
                     </p>
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-border/80 bg-muted/30 p-3 text-xs text-muted-foreground leading-relaxed">
-                    You can complete registration now. Your partnership status will be recorded as <strong>Awaiting Partner / Replacement Needed</strong> without fake automated placement.
+                  <div className="rounded-xl border border-border/80 bg-muted/30 p-3.5 text-xs text-muted-foreground leading-relaxed">
+                    You can complete registration now. Your partnership status will be recorded as <strong className="text-foreground">Awaiting Partner / Replacement Needed</strong> without fake automated placement.
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Step 4: Home / Preferred Court */}
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-            <h3 className="font-bold text-base text-foreground mb-1">4. Home / Preferred Court</h3>
-            <p className="text-xs text-muted-foreground mb-3">
-              This is your preferred home court. It does not automatically book the court. Home participants are responsible for arranging court time for home matches.
-            </p>
-            <input
-              type="text"
-              value={preferredCourt}
-              onChange={(e) => setPreferredCourt(e.target.value)}
-              placeholder="e.g. Piedmont Park Courts"
-              className="block w-full rounded-lg border border-input bg-background px-3.5 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+          {/* Card: Home / Preferred Court Selection */}
+          <div className="rounded-2xl border border-border/80 bg-card p-6 shadow-sm">
+            <div className="flex items-center justify-between border-b border-border/60 pb-4 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <MapPin className="size-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-foreground leading-none">
+                    {isDoubles ? "4" : "3"}. Home / Preferred Court
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Primary facility where you prefer to host matches</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                This is your preferred home court location for schedule coordination. Home participants coordinate directly with opponents to reserve court time.
+              </p>
+
+              {/* Quick Select Chips */}
+              <div>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Popular Metro Atlanta Facilities:
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {POPULAR_COURTS.map((court) => (
+                    <button
+                      key={court}
+                      type="button"
+                      onClick={() => setPreferredCourt(court)}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
+                        preferredCourt === court
+                          ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                          : "bg-muted/80 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {court}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-1">
+                <input
+                  type="text"
+                  value={preferredCourt}
+                  onChange={(e) => setPreferredCourt(e.target.value)}
+                  placeholder="e.g. Piedmont Park Courts"
+                  className="block w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Right Column: Checkout / Payment */}
-        <div>
+        {/* Right Column: Sticky Summary & Payment */}
+        <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-5">
           {apiError && reservation && (
-            <p role="alert" className="mb-4 text-sm text-destructive">
+            <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/10 p-3.5 text-xs text-destructive leading-relaxed">
               {apiError}
-            </p>
+            </div>
           )}
 
           {reservation && reservation.clientSecret ? (
-            <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-md shadow-black/[0.04]">
               <div className="flex items-center justify-between mb-5 border-b border-border pb-4">
                 <div className="flex items-center gap-2 text-primary">
                   <CreditCard className="size-5" />
@@ -649,13 +830,15 @@ function RegisterLeague() {
               />
             </div>
           ) : (
-            <div className="rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-md shadow-black/[0.04]">
               <div className="flex items-center justify-between mb-4 border-b border-border pb-4">
                 <div className="flex items-center gap-2 text-primary">
                   <CreditCard className="size-5" />
-                  <h3 className="font-bold text-lg">Payment & Spot Hold</h3>
+                  <h3 className="font-bold text-lg">Spot Hold & Payment</h3>
                 </div>
-                <span className="text-xs font-semibold text-muted-foreground">Step 5 of 5</span>
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+                  Step {stepCount} of {stepCount}
+                </span>
               </div>
 
               {apiError && (
@@ -664,40 +847,48 @@ function RegisterLeague() {
                 </div>
               )}
 
-              <div className="space-y-4 text-sm text-muted-foreground">
-                <p>
-                  Click below to reserve your spot in{" "}
-                  <strong className="text-foreground">{league.name}</strong> and proceed to secure payment.
-                </p>
-                <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-2 text-xs">
-                  <div className="flex justify-between text-foreground">
-                    <span>Spot Reservation Hold</span>
-                    <span className="font-mono font-bold text-primary">15:00 minutes</span>
-                  </div>
-                  <div className="flex justify-between text-foreground">
-                    <span>Payment Method</span>
-                    <span className="font-semibold">Stripe Checkout / Safe Test Payment</span>
-                  </div>
-                  <div className="flex justify-between text-foreground border-t border-border pt-2 font-bold">
-                    <span>
-                      {hasPartner ? "Registration Fee (2 Players)" : "Registration Fee"}
-                    </span>
-                    <span className="text-sm text-primary">{formatMoney(effectiveFeeCents)}</span>
-                  </div>
-                  {hasPartner && (
-                    <div className="flex justify-between text-[11px] text-muted-foreground">
-                      <span>{player.firstName} + {selectedPartner?.firstName || "Partner"}</span>
-                      <span>2 × {formatMoney(league.feeCents)}</span>
-                    </div>
-                  )}
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Click below to reserve your atomic spot in <strong className="text-foreground">{league.name}</strong> and proceed to secure checkout.
+              </p>
+
+              {/* Price & Summary Box */}
+              <div className="mt-4 rounded-xl border border-border bg-muted/30 p-4 space-y-2.5 text-xs">
+                <div className="flex justify-between items-center text-foreground">
+                  <span className="text-muted-foreground">Spot Reservation Hold</span>
+                  <span className="font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">15:00 minutes</span>
                 </div>
+                <div className="flex justify-between items-center text-foreground">
+                  <span className="text-muted-foreground">Payment Processor</span>
+                  <span className="font-medium">Stripe Checkout / Safe Test Payment</span>
+                </div>
+                <div className="flex justify-between items-center text-foreground">
+                  <span className="text-muted-foreground">League Entry Fee</span>
+                  <span className="font-semibold">{formatMoney(effectiveFeeCents)}</span>
+                </div>
+                <div className="flex justify-between items-center text-foreground">
+                  <span className="text-muted-foreground">Atlanta Tennis Connect Fee</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">$0.00 (Included)</span>
+                </div>
+                <div className="flex justify-between items-baseline text-foreground border-t border-border pt-3 font-bold">
+                  <span className="text-sm">
+                    {hasPartner ? "Total Due (Team of 2)" : "Total Due Today"}
+                  </span>
+                  <span className="text-2xl font-bold text-primary">{formatMoney(effectiveFeeCents)}</span>
+                </div>
+                {hasPartner && (
+                  <div className="flex justify-between text-[11px] text-muted-foreground pt-1">
+                    <span>{player.firstName} + {selectedPartner?.firstName || "Partner"}</span>
+                    <span>2 × {formatMoney(league.feeCents)}</span>
+                  </div>
+                )}
               </div>
 
+              {/* Action Button */}
               <div className="mt-6 space-y-3">
                 <Button
                   type="button"
                   size="lg"
-                  className="w-full rounded-full font-bold shadow-md shadow-primary/20"
+                  className="w-full rounded-full font-bold text-base shadow-md shadow-primary/20 h-12"
                   disabled={loading}
                   onClick={() => handleReserve()}
                 >
@@ -712,9 +903,20 @@ function RegisterLeague() {
                 </Button>
               </div>
 
-              <div className="mt-5 flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
-                <ShieldCheck className="size-3.5 text-primary" />
-                <span>Zero oversell guarantee · Atomic spot reservation</span>
+              {/* Trust & Guarantee Badges */}
+              <div className="mt-5 space-y-2 border-t border-border/60 pt-4 text-[11px] text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="size-3.5 text-primary shrink-0" />
+                  <span>Zero oversell guarantee with atomic spot reservation</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Lock className="size-3.5 text-primary shrink-0" />
+                  <span>256-bit SSL encrypted Stripe payment processing</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="size-3.5 text-primary shrink-0" />
+                  <span>Instant confirmation & official registration entry</span>
+                </div>
               </div>
             </div>
           )}
