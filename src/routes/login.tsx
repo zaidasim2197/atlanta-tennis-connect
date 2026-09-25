@@ -4,6 +4,7 @@ import { useStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { FORMAT_LABELS, formatMoney } from "@/lib/tennis";
 import { TennisBall } from "@/components/tennis-ball";
+import { toast } from "sonner";
 import {
   MapPin,
   CalendarDays,
@@ -94,7 +95,7 @@ function Stepper({ current }: { current: number }) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 function Login() {
-  const { login, leagueById } = useStore();
+  const { user, hydrated, login, logout, leagueById } = useStore();
   const navigate = useNavigate();
   const { leagueId, redirect } = Route.useSearch();
   const targetLeagueId = leagueId || (redirect?.startsWith("/leagues/") ? redirect.replace("/leagues/", "") : undefined);
@@ -107,6 +108,44 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+
+  if (hydrated && user?.role === "organizer") {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-sm max-w-md w-full text-center">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
+            <ShieldCheck className="size-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Already Signed In</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            You are currently signed in as an active organizer (<strong>{user.email}</strong>). You cannot sign in again while an active organizer session is active.
+          </p>
+          <div className="mt-6 flex flex-col gap-3">
+            <Button asChild size="lg" className="rounded-full font-bold">
+              <Link to="/organizer">
+                Go to Organizer Hub →
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="rounded-full"
+              onClick={async () => {
+                try {
+                  await logout();
+                  toast.success("Signed out successfully.");
+                } catch {
+                  toast.error("Sign out failed.");
+                }
+              }}
+            >
+              Sign out to switch accounts
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const clearErrors = () => {
     setEmailError("");
@@ -125,13 +164,28 @@ function Login() {
     clearErrors();
     setLoading(true);
     try {
-      const user = await login(email.trim().toLowerCase(), password);
+      const user = await login(email.trim().toLowerCase(), password, role);
+      if (role === "player" && user.role === "organizer") {
+        await logout();
+        setPasswordError("Invalid email or password");
+        return;
+      }
+      if (role === "organizer" && user.role !== "organizer") {
+        await logout();
+        setPasswordError("Invalid email or password");
+        return;
+      }
+
       if (user.role === "organizer") {
         navigate({ to: "/organizer" });
       } else if (redirect) {
         window.location.assign(redirect);
       } else if (leagueId) {
-        navigate({ to: "/register/$leagueId", params: { leagueId } });
+        if (leagueData && !leagueData.registrationOpen) {
+          navigate({ to: "/leagues/$leagueId", params: { leagueId } });
+        } else {
+          navigate({ to: "/register/$leagueId", params: { leagueId } });
+        }
       } else {
         navigate({ to: "/dashboard" });
       }
@@ -345,7 +399,9 @@ function Login() {
               {loading
                 ? "Signing in…"
                 : leagueData
-                ? "Sign in & continue to payment →"
+                ? leagueData.registrationOpen
+                  ? "Sign in & continue to payment →"
+                  : "Sign in & view details →"
                 : "Sign in"}
             </Button>
           </form>

@@ -8,6 +8,7 @@ import { Route } from "@/routes/leagues.index";
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => ({ options }),
   Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
+  useNavigate: () => vi.fn(),
 }));
 vi.mock("@/lib/store", () => ({ useStore: () => store }));
 
@@ -83,6 +84,16 @@ describe("league browsing", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Search leagues" }), {
       target: { value: "no matching league" },
     });
-    expect(screen.getByRole("heading", { name: "No flights found for this specific combination" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "No leagues found for this specific combination" })).toBeTruthy();
+  });
+
+  it("prevents organizers from viewing player leagues and renders nothing", () => {
+    const organizerUser: AuthUser = {
+      id: "org-1", email: "organizer@example.com", name: "Organizer Admin", role: "organizer",
+    };
+    store = { ...store, user: organizerUser };
+    const { container } = render(<BrowseLeagues />);
+    finishLoading();
+    expect(container.innerHTML).toBe("");
   });
 });

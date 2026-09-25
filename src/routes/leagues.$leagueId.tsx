@@ -23,19 +23,19 @@ export const Route = createFileRoute("/leagues/$leagueId")({
       { title: "League Details — Baseline ATL Atlanta Tennis Leagues" },
       {
         name: "description",
-        content: "Format, skill level, schedule, venue and fee for this Atlanta tennis league, plus online registration.",
+        content: "Format, skill level, venue details and registration status for this Atlanta tennis league, plus online registration.",
       },
       { property: "og:title", content: "League Details — Baseline ATL" },
-      { property: "og:description", content: "Format, skill level, schedule, venue and fee, plus online registration." },
+      { property: "og:description", content: "Format, skill level, venue details and registration status, plus online registration." },
     ],
   }),
   component: LeagueDetail,
 });
 
-const MATCH_DAY = [
-  { time: "15 min before", title: "Warm up", body: "Meet your opponent, split a short warm-up and confirm the scoring format." },
-  { time: "Match play", title: "Two sets + tiebreak", body: "Best of two sets with a 10-point match tiebreak if you split." },
-  { time: "After", title: "Report the score", body: "Either player reports the result; standings update the same evening." },
+const ENROLLMENT_STEPS = [
+  { time: "Step 1", title: "Review requirements", body: "Check the NTRP skill level, format, and venue location to confirm this league fits your game." },
+  { time: "Step 2", title: "Reserve your spot", body: "Complete your player registration and payment to lock in your place before capacity fills." },
+  { time: "Step 3", title: "Confirmed enrollment", body: "Receive instant registration confirmation and view your league entry in your dashboard." },
 ];
 
 function LeagueDetail() {
@@ -49,10 +49,12 @@ function LeagueDetail() {
         to: "/login",
         search: { redirect: `/leagues/${leagueId}` },
       });
+    } else if (hydrated && user?.role === "organizer") {
+      navigate({ to: "/organizer" });
     }
   }, [hydrated, user, leagueId, navigate]);
 
-  if (!hydrated || (!user && hydrated)) {
+  if (!hydrated || (!user && hydrated) || user?.role === "organizer") {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <BallLoader label="Loading league details..." />
@@ -134,7 +136,7 @@ function LeagueDetail() {
                       ? formatDateRange(season.startDate, season.endDate)
                       : "TBA",
               },
-              { icon: Users, label: "Flight size", value: `${registeredCount} registered · ${league.playerLimit} max` },
+              { icon: Users, label: "League size", value: `${registeredCount} registered · ${league.playerLimit} max` },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
                 <div className="flex items-center gap-2 text-muted-foreground">
@@ -147,9 +149,9 @@ function LeagueDetail() {
           </Reveal>
 
           <Reveal>
-            <h2 className="text-2xl font-bold">What a match day looks like</h2>
+            <h2 className="text-2xl font-bold">How league registration works</h2>
             <ol className="mt-5 space-y-4">
-              {MATCH_DAY.map((step, i) => (
+              {ENROLLMENT_STEPS.map((step, i) => (
                 <li
                   key={step.title}
                   className="flex gap-4 rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]"
@@ -169,15 +171,9 @@ function LeagueDetail() {
 
           <Reveal className="rounded-2xl border border-border bg-secondary/60 p-6">
             <div className="flex items-start gap-3">
-              <Trophy className="mt-0.5 size-5 shrink-0 text-primary" />
+              <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" />
               <p className="text-sm leading-relaxed text-secondary-foreground">
-                The top four players in this flight advance to the season playoff at{" "}
-                {league.endDate
-                  ? formatDate(league.endDate)
-                  : season
-                    ? formatDate(season.endDate)
-                    : "the end of the season"}
-                . Standings update within hours of every reported result.
+                Registration is limited to {league.playerLimit} players per league to ensure a balanced group. Once enrolled, your registration status and league details are immediately accessible in your dashboard.
               </p>
             </div>
           </Reveal>
@@ -188,7 +184,7 @@ function LeagueDetail() {
           <div className="animate-rise rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-lift)]">
             <p className="eyebrow text-muted-foreground">Season fee</p>
             <p className="mt-1 font-display text-4xl font-bold text-primary">{formatMoney(league.feeCents)}</p>
-            <p className="mt-1 text-sm text-muted-foreground">Covers court fees, balls and playoff entry.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Includes official league entry, venue reservation, and member registration.</p>
 
             <div className="mt-5 rounded-xl bg-secondary/70 p-4 text-sm">
               <div className="flex items-center justify-between">
@@ -222,7 +218,7 @@ function LeagueDetail() {
               </Button>
             ) : (
               <Button size="lg" className="mt-5 w-full" disabled>
-                {left === 0 ? "Flight is full" : "Registration closed"}
+                {left === 0 ? "League is full" : "Registration closed"}
               </Button>
             )}
 

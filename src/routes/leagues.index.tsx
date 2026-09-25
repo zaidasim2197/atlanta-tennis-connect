@@ -1,5 +1,5 @@
 import * as React from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangle,
   RotateCw,
@@ -35,10 +35,10 @@ export const Route = createFileRoute("/leagues/")({
       {
         name: "description",
         content:
-          "Filter Atlanta tennis leagues by format, NTRP skill level and season. See fees, schedules and open spots, then register online.",
+          "Filter Atlanta tennis leagues by format, NTRP skill level and season. See fees, venues and open spots, then register online.",
       },
       { property: "og:title", content: "Browse Tennis Leagues in Atlanta" },
-      { property: "og:description", content: "Filter by format, skill level and season. Fees, schedules and open spots." },
+      { property: "og:description", content: "Filter by format, skill level and season. Fees, venues and open spots." },
     ],
   }),
   component: BrowseLeagues,
@@ -62,6 +62,17 @@ function cleanSeasonTitle(name: string) {
 
 function BrowseLeagues() {
   const { leagues, seasons, spotsLeft, hydrated, user, players } = useStore();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (hydrated && user?.role === "organizer") {
+      navigate({ to: "/organizer" });
+    }
+  }, [hydrated, user, navigate]);
+
+  if (hydrated && user?.role === "organizer") {
+    return null;
+  }
   const [status, setStatus] = React.useState<Status>("loading");
   const [attempt, setAttempt] = React.useState(0);
   const [failNext, setFailNext] = React.useState(false);
@@ -191,10 +202,10 @@ function BrowseLeagues() {
         </div>
         <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
           <Reveal>
-            <p className="eyebrow text-accent drop-shadow-md">Metro Atlanta Flights</p>
+            <p className="eyebrow text-accent drop-shadow-md">Metro Atlanta Leagues</p>
             <h1 className="mt-2 text-3xl font-bold sm:text-5xl drop-shadow-lg">Browse Leagues</h1>
             <p className="mt-3 max-w-xl text-white/90 drop-shadow-md text-sm sm:text-base">
-              Explore official flights across Atlanta by format, skill rating, season, and metro area.
+              Explore official leagues across Atlanta by league type, skill rating, season, and metro area.
             </p>
           </Reveal>
         </div>
@@ -217,18 +228,18 @@ function BrowseLeagues() {
 
           {/* 4 Professional Dropdowns */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Format Dropdown */}
+            {/* League Type Dropdown */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <SlidersHorizontal className="size-3 text-primary" /> Format
+                <SlidersHorizontal className="size-3 text-primary" /> League Type
               </label>
               <Select value={format} onValueChange={(val) => setFormat(val as any)}>
                 <SelectTrigger className="h-11 rounded-xl bg-background text-xs sm:text-sm font-semibold">
-                  <SelectValue placeholder="All Formats" />
+                  <SelectValue placeholder="All League Types" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
                   <SelectItem value="all" className="text-xs sm:text-sm font-semibold">
-                    All Formats
+                    All League Types
                   </SelectItem>
                   {(Object.keys(FORMAT_LABELS) as LeagueFormat[]).map((f) => (
                     <SelectItem key={f} value={f} className="text-xs sm:text-sm font-medium">
@@ -356,7 +367,7 @@ function BrowseLeagues() {
         </Reveal>
 
         <DemoBanner
-          message="All leagues, schedules and fees shown are simulated for prototype demonstration."
+          message="All leagues, venues and fees shown are simulated for prototype demonstration."
           className="mt-6"
         />
 
@@ -400,10 +411,10 @@ function BrowseLeagues() {
               <SearchX className="size-6 text-muted-foreground" />
             </div>
             <h2 className="mt-4 text-xl font-bold text-foreground">
-              No flights found for this specific combination
+              No leagues found for this specific combination
             </h2>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-              There are currently no flights matching this specific combination. Try broadening your filters to view more leagues.
+              There are currently no leagues matching this specific combination. Try broadening your filters to view more leagues.
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <Button
@@ -438,7 +449,7 @@ function BrowseLeagues() {
         )}
 
         <p className="mt-10 text-sm text-muted-foreground">
-          Organizing a flight instead?{" "}
+          Organizing a league instead?{" "}
           <Link to="/organizer" className="font-semibold text-primary underline underline-offset-4">
             Open the organizer hub
           </Link>

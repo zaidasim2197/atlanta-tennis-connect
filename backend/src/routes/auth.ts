@@ -7,7 +7,7 @@ import { Player } from "../models/Player";
 import { beginSession, endSession, hashPassword, limitAuth, requireAuth, verifyPassword } from "../lib/auth";
 import { ok, err, wrap } from "../lib/apiResponse";
 const router = Router();
-const credentials = z.object({ email: z.string().trim().email().max(254).transform(s => s.toLowerCase()), password: z.string().min(1).max(128) });
+const credentials = z.object({ email: z.string().trim().email().max(254).transform(s => s.toLowerCase()), password: z.string().min(1).max(128), expectedRole: z.enum(["player", "organizer"]).optional() });
 const signup = credentials.extend({
   password: z.string().min(6).max(128),
   firstName: z.string().trim().min(1).max(80),
@@ -61,6 +61,9 @@ router.post("/login", wrap(async (req, res) => {
   await limitAuth(req, "login", parsed.data.email);
   const account = await Account.findOne({ email: parsed.data.email }).select("+passwordHash");
   if (!await verifyPassword(parsed.data.password, account?.passwordHash) || !account || account.disabled) return err(res, "Invalid email or password", 401);
+  if (parsed.data.expectedRole && account.role !== parsed.data.expectedRole) {
+    return err(res, "Invalid email or password", 401);
+  }
   const user = await userDTO(account);
   await beginSession(req, res, account._id.toString());
   ok(res, user);

@@ -29,7 +29,7 @@ interface DataState {
 interface StoreValue extends DataState {
   hydrated: boolean;
   refreshFromDb: () => Promise<void>;
-  login: (email: string, password: string) => Promise<AuthUser>;
+  login: (email: string, password: string, expectedRole?: "player" | "organizer") => Promise<AuthUser>;
   refreshSession: () => Promise<AuthUser | null>;
   logout: () => Promise<void>;
   createSeason: (input: Omit<Season, "id">) => Season;
@@ -224,13 +224,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       hydrated,
       refreshFromDb: fetchDbData,
       refreshSession,
-      login: async (email, password) => {
+      login: async (email, password, expectedRole) => {
         try {
           const res = await fetch(getApiUrl("/api/auth/login"), {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
+            body: JSON.stringify({ email, password, ...(expectedRole ? { expectedRole } : {}) }),
           });
           const json = await res.json();
           if (!res.ok || !json.ok) throw new Error(json.error || "Invalid email or password");

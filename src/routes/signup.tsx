@@ -4,7 +4,7 @@ import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { SKILL_LEVELS, FORMAT_LABELS, formatMoney, type SkillLevel } from "@/lib/tennis";
 import { TennisBall } from "@/components/tennis-ball";
-import { MapPin, CalendarDays, Calendar, ShieldAlert, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { MapPin, CalendarDays, Calendar, ShieldAlert, ShieldCheck, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { ModernDobPicker } from "@/components/modern-dob-picker";
 
 export const Route = createFileRoute("/signup")({
@@ -82,8 +82,41 @@ function Stepper({ current }: { current: number }) {
 }
 
 function Signup() {
-  const { refreshSession, leagueById } = useStore();
+  const { user, hydrated, logout, refreshSession, leagueById } = useStore();
   const navigate = useNavigate();
+
+  if (hydrated && user?.role === "organizer") {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-sm max-w-md w-full text-center">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
+            <ShieldCheck className="size-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Organizer Account Active</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            You are signed in as an organizer (<strong>{user.email}</strong>). Organizers manage leagues and cannot register new player accounts while active.
+          </p>
+          <div className="mt-6 flex flex-col gap-3">
+            <Button asChild size="lg" className="rounded-full font-bold">
+              <Link to="/organizer">
+                Return to Organizer Hub →
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="rounded-full"
+              onClick={async () => {
+                await logout();
+              }}
+            >
+              Sign out to register as a player
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const { leagueId, redirect } = Route.useSearch();
   const targetLeagueId = leagueId || (redirect?.startsWith("/leagues/") ? redirect.replace("/leagues/", "") : undefined);
   const leagueData = targetLeagueId ? leagueById(targetLeagueId) : undefined;
@@ -189,7 +222,11 @@ function Signup() {
       if (redirect) {
         window.location.assign(redirect);
       } else if (leagueId) {
-        navigate({ to: "/register/$leagueId", params: { leagueId } });
+        if (leagueData && !leagueData.registrationOpen) {
+          navigate({ to: "/leagues/$leagueId", params: { leagueId } });
+        } else {
+          navigate({ to: "/register/$leagueId", params: { leagueId } });
+        }
       } else {
         navigate({ to: "/dashboard" });
       }
@@ -562,7 +599,9 @@ function Signup() {
               {loading
                 ? "Creating account…"
                 : leagueData
-                  ? "Create account & continue to payment →"
+                  ? leagueData.registrationOpen
+                    ? "Create account & continue to payment →"
+                    : "Create account & view details →"
                   : "Create Account"}
             </Button>
           </form>

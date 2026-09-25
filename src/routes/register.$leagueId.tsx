@@ -60,8 +60,15 @@ function RegisterLeague() {
   useEffect(() => {
     if (hydrated && !user) {
       navigate({ to: "/login", search: { leagueId } });
+    } else if (hydrated && user?.role === "organizer") {
+      toast.error("Organizers cannot register for leagues.");
+      navigate({ to: "/organizer" });
     }
   }, [user, hydrated, navigate, leagueId]);
+
+  if (hydrated && user?.role === "organizer") {
+    return null;
+  }
 
   const busy = useRef(false);
   const paying = useRef(false);
@@ -123,6 +130,34 @@ function RegisterLeague() {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <BallLoader label="Loading registration..." />
+      </div>
+    );
+  }
+
+  if (!league.registrationOpen) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <Lock className="size-6 text-muted-foreground" />
+          </div>
+          <h2 className="mt-4 text-xl font-bold text-foreground">Registration Closed</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Registration for <strong className="text-foreground">{league.name}</strong> is currently closed.
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Button asChild>
+              <Link to="/leagues/$leagueId" params={{ leagueId: league.id }}>
+                View details
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/leagues">
+                Browse open leagues
+              </Link>
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }

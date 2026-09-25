@@ -33,8 +33,14 @@ function Profile() {
     if (!hydrated) return;
     if (!user) {
       navigate({ to: "/login", search: { leagueId: undefined } });
+    } else if (user.role === "organizer") {
+      navigate({ to: "/organizer" });
     }
   }, [hydrated, user, navigate]);
+
+  if (hydrated && user?.role === "organizer") {
+    return null;
+  }
 
   useEffect(() => {
     if (!player) return;
@@ -243,7 +249,7 @@ function Profile() {
             <label className="block text-sm font-medium text-foreground">
               Gender Identity
             </label>
-            <p className="text-xs text-muted-foreground mb-1.5">Visible to organizers for demographic grouping; never shared with opponents.</p>
+            <p className="text-xs text-muted-foreground mb-1.5">Visible to organizers for league grouping; kept private on your account.</p>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { value: "male", label: "Male" },

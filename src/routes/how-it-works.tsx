@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import * as React from "react";
 import { UserPlus, Search, CreditCard, Trophy, ArrowRight, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/reveal";
@@ -10,10 +11,10 @@ export const Route = createFileRoute("/how-it-works")({
       { title: "How Baseline ATL Works — Atlanta Tennis Leagues" },
       {
         name: "description",
-        content: "Four steps to playing Atlanta tennis leagues: register your account, browse leagues, secure your spot, and play the season.",
+        content: "Four steps to Atlanta tennis leagues: register your account, browse leagues, secure your spot, and view your confirmed registrations.",
       },
       { property: "og:title", content: "How Baseline ATL Works" },
-      { property: "og:description", content: "Register your account, browse leagues, secure your spot, and play your season." },
+      { property: "og:description", content: "Register your account, browse leagues, secure your spot, and view your confirmed registrations." },
     ],
   }),
   component: HowItWorks,
@@ -23,37 +24,48 @@ export const STEPS = [
   {
     icon: UserPlus,
     title: "Register your account",
-    body: "Create your free player profile with your skill level and location to unlock full access to all metro Atlanta leagues, flights, and schedules.",
+    body: "Create your free player profile with your skill level, ZIP code, and home area to unlock full access to all metro Atlanta leagues.",
   },
   {
     icon: Search,
     title: "Browse leagues & find your fit",
-    body: "Explore active and upcoming flights tailored to your NTRP rating (2.5 to 5.0), preferred format (singles, doubles, mixed), and local courts.",
+    body: "Explore active and upcoming leagues tailored to your NTRP rating (2.5 to 5.0), preferred league type (singles, doubles, mixed), and local courts.",
   },
   {
     icon: CreditCard,
     title: "Register and secure your spot",
-    body: "One fast registration with secure payment and instant confirmation. Your spot in the flight is guaranteed immediately.",
+    body: "One fast registration with secure payment and instant confirmation. Your spot in the league is guaranteed immediately.",
   },
   {
     icon: Trophy,
-    title: "Play your season",
-    body: "Weekly scheduled matches, live standings, playoffs for top flight finishers, and sub management all from your player dashboard.",
+    title: "Manage your registrations",
+    body: "Track your active leagues, access your registration confirmations, and manage your player profile directly from your player dashboard.",
   },
 ];
 
 function HowItWorks() {
   const { user, hydrated } = useStore();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (hydrated && user?.role === "organizer") {
+      navigate({ to: "/organizer" });
+    }
+  }, [hydrated, user, navigate]);
+
+  if (hydrated && user?.role === "organizer") {
+    return null;
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
       <Reveal>
         <p className="eyebrow text-muted-foreground">How it works</p>
         <h1 className="mt-3 max-w-2xl text-4xl font-bold sm:text-5xl">
-          From registration to your first match in four steps.
+          From account setup to confirmed registration in four steps.
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-          Baseline ATL handles the scheduling, the standings and the payments so players and organizers can focus on
+          Baseline ATL handles league discovery, capacity control, and secure registration payments so players and organizers can focus on
           the tennis.
         </p>
       </Reveal>

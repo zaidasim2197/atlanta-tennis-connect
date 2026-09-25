@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import {
   ArrowRight,
   Trophy,
@@ -27,6 +28,18 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { leagues, seasons, spotsLeft, user, hydrated } = useStore();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (hydrated && user?.role === "organizer") {
+      navigate({ to: "/organizer" });
+    }
+  }, [hydrated, user, navigate]);
+
+  if (hydrated && user?.role === "organizer") {
+    return null;
+  }
+
   const featuredLeagues = leagues.slice(0, 3);
 
   return (
@@ -51,7 +64,7 @@ function Index() {
             Real tennis. Real local.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-white/90 sm:text-xl font-medium drop-shadow-md">
-            Join organized tennis leagues across metro Atlanta. Create your profile, browse member flights, sign up and play. We handle the schedules, you handle the rallies.
+            Join organized tennis leagues across metro Atlanta. Create your profile, browse member leagues, and secure your registration online with instant confirmation.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             <Button asChild size="lg" className="rounded-full font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-xl border-2 border-primary/20">
@@ -75,21 +88,21 @@ function Index() {
               <Trophy className="size-6" />
             </div>
             <h3 className="mt-4 font-bold text-foreground">Competitive Play</h3>
-            <p className="mt-2 text-sm text-muted-foreground">Find opponents at your exact skill level, from casual 2.5 to competitive 5.0.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Find leagues tailored to your exact skill level, from casual 2.5 to competitive 5.0.</p>
           </div>
           <div className="flex flex-col items-center text-center">
             <div className="flex size-12 items-center justify-center rounded-full bg-secondary text-primary">
               <Users className="size-6" />
             </div>
-            <h3 className="mt-4 font-bold text-foreground">All Formats</h3>
-            <p className="mt-2 text-sm text-muted-foreground">Singles, doubles, and mixed. Junior and senior divisions across metro Atlanta.</p>
+            <h3 className="mt-4 font-bold text-foreground">League Types</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Men's Singles, Women's Singles, Men's Doubles, and Mixed Doubles across metro Atlanta.</p>
           </div>
           <div className="flex flex-col items-center text-center">
             <div className="flex size-12 items-center justify-center rounded-full bg-secondary text-primary">
               <Calendar className="size-6" />
             </div>
             <h3 className="mt-4 font-bold text-foreground">Organized Seasons</h3>
-            <p className="mt-2 text-sm text-muted-foreground">Spring, Summer, Fall, and Winter leagues with scheduled matches and playoffs.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Spring, Summer, Fall, and Winter leagues organized across metro Atlanta communities.</p>
           </div>
         </div>
       </section>
@@ -101,7 +114,7 @@ function Index() {
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <h2 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Featured Leagues</h2>
-                <p className="mt-2 text-muted-foreground">Upcoming flights with spots still available.</p>
+                <p className="mt-2 text-muted-foreground">Upcoming leagues with spots still available.</p>
               </div>
               <Button asChild variant="outline" className="rounded-full">
                 <Link to="/leagues">View all leagues</Link>
@@ -150,15 +163,15 @@ function Index() {
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="item-3">
-                <AccordionTrigger className="text-base font-semibold hover:text-primary">What happens if I miss a match?</AccordionTrigger>
+                <AccordionTrigger className="text-base font-semibold hover:text-primary">How does league registration work?</AccordionTrigger>
                 <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
-                  We understand life happens! We offer an easy sub-request system. If you can't make a scheduled match, you can request a substitute player from our sub pool. Repeated no-shows may affect your eligibility for future seasons.
+                  Browse available leagues by format, NTRP skill level, and metro area. Once you find the right fit, complete your registration and secure payment online to lock in your spot with instant confirmation.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="item-4">
                 <AccordionTrigger className="text-base font-semibold hover:text-primary">Do I need a partner for doubles?</AccordionTrigger>
                 <AccordionContent className="text-muted-foreground text-sm leading-relaxed">
-                  Nope! You can sign up as an individual and we will pair you with a partner of a similar skill level. If you already have a partner in mind, both of you can register and specify each other during the registration process.
+                  You can register for Men's Doubles or Mixed Doubles leagues. Both partners complete their registration to reserve their spots in the league.
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="item-5" className="border-b-0">
@@ -179,7 +192,7 @@ function Index() {
             Ready to hit the courts?
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-            Create your player profile, find a league that fits your schedule, and get ready for your first match.
+            Create your player profile, find the right league for your skill level, and secure your spot today.
           </p>
           <div className="mt-8 flex justify-center gap-4">
             <Button asChild size="lg" className="rounded-full">

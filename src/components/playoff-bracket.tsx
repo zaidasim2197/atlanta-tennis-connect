@@ -341,11 +341,11 @@ export function PlayoffBracket() {
                 Playoff Bracket Demonstration
               </h2>
               <span className="rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 px-2.5 py-0.5 text-xs font-bold">
-                Future Concept · Non-Operational
+                Future Concept - Not Included in V1
               </span>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Preview of post-season playoff progression. Division winners advance from round-robin grouping to city finals.
+              Preview of future post-season playoff progression. Playoff automation and brackets are not included in V1.
             </p>
           </div>
 

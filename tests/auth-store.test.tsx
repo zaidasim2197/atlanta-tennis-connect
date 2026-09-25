@@ -61,3 +61,17 @@ it("requires a verified server session and profile after login", async () => {
   expect(result.current.user).toEqual(user);
   expect(fetchMock).toHaveBeenCalledWith("/api/auth/login", expect.objectContaining({ credentials: "include" }));
 });
+
+it("sends expectedRole with login request when specified", async () => {
+  const { result } = renderHook(() => useStore(), { wrapper: StoreProvider });
+  await waitFor(() => expect(result.current.hydrated).toBe(true));
+  const user = { id: "account", playerId: "player", email: "player@example.com", role: "player", name: "Test Player" };
+  fetchMock.mockImplementation(async (url: string) => {
+    if (url === "/api/auth/login" || url === "/api/auth/me") return response(200, { ok: true, data: user });
+    return response(200, { ok: true, data: { id: "player", email: user.email } });
+  });
+  await act(async () => { await result.current.login(user.email, "server-password", "player"); });
+  expect(fetchMock).toHaveBeenCalledWith("/api/auth/login", expect.objectContaining({
+    body: JSON.stringify({ email: user.email, password: "server-password", expectedRole: "player" }),
+  }));
+});

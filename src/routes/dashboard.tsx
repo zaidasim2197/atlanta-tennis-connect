@@ -1,5 +1,5 @@
 import * as React from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Settings,
   LogOut,
@@ -68,12 +68,24 @@ function Dashboard() {
   const [set3Opponent, setSet3Opponent] = React.useState("7");
   const [winnerChoice, setWinnerChoice] = React.useState<"player" | "opponent">("player");
 
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (hydrated && user?.role === "organizer") {
+      navigate({ to: "/organizer" });
+    }
+  }, [hydrated, user, navigate]);
+
   if (!hydrated) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <BallLoader label="Loading player dashboard..." />
       </div>
     );
+  }
+
+  if (user?.role === "organizer") {
+    return null;
   }
   if (!user) {
     return (
@@ -163,7 +175,7 @@ function Dashboard() {
             </span>
           </div>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            Manage your registered leagues, match schedules, home court, and official statistics.
+            Manage your registered leagues, confirmed entries, and player profile.
           </p>
         </div>
 
@@ -267,12 +279,17 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Match Fixture Section */}
+          {/* Match Fixture Section (Future Concept outside V1) */}
           <div>
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-foreground">Next Scheduled Match</h2>
-                <p className="text-xs text-muted-foreground">Your verified matchup fixture & score reporting</p>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-foreground">Season Match Play</h2>
+                  <span className="rounded-full bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 uppercase tracking-wider">
+                    Future Concept - Not Included in V1
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">Preview of post-registration match fixtures and scoring (scheduled for V2)</p>
               </div>
             </div>
 
@@ -517,10 +534,10 @@ function Dashboard() {
                           Your registration is confirmed.
                         </h3>
                         <p className="mt-1 text-sm font-semibold text-foreground">
-                          No match has been scheduled yet.
+                          League entry confirmed.
                         </p>
                         <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
-                          Your league entry is secured. Official opponents, schedules, and home/away designations will be assigned by the league organizer ahead of season play.
+                          Your spot in the league is secured. Your player registration and profile are active for the season.
                         </p>
                       </div>
                     );
@@ -540,10 +557,10 @@ function Dashboard() {
                           Your registration has been received.
                         </h3>
                         <p className="mt-1 text-sm font-semibold text-foreground">
-                          Your league placement and match details are not available yet.
+                          Registration in progress.
                         </p>
                         <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
-                          The league organizers are currently reviewing registrations and organizing flights based on skill level and geographic clusters.
+                          The league organizer is currently reviewing registrations and capacity based on skill level and geographic area.
                         </p>
                       </div>
                     );
@@ -555,9 +572,9 @@ function Dashboard() {
                       <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
                         <CalendarDays className="size-6" />
                       </div>
-                      <h4 className="mt-3 text-base font-bold text-foreground">No match scheduled yet</h4>
+                      <h4 className="mt-3 text-base font-bold text-foreground">No active league registration</h4>
                       <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
-                        Register for an open league across metro Atlanta to be placed on an official match ladder.
+                        Browse open leagues across metro Atlanta and secure your registration today.
                       </p>
                       <Button asChild className="mt-4 rounded-full" size="sm">
                         <Link to="/leagues">Find a league</Link>
@@ -578,8 +595,8 @@ function Dashboard() {
               <h3 className="font-bold text-foreground flex items-center gap-2">
                 <Trophy className="size-4 text-primary" /> My Stats
               </h3>
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Official
+              <span className="rounded-full bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 text-[9px] font-bold text-amber-700 uppercase tracking-wider">
+                Future Concept
               </span>
             </div>
 
@@ -610,10 +627,10 @@ function Dashboard() {
             ) : (
               <div className="mt-4 text-center py-4">
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Stats will appear after your first accepted match result is verified by the organizer.
+                  Player match statistics and standings are planned for future league releases.
                 </p>
                 <div className="mt-3 rounded-lg border border-border/60 bg-muted/30 p-2.5 text-[11px] text-muted-foreground">
-                  Official standings & ranking algorithms are finalized by the league committee prior to tournament seeding.
+                  V1 includes player profiles, capacity tracking, and confirmed registrations. Match statistics are not included in V1.
                 </div>
               </div>
             )}
@@ -809,7 +826,7 @@ function Dashboard() {
             </div>
 
             <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-2.5 text-[11px] text-amber-800">
-              Note: After submitting, your result enters <strong>Awaiting Organizer Verification</strong>. It will officially update standings upon organizer confirmation.
+              Future Concept Preview: Match score reporting and automated standings verification are scheduled for post-V1 release.
             </div>
 
             <DialogFooter className="mt-4 sm:justify-between">
@@ -942,14 +959,14 @@ function Dashboard() {
                 </div>
                 <h5 className="mt-3 text-sm font-bold text-foreground">No Match Results Yet</h5>
                 <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
-                  You haven't completed any scheduled fixtures yet. Once a match score is submitted and verified by the organizer, official sets and statistics will appear here.
+                  Match coordination and score reporting are outside the current V1 release. Confirmed registrations and league entries are shown in your dashboard.
                 </p>
               </div>
             )}
           </div>
 
           <div className="mt-4 rounded-xl bg-muted/40 p-3 text-[11px] text-muted-foreground leading-relaxed">
-            <strong>Official Policy Notice:</strong> Standings and rankings are generated only from Accepted results confirmed by the league committee. Disputed scores undergo review with both players.
+            <strong>Scope Notice:</strong> Automated fixtures, score submission, standings, and rankings are scheduled for future platform updates and not included in V1.
           </div>
 
           <DialogFooter className="mt-4">

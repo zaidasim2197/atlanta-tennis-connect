@@ -27,10 +27,10 @@ export function LeagueCard({
   return (
     <article className="hover-lift group flex h-full flex-col rounded-2xl border border-border bg-card p-6 shadow-[var(--shadow-card)]">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">
-          {FORMAT_LABELS[league.format]}
+        <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground" title="League Type">
+          {FORMAT_LABELS[league.format] || league.format}
         </span>
-        <span className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-accent-foreground">
+        <span className="rounded-full bg-accent px-3 py-1 text-xs font-bold text-accent-foreground" title="Skill Level">
           NTRP {cleanSkill}
         </span>
         {isRegistered ? (
@@ -38,20 +38,34 @@ export function LeagueCard({
             ✓ Enrolled
           </span>
         ) : isClosed ? (
-          <span className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-muted-foreground">
-            Registration closed
+          <span className="rounded-full border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 px-3 py-1 text-xs font-semibold text-slate-700 dark:text-slate-300">
+            Closed
           </span>
         ) : isFull ? (
           <span className="rounded-full border border-destructive/40 bg-destructive/10 px-3 py-1 text-xs font-semibold text-destructive">
             Full
           </span>
-        ) : null}
+        ) : (
+          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+            Registration Open
+          </span>
+        )}
       </div>
 
       <h3 className="mt-4 text-xl font-bold text-foreground">{cleanTitle}</h3>
       <p className="mt-1 text-sm text-muted-foreground">{cleanSeason}</p>
 
       <dl className="mt-5 space-y-2.5 text-sm text-muted-foreground">
+        {/* Metro Area / Locality & Venue */}
+        <div className="flex items-center gap-2.5">
+          <MapPin className="size-4 shrink-0 text-primary" />
+          <dd className="truncate text-foreground/90">
+            <span className="font-semibold text-foreground">{league.geographicGroup || "Atlanta"}</span>
+            {league.venue ? ` · ${league.venue}` : ""}
+          </dd>
+        </div>
+
+        {/* Day & Time */}
         <div className="flex items-center gap-2.5">
           <CalendarDays className="size-4 shrink-0 text-primary" />
           <dd>
@@ -63,10 +77,19 @@ export function LeagueCard({
                 : ""}
           </dd>
         </div>
+
+        {/* Remaining Spaces */}
         <div className="flex items-center gap-2.5">
           <Users className="size-4 shrink-0 text-primary" />
           <dd>
-            {spotsLeft} of {league.playerLimit} spots left
+            {isFull ? (
+              <span className="font-semibold text-destructive">0 spaces remaining</span>
+            ) : (
+              <span>
+                <strong className="text-foreground">{spotsLeft}</strong> remaining {spotsLeft === 1 ? "space" : "spaces"}{" "}
+                <span className="text-xs text-muted-foreground">({league.playerLimit} cap)</span>
+              </span>
+            )}
           </dd>
         </div>
       </dl>
@@ -76,14 +99,14 @@ export function LeagueCard({
           <p className="text-2xl font-bold text-primary">{formatMoney(league.feeCents)}</p>
           <p className="text-xs text-muted-foreground">per player, per season</p>
         </div>
-        <Button asChild size="sm" variant={isRegistered ? "outline" : "default"}>
+        <Button asChild size="sm" variant={isRegistered || isClosed ? "outline" : "default"}>
           {!user ? (
             <Link to="/login" search={{ redirect: `/leagues/${league.id}` }}>
               View Details <ArrowRight className="transition-transform duration-200 group-hover:translate-x-0.5" />
             </Link>
           ) : (
             <Link to="/leagues/$leagueId" params={{ leagueId: league.id }}>
-              {isRegistered ? "View Details" : isClosed ? "Closed" : isFull ? "Full · View" : "Register"} <ArrowRight className="transition-transform duration-200 group-hover:translate-x-0.5" />
+              {isRegistered ? "View Details" : isClosed ? "View details" : isFull ? "Full · View" : "Register"} <ArrowRight className="transition-transform duration-200 group-hover:translate-x-0.5" />
             </Link>
           )}
         </Button>

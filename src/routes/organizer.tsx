@@ -97,7 +97,7 @@ function OrganizerHub() {
   // League Roster / Participant modal state
   const [selectedLeague, setSelectedLeague] = useState<League | null>(null);
   const [allRegistrations, setAllRegistrations] = useState<any[]>([]);
-  const [loadingRegistrations, setLoadingRegistrations] = useState(false);
+  const [loadingRegistrations, setLoadingRegistrations] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "held">("all");
   const [copiedEmails, setCopiedEmails] = useState(false);
@@ -107,7 +107,7 @@ function OrganizerHub() {
   const [seasonId, setSeasonId] = useState(seasons[0]?.id || "");
   const [format, setFormat] = useState<LeagueFormat>("men-singles");
   const [skillLevel, setSkillLevel] = useState<SkillLevel>("3.5");
-  const [feeCents, setFeeCents] = useState(10000);
+  const [feeUsd, setFeeUsd] = useState(100);
   const [scheduleDay, setScheduleDay] = useState("Tuesday");
   const [scheduleTime, setScheduleTime] = useState("7:00 PM");
   const [venue, setVenue] = useState("");
@@ -214,6 +214,15 @@ function OrganizerHub() {
 
   if (user.role !== "organizer") return null;
 
+  if (loadingRegistrations) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3">
+        <BallLoader label="Loading organizer hub & live registrations..." />
+        <p className="text-xs text-muted-foreground animate-pulse">Syncing leagues, rosters, and registration data…</p>
+      </div>
+    );
+  }
+
   const handleCreateLeague = (e: React.FormEvent) => {
     e.preventDefault();
     createLeague({
@@ -221,7 +230,7 @@ function OrganizerHub() {
       name,
       format,
       skillLevel,
-      feeCents,
+      feeCents: Math.round(feeUsd * 100),
       scheduleDay,
       scheduleTime,
       venue,
@@ -234,6 +243,7 @@ function OrganizerHub() {
     setName("");
     setVenue("");
     setDescription("");
+    setFeeUsd(100);
   };
 
   return (
@@ -293,6 +303,9 @@ function OrganizerHub() {
           >
             <ShieldCheck className="size-4 shrink-0" />
             <span>Score Verification</span>
+            <span className="rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold">
+              Future Concept
+            </span>
             {results.filter((r) => r.status === "awaiting-confirmation").length > 0 && (
               <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
                 {results.filter((r) => r.status === "awaiting-confirmation").length}
@@ -603,6 +616,22 @@ function OrganizerHub() {
 
       {activeTab === "scores" && (
         <div className="space-y-6">
+          {/* Future Concept Banner */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 sm:p-5 text-amber-900 dark:text-amber-200">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="rounded-full bg-amber-500/20 border border-amber-500/40 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                  Future Concept - Not Included in V1
+                </span>
+                <span className="text-xs font-semibold opacity-90">Post-Launch Roadmap</span>
+              </div>
+              <p className="text-xs sm:text-sm text-amber-800 dark:text-amber-300/90">
+                Official fixture generation, player match reporting, and score verification are planned for post-V1 release.
+                V1 focuses on real-time registration holds, capacity management, and roster organization.
+              </p>
+            </div>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
               <div className="text-sm font-medium text-muted-foreground">Pending Player Scores</div>
@@ -617,7 +646,12 @@ function OrganizerHub() {
               </div>
             </div>
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-              <div className="text-sm font-medium text-muted-foreground">Total Active Fixtures</div>
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-medium text-muted-foreground">Total Active Fixtures</div>
+                <span className="rounded bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[10px] font-bold px-1.5 py-0.5">
+                  Future Concept
+                </span>
+              </div>
               <div className="mt-2 text-3xl font-bold">{matches.length}</div>
             </div>
           </div>
@@ -741,11 +775,17 @@ function OrganizerHub() {
           <div className="mt-8">
             <h2 className="text-xl font-bold mb-2">Direct Official Score Entry</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              As an organizer, you can directly record official verified match scores for any scheduled fixture.
+              Future Concept Preview: Record official verified match scores (automated fixture generation and score verification are not included in V1).
             </p>
 
-            <div className="space-y-3">
-              {matches.map((m) => {
+            {matches.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-card/60 p-8 text-center text-sm text-muted-foreground">
+                <span className="font-semibold block text-foreground mb-1">0 Active Fixtures</span>
+                No regular season fixtures have been generated yet. Fixture round-robin generation and official match score recording will be active in post-V1 release.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {matches.map((m) => {
                 const res = results.find((r) => r.matchId === m.id);
                 const player1 = players.find((p) => p.id === m.playerId);
                 const isSelected = directScoreMatchId === m.id;
@@ -849,6 +889,7 @@ function OrganizerHub() {
                 );
               })}
             </div>
+          )}
           </div>
         </div>
       )}
@@ -910,8 +951,16 @@ function OrganizerHub() {
                 <input type="number" required value={playerLimit} onChange={e => setPlayerLimit(Number(e.target.value))} className="block w-full rounded-md border border-input bg-background px-4 py-2.5 text-sm shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary hover:border-primary/50" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">Fee (Cents)</label>
-                <input type="number" required value={feeCents} onChange={e => setFeeCents(Number(e.target.value))} className="block w-full rounded-md border border-input bg-background px-4 py-2.5 text-sm shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary hover:border-primary/50" />
+                <label className="block text-sm font-medium text-foreground mb-1">Fee (USD)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  required
+                  value={feeUsd}
+                  onChange={e => setFeeUsd(Number(e.target.value))}
+                  className="block w-full rounded-md border border-input bg-background px-4 py-2.5 text-sm shadow-sm transition-colors focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary hover:border-primary/50"
+                />
               </div>
             </div>
 
@@ -1144,33 +1193,30 @@ function OrganizerHub() {
                     <button
                       type="button"
                       onClick={() => setStatusFilter("all")}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                        statusFilter === "all"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "bg-muted text-muted-foreground hover:text-foreground"
-                      }`}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${statusFilter === "all"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted text-muted-foreground hover:text-foreground"
+                        }`}
                     >
                       All ({leagueParticipants.length})
                     </button>
                     <button
                       type="button"
                       onClick={() => setStatusFilter("paid")}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                        statusFilter === "paid"
-                          ? "bg-emerald-600 text-white shadow-sm"
-                          : "bg-muted text-muted-foreground hover:text-foreground"
-                      }`}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${statusFilter === "paid"
+                        ? "bg-emerald-600 text-white shadow-sm"
+                        : "bg-muted text-muted-foreground hover:text-foreground"
+                        }`}
                     >
                       Paid ({paidParticipants.length})
                     </button>
                     <button
                       type="button"
                       onClick={() => setStatusFilter("held")}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                        statusFilter === "held"
-                          ? "bg-amber-600 text-white shadow-sm"
-                          : "bg-muted text-muted-foreground hover:text-foreground"
-                      }`}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${statusFilter === "held"
+                        ? "bg-amber-600 text-white shadow-sm"
+                        : "bg-muted text-muted-foreground hover:text-foreground"
+                        }`}
                     >
                       On Hold ({heldParticipants.length})
                     </button>
@@ -1277,9 +1323,9 @@ function OrganizerHub() {
                                 <span>
                                   {p.createdAt
                                     ? `Registered ${new Date(p.createdAt).toLocaleDateString("en-US", {
-                                        month: "short",
-                                        day: "numeric",
-                                      })}`
+                                      month: "short",
+                                      day: "numeric",
+                                    })}`
                                     : "Registered"}
                                 </span>
                                 {isHeld && (
@@ -1397,18 +1443,18 @@ function OrganizerHub() {
                                       <div className="text-foreground font-medium">
                                         {p.createdAt
                                           ? new Date(p.createdAt).toLocaleDateString("en-US", {
-                                              month: "short",
-                                              day: "numeric",
-                                              year: "numeric",
-                                            })
+                                            month: "short",
+                                            day: "numeric",
+                                            year: "numeric",
+                                          })
                                           : "—"}
                                       </div>
                                       <div className="text-[10px] text-muted-foreground mt-0.5">
                                         {p.createdAt
                                           ? new Date(p.createdAt).toLocaleTimeString("en-US", {
-                                              hour: "numeric",
-                                              minute: "2-digit",
-                                            })
+                                            hour: "numeric",
+                                            minute: "2-digit",
+                                          })
                                           : ""}
                                       </div>
                                     </td>

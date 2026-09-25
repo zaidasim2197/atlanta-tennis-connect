@@ -1,62 +1,76 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { TennisBall } from "@/components/tennis-ball";
+import { useStore } from "@/lib/store";
+import { toast } from "sonner";
 
 export function SiteFooter() {
+  const { user, logout } = useStore();
+  const navigate = useNavigate();
+  const isOrganizer = user?.role === "organizer";
+
   return (
     <footer className="court-lines mt-24 bg-primary-deep text-white/80">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
+      <div className={`mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 ${isOrganizer ? "md:grid-cols-[2fr_1fr]" : "md:grid-cols-[1.4fr_1fr_1fr]"}`}>
         {/* Brand */}
         <div className="md:col-span-1">
           <div className="flex items-center gap-2">
             <TennisBall className="size-6" />
-            <span className="font-display text-lg font-bold text-white">
+            <Link to={isOrganizer ? "/organizer" : "/"} className="font-display text-lg font-bold text-white hover:text-accent transition-colors">
               Baseline ATL
-            </span>
+            </Link>
+            {isOrganizer && (
+              <span className="ml-2 rounded-full bg-white/10 border border-white/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
+                Organizer Portal
+              </span>
+            )}
           </div>
 
           <p className="mt-3 max-w-sm text-sm leading-relaxed">
-            Organized tennis leagues across metro Atlanta. Real schedules,
-            real standings, real matches every week.
+            {isOrganizer
+              ? "Official league administration, roster holds, capacity management, and participant verification for Atlanta tennis organizers."
+              : "Organized tennis leagues across metro Atlanta. Clear league details, real-time capacity, and seamless online registration."}
           </p>
         </div>
 
-        {/* Mobile navigation wrapper */}
-        <div className="grid grid-cols-2 gap-6 md:contents">
-          {/* Players */}
-          <div>
-            <h3 className="eyebrow text-white">Players</h3>
+        {/* Navigation wrapper */}
+        <div className={isOrganizer ? "contents" : "grid grid-cols-2 gap-6 md:contents"}>
+          {/* Players - hidden for organizers */}
+          {!isOrganizer && (
+            <div>
+              <h3 className="eyebrow text-white">Players</h3>
 
-            <ul className="mt-4 space-y-2 text-sm">
-              <li>
-                <Link
-                  to="/leagues"
-                  className="transition-colors hover:text-accent"
-                >
-                  Browse leagues
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/how-it-works"
-                  className="transition-colors hover:text-accent"
-                >
-                  How it works
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/dashboard"
-                  className="transition-colors hover:text-accent"
-                >
-                  My dashboard
-                </Link>
-              </li>
-            </ul>
-          </div>
+              <ul className="mt-4 space-y-2 text-sm">
+                <li>
+                  <Link
+                    to="/leagues"
+                    className="transition-colors hover:text-accent"
+                  >
+                    Browse leagues
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/how-it-works"
+                    className="transition-colors hover:text-accent"
+                  >
+                    How it works
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/dashboard"
+                    className="transition-colors hover:text-accent"
+                  >
+                    My dashboard
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          )}
 
           {/* Organizers */}
           <div>
-            <h3 className="eyebrow text-white">Organizers</h3>
+            <h3 className="eyebrow text-white">{isOrganizer ? "Organizer Controls" : "Organizers"}</h3>
 
             <ul className="mt-4 space-y-2 text-sm">
               <li>
@@ -67,15 +81,35 @@ export function SiteFooter() {
                   Organizer hub
                 </Link>
               </li>
-              <li>
-                <Link
-                  to="/login"
-                  search={{ leagueId: undefined }}
-                  className="transition-colors hover:text-accent"
-                >
-                  Sign in
-                </Link>
-              </li>
+              {isOrganizer ? (
+                <li>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        await logout();
+                        toast.success("Signed out successfully.");
+                        navigate({ to: "/login" });
+                      } catch {
+                        toast.error("Sign out failed.");
+                      }
+                    }}
+                    className="transition-colors hover:text-destructive text-left"
+                  >
+                    Sign out
+                  </button>
+                </li>
+              ) : (
+                <li>
+                  <Link
+                    to="/login"
+                    search={{ leagueId: undefined }}
+                    className="transition-colors hover:text-accent"
+                  >
+                    Sign in
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
         </div>

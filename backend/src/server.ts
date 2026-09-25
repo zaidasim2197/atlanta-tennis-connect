@@ -100,15 +100,25 @@ if (require.main === module) {
   const PORT = parseInt(process.env.PORT ?? "3001", 10);
   connectDB()
     .then(() => {
-      app.listen(PORT, () => {
+      const server = app.listen(PORT, () => {
         console.log(`Atlanta Tennis API running on http://localhost:${PORT}`);
         console.log(`Payment provider: ${process.env.PAYMENT_PROVIDER ?? "mock"}`);
       });
 
+      server.on("error", (err: NodeJS.ErrnoException) => {
+        if (err.code === "EADDRINUSE") {
+          console.error(`\n[Server Notice] Port ${PORT} is already in use by another running process.`);
+          console.error(`If a dev/staging server is already running on port ${PORT}, you can either keep using it or terminate it before starting a new instance.\n`);
+          process.exit(1);
+        } else {
+          console.error("[Server Error] Unexpected server error:", err);
+          process.exit(1);
+        }
+      });
+
       // Periodic sweep for expiring held reservations (every 30 seconds)
-      // Guarded against overlapping runs if a previous sweep is still in flight
       let isExpiring = false;
-      setInterval(async () => {
+      const sweepInterval = setInterval(async () => {
         if (isExpiring) return;
         isExpiring = true;
         try {
@@ -119,6 +129,26 @@ if (require.main === module) {
           isExpiring = false;
         }
       }, 30000);
+
+      // Graceful shutdown
+      const shutdown = async (signal: string) => {
+        console.log(`\nReceived ${signal}. Shutting down API server gracefully...`);
+        clearInterval(sweepInterval);
+        server.close(async () => {
+          try {
+            const mongoose = await import("mongoose");
+            await mongoose.default.disconnect();
+            console.log("Database disconnected. Server closed cleanly.");
+            process.exit(0);
+          } catch {
+            process.exit(0);
+          }
+        });
+        setTimeout(() => process.exit(1), 5000).unref();
+      };
+
+      process.on("SIGINT", () => void shutdown("SIGINT"));
+      process.on("SIGTERM", () => void shutdown("SIGTERM"));
     })
     .catch((err) => {
       console.error("Failed to connect to MongoDB:", err);
