@@ -47,6 +47,8 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DemoBanner } from "@/components/demo-banner";
+import { BallLoader } from "@/components/tennis-ball";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 function cleanLeagueName(name: string): string {
@@ -200,7 +202,15 @@ function OrganizerHub() {
     return list;
   }, [allRegistrations, registrations, players]);
 
-  if (!user || user.role !== "organizer") return null;
+  if (!hydrated || !user) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <BallLoader label="Loading organizer hub..." />
+      </div>
+    );
+  }
+
+  if (user.role !== "organizer") return null;
 
   const handleCreateLeague = (e: React.FormEvent) => {
     e.preventDefault();
@@ -289,7 +299,11 @@ function OrganizerHub() {
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
               <div className="text-sm font-medium text-muted-foreground">Total Registrations</div>
               <div className="mt-2 text-3xl font-bold text-primary">
-                {effectiveRegistrations.filter((r) => r.paymentStatus === "paid" || r.paymentStatus === "held").length}
+                {loadingRegistrations && allRegistrations.length === 0 ? (
+                  <Skeleton className="h-9 w-20" />
+                ) : (
+                  effectiveRegistrations.filter((r) => r.paymentStatus === "paid" || r.paymentStatus === "held").length
+                )}
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
                 {effectiveRegistrations.filter((r) => r.paymentStatus === "held").length > 0 && (

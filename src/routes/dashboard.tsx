@@ -19,6 +19,7 @@ import {
   FileText,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { BallLoader } from "@/components/tennis-ball";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,7 +68,13 @@ function Dashboard() {
   const [set3Opponent, setSet3Opponent] = React.useState("7");
   const [winnerChoice, setWinnerChoice] = React.useState<"player" | "opponent">("player");
 
-  if (!hydrated) return null;
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <BallLoader label="Loading player dashboard..." />
+      </div>
+    );
+  }
   if (!user) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-6">

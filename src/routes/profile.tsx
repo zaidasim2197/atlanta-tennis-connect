@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { SKILL_LEVELS, type SkillLevel } from "@/lib/tennis";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { BallLoader } from "@/components/tennis-ball";
 
 export const Route = createFileRoute("/profile")({
   component: Profile,
@@ -41,8 +42,12 @@ function Profile() {
     setPhone(player.phone || ""); setCity(player.city || "Atlanta"); setNtrp(player.ntrp);
   }, [player]);
 
-  if (!user || !player) {
-    return null;
+  if (!hydrated || !user || !player) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <BallLoader label="Loading profile..." />
+      </div>
+    );
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

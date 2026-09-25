@@ -104,6 +104,21 @@ if (require.main === module) {
         console.log(`Atlanta Tennis API running on http://localhost:${PORT}`);
         console.log(`Payment provider: ${process.env.PAYMENT_PROVIDER ?? "mock"}`);
       });
+
+      // Periodic sweep for expiring held reservations (every 30 seconds)
+      // Guarded against overlapping runs if a previous sweep is still in flight
+      let isExpiring = false;
+      setInterval(async () => {
+        if (isExpiring) return;
+        isExpiring = true;
+        try {
+          await expireReservations();
+        } catch (err) {
+          console.error("[server] Background expireReservations failed:", err);
+        } finally {
+          isExpiring = false;
+        }
+      }, 30000);
     })
     .catch((err) => {
       console.error("Failed to connect to MongoDB:", err);

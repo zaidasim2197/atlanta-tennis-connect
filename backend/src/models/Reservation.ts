@@ -92,6 +92,9 @@ const ReservationSchema = new Schema<IReservation>(
   { timestamps: true },
 );
 
+// Compound index for expireReservations query: equality on paymentProvider & status, range/sort on expiresAt
+ReservationSchema.index({ paymentProvider: 1, status: 1, expiresAt: 1 });
+
 // Compound unique: one active reservation per player per league
 ReservationSchema.index(
   { leagueSlug: 1, playerEmail: 1 },

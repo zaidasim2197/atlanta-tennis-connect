@@ -15,6 +15,7 @@ import { Reveal } from "@/components/reveal";
 import { useStore } from "@/lib/store";
 import { FORMAT_LABELS, formatDate, formatDateRange, formatMoney } from "@/lib/tennis";
 import { DemoBanner } from "@/components/demo-banner";
+import { BallLoader } from "@/components/tennis-ball";
 
 export const Route = createFileRoute("/leagues/$leagueId")({
   head: () => ({
@@ -40,7 +41,7 @@ const MATCH_DAY = [
 function LeagueDetail() {
   const { leagueId } = useParams({ from: "/leagues/$leagueId" });
   const navigate = useNavigate();
-  const { leagueById, seasonById, spotsLeft, registrationsForLeague, registrationsForPlayer, user, hydrated } = useStore();
+  const { leagueById, seasonById, spotsLeft, registrationsForPlayer, user, hydrated } = useStore();
 
   React.useEffect(() => {
     if (hydrated && !user) {
@@ -51,8 +52,12 @@ function LeagueDetail() {
     }
   }, [hydrated, user, leagueId, navigate]);
 
-  if (hydrated && !user) {
-    return null;
+  if (!hydrated || (!user && hydrated)) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <BallLoader label="Loading league details..." />
+      </div>
+    );
   }
 
   const league = leagueById(leagueId);
@@ -71,7 +76,7 @@ function LeagueDetail() {
 
   const season = seasonById(league.seasonId);
   const left = spotsLeft(league.id);
-  const registered = registrationsForLeague(league.id).length;
+  const registeredCount = typeof league.registeredCount === "number" ? league.registeredCount : Math.max(0, league.playerLimit - left);
   const isRegistered = user?.playerId ? registrationsForPlayer(user.playerId).some((r) => r.leagueId === league.id) : false;
   const canRegister = league.registrationOpen && left > 0 && !isRegistered;
 
@@ -129,7 +134,7 @@ function LeagueDetail() {
                       ? formatDateRange(season.startDate, season.endDate)
                       : "TBA",
               },
-              { icon: Users, label: "Flight size", value: `${registered} registered · ${league.playerLimit} max` },
+              { icon: Users, label: "Flight size", value: `${registeredCount} registered · ${league.playerLimit} max` },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
                 <div className="flex items-center gap-2 text-muted-foreground">
@@ -195,7 +200,7 @@ function LeagueDetail() {
               <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-border">
                 <div
                   className="h-full rounded-full bg-accent transition-all duration-500"
-                  style={{ width: `${Math.min(100, (registered / league.playerLimit) * 100)}%` }}
+                  style={{ width: `${Math.min(100, (registeredCount / league.playerLimit) * 100)}%` }}
                 />
               </div>
             </div>

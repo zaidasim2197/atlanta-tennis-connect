@@ -122,20 +122,15 @@ function BrowseLeagues() {
     }
   }, [currentPlayer, seasons]);
 
-  // Loading simulation on hydrated / retry
+  // Update status immediately on hydrated / retry
   React.useEffect(() => {
-    let live = true;
-    setStatus("loading");
-    const t = setTimeout(() => {
-      if (!live) return;
-      setStatus(failNext ? "error" : "ready");
-      setFailNext(false);
-    }, 450);
-    return () => {
-      live = false;
-      clearTimeout(t);
-    };
-  }, [attempt, hydrated]);
+    if (!hydrated) {
+      setStatus("loading");
+      return;
+    }
+    setStatus(failNext ? "error" : "ready");
+    setFailNext(false);
+  }, [attempt, hydrated, failNext]);
 
   const results = React.useMemo(() => {
     return leagues.filter((l) => {

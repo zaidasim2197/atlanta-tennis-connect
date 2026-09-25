@@ -14,13 +14,16 @@ import { Router } from "express";
 import { League } from "../models/League";
 import { Season } from "../models/Season";
 import { wrap, ok, err } from "../lib/apiResponse";
-import { expireReservations } from "../jobs/expireReservations";
 
 const router = Router();
 
 // ─── Shape that matches what the frontend League type expects ───────────────
 
 function leagueToFrontend(l: InstanceType<typeof League>) {
+  const spotsRemaining = l.spotsRemaining;
+  const playerLimit = l.playerLimit;
+  const registeredCount = Math.max(0, playerLimit - spotsRemaining);
+
   return {
     id: l.slug,
     seasonId: l.seasonSlug,
@@ -33,8 +36,9 @@ function leagueToFrontend(l: InstanceType<typeof League>) {
     scheduleDay: l.scheduleDay,
     scheduleTime: l.scheduleTime,
     venue: l.venue,
-    playerLimit: l.playerLimit,
-    spotsRemaining: l.spotsRemaining,
+    playerLimit,
+    spotsRemaining,
+    registeredCount,
     registrationOpen: l.registrationOpen,
     description: l.description,
     startDate: l.startDate,
@@ -46,11 +50,6 @@ function leagueToFrontend(l: InstanceType<typeof League>) {
 router.get(
   "/",
   wrap(async (req, res) => {
-    try {
-      await expireReservations();
-    } catch (e) {
-      console.warn("[leagues] expireReservations skipped:", e instanceof Error ? e.message : e);
-    }
     const { format, skillLevel, open, season } = req.query as Record<string, string>;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -105,6 +104,26 @@ router.get(
           }
         : null,
     });
+  }),
+);
+
+// PATCH /api/leagues/:leagueId
+router.patch(
+  "/:leagueId",
+  wrap(async (req, res) => {
+    const { registrationOpen, spotsRemaining } = req.body;
+    const update: Record<string, unknown> = {};
+    if (typeof registrationOpen === "boolean") update.registrationOpen = registrationOpen;
+    if (typeof spotsRemaining === "number") update.spotsRemaining = spotsRemaining;
+
+    const league = await League.findOneAndUpdate(
+      { slug: req.params.leagueId },
+      { $set: update },
+      { new: true },
+    );
+    if (!league) return err(res, "League not found", 404);
+
+    ok(res, leagueToFrontend(league));
   }),
 );
 

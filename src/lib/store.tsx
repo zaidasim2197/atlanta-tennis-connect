@@ -131,6 +131,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         venue: l.venue,
         playerLimit: l.playerLimit,
         spotsRemaining: l.spotsRemaining,
+        registeredCount: typeof l.registeredCount === "number" ? l.registeredCount : Math.max(0, l.playerLimit - (l.spotsRemaining ?? 0)),
         registrationOpen: l.registrationOpen,
         description: l.description,
         startDate: l.startDate,
@@ -190,6 +191,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem("atl-registered-accounts");
     } catch { /* Storage may be disabled. */ }
+
+    // Fire leagues fetch immediately in parallel with auth/session checks
+    void fetchDbData();
+
     void refreshSession()
       .catch(() => setState(s => ({ ...s, user: null })))
       .finally(() => {
@@ -211,7 +216,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         } catch { }
         setHydrated(true);
       });
-    void fetchDbData();
   }, [fetchDbData, refreshSession]);
 
   const value = React.useMemo<StoreValue>(() => {
@@ -257,13 +261,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setState((s) => ({ ...s, leagues: [league, ...s.leagues] }));
         return league;
       },
-      toggleRegistration: (leagueId) =>
+      toggleRegistration: (leagueId) => {
+        const target = state.leagues.find((l) => l.id === leagueId);
+        const nextOpen = target ? !target.registrationOpen : true;
         setState((s) => ({
           ...s,
           leagues: s.leagues.map((l) =>
-            l.id === leagueId ? { ...l, registrationOpen: !l.registrationOpen } : l,
+            l.id === leagueId ? { ...l, registrationOpen: nextOpen } : l,
           ),
-        })),
+        }));
+        // Persist to backend if database is connected
+        fetch(getApiUrl(`/api/leagues/${encodeURIComponent(leagueId)}`), {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ registrationOpen: nextOpen }),
+        }).catch((err) => {
+          console.warn("Could not persist league registration toggle to backend:", err);
+        });
+      },
       registerPlayer: ({ leagueId, player, partnerId, preferredCourt }) => {
         const league = state.leagues.find((l) => l.id === leagueId)!;
         const existing = state.players.find((p) => p.email.toLowerCase() === player.email.toLowerCase());

@@ -53,6 +53,7 @@ export interface League {
   playerLimit: number;
   capacity?: number;
   spotsRemaining?: number;
+  registeredCount?: number;
   registrationOpen: boolean;
   registrationStatus?: "open" | "closed" | "upcoming" | "waitlist";
   registrationClose?: string;

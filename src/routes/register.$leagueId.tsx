@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { StripeCheckoutForm } from "@/components/stripe-checkout-form";
+import { BallLoader } from "@/components/tennis-ball";
 
 export const Route = createFileRoute("/register/$leagueId")({
   component: RegisterLeague,
@@ -119,7 +120,11 @@ function RegisterLeague() {
   }, [reservation?.id]);
 
   if (!league || !season || !user || !player) {
-    return null;
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <BallLoader label="Loading registration..." />
+      </div>
+    );
   }
 
   const handleReserve = async () => {
