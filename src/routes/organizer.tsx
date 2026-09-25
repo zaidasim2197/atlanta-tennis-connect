@@ -50,6 +50,8 @@ import { DemoBanner } from "@/components/demo-banner";
 import { BallLoader } from "@/components/tennis-ball";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { PlayoffBracket } from "@/components/playoff-bracket";
 
 function cleanLeagueName(name: string): string {
   if (!name) return "";
@@ -249,44 +251,112 @@ function OrganizerHub() {
         />
       </div>
 
-      <div className="mb-8 flex gap-4 border-b border-border">
-        <button
-          className={`pb-2 font-medium ${activeTab === "leagues" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
-          onClick={() => setActiveTab("leagues")}
+      <div className="relative mb-8 border-b border-border">
+        <div
+          role="tablist"
+          aria-label="Organizer navigation tabs"
+          className="-mx-4 flex items-center gap-1 sm:gap-6 overflow-x-auto px-4 sm:mx-0 sm:px-0 no-scrollbar scroll-smooth"
         >
-          Manage Leagues
-        </button>
-        <button
-          className={`pb-2 font-medium flex items-center gap-1.5 ${activeTab === "scores" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
-          onClick={() => setActiveTab("scores")}
-        >
-          Score Verification
-          {results.filter((r) => r.status === "awaiting-confirmation").length > 0 && (
-            <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white">
-              {results.filter((r) => r.status === "awaiting-confirmation").length}
-            </span>
-          )}
-        </button>
-        <button
-          className={`pb-2 font-medium flex items-center gap-1.5 ${activeTab === "geography" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
-          onClick={() => setActiveTab("geography")}
-        >
-          <MapPin className="size-3.5" />
-          Atlanta Geography
-        </button>
-        <button
-          className={`pb-2 font-medium flex items-center gap-1.5 ${activeTab === "bracket" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
-          onClick={() => setActiveTab("bracket")}
-        >
-          <Trophy className="size-3.5 text-amber-500" />
-          Playoff Bracket (Concept)
-        </button>
-        <button
-          className={`pb-2 font-medium ${activeTab === "create" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"}`}
-          onClick={() => setActiveTab("create")}
-        >
-          Create League
-        </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "leagues"}
+            className={cn(
+              "flex items-center gap-2 border-b-2 py-3 px-3 text-sm font-semibold whitespace-nowrap shrink-0 transition-colors -mb-px",
+              activeTab === "leagues"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
+            )}
+            onClick={(e) => {
+              setActiveTab("leagues");
+              e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+            }}
+          >
+            <Users className="size-4 shrink-0" />
+            <span>Manage Leagues</span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "scores"}
+            className={cn(
+              "flex items-center gap-2 border-b-2 py-3 px-3 text-sm font-semibold whitespace-nowrap shrink-0 transition-colors -mb-px",
+              activeTab === "scores"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
+            )}
+            onClick={(e) => {
+              setActiveTab("scores");
+              e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+            }}
+          >
+            <ShieldCheck className="size-4 shrink-0" />
+            <span>Score Verification</span>
+            {results.filter((r) => r.status === "awaiting-confirmation").length > 0 && (
+              <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                {results.filter((r) => r.status === "awaiting-confirmation").length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "geography"}
+            className={cn(
+              "flex items-center gap-2 border-b-2 py-3 px-3 text-sm font-semibold whitespace-nowrap shrink-0 transition-colors -mb-px",
+              activeTab === "geography"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
+            )}
+            onClick={(e) => {
+              setActiveTab("geography");
+              e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+            }}
+          >
+            <MapPin className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span>Atlanta Geography</span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "bracket"}
+            className={cn(
+              "flex items-center gap-2 border-b-2 py-3 px-3 text-sm font-semibold whitespace-nowrap shrink-0 transition-colors -mb-px",
+              activeTab === "bracket"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
+            )}
+            onClick={(e) => {
+              setActiveTab("bracket");
+              e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+            }}
+          >
+            <Trophy className="size-4 shrink-0 text-amber-500" />
+            <span>Playoff Bracket (Concept)</span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "create"}
+            className={cn(
+              "flex items-center gap-2 border-b-2 py-3 px-3 text-sm font-semibold whitespace-nowrap shrink-0 transition-colors -mb-px",
+              activeTab === "create"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
+            )}
+            onClick={(e) => {
+              setActiveTab("create");
+              e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+            }}
+          >
+            <Plus className="size-4 shrink-0" />
+            <span>Create League</span>
+          </button>
+        </div>
       </div>
 
       {activeTab === "leagues" && (
@@ -913,101 +983,7 @@ function OrganizerHub() {
         </div>
       )}
 
-      {activeTab === "bracket" && (
-        <div className="space-y-6">
-          <div className="rounded-xl border border-border bg-card p-6 sm:p-8 shadow-sm">
-            <div className="flex items-start justify-between gap-4 mb-6">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-bold">Playoff Bracket Demonstration</h2>
-                  <span className="rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 px-2.5 py-0.5 text-xs font-bold">
-                    Future Concept · Non-Operational
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Preview of post-season playoff progression. Division winners advance from round-robin grouping to city finals.
-                </p>
-              </div>
-            </div>
-
-            <DemoBanner
-              message="This tournament bracket is an interactive visual concept. Real-time bracket generation and court assignment logic is scheduled for Phase 5."
-              className="mb-6"
-            />
-
-            {/* Bracket Tree */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-              {/* Quarterfinals */}
-              <div className="space-y-4">
-                <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Quarterfinals</div>
-                {[
-                  { m: "QF 1", p1: "Alex Mercer (Midtown #1)", p2: "Marcus Vance (Buckhead #2)", score: "6-3, 6-4", win: 1 },
-                  { m: "QF 2", p1: "David Chen (Decatur #1)", p2: "Julian Brooks (Brookhaven #2)", score: "4-6, 6-2, [10-7]", win: 1 },
-                  { m: "QF 3", p1: "Elena Rostova (Midtown #2)", p2: "Nathaniel Price (East #1)", score: "6-2, 6-1", win: 1 },
-                  { m: "QF 4", p1: "Chloe Bennett (North #1)", p2: "Tariq Mitchell (West #2)", score: "7-5, 6-3", win: 1 },
-                ].map((item) => (
-                  <div key={item.m} className="rounded-lg border border-border bg-background p-3 text-xs space-y-1.5 shadow-xs">
-                    <div className="text-[10px] font-semibold text-muted-foreground">{item.m}</div>
-                    <div className={`flex justify-between font-medium ${item.win === 1 ? "text-primary font-bold" : "text-muted-foreground"}`}>
-                      <span>{item.p1}</span>
-                      <span>✓</span>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>{item.p2}</span>
-                      <span className="font-mono text-[10px]">{item.score}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Semifinals */}
-              <div className="space-y-8">
-                <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Semifinals</div>
-                {[
-                  { m: "SF 1", p1: "Alex Mercer", p2: "David Chen", score: "6-4, 7-6(5)", win: 1 },
-                  { m: "SF 2", p1: "Elena Rostova", p2: "Chloe Bennett", score: "6-3, 3-6, [10-8]", win: 1 },
-                ].map((item) => (
-                  <div key={item.m} className="rounded-lg border border-primary/30 bg-primary/5 p-3.5 text-xs space-y-1.5 shadow-xs">
-                    <div className="text-[10px] font-bold text-primary">{item.m}</div>
-                    <div className="flex justify-between font-bold text-foreground">
-                      <span>{item.p1}</span>
-                      <span>✓</span>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>{item.p2}</span>
-                      <span className="font-mono text-[10px]">{item.score}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Championship Final */}
-              <div className="space-y-4">
-                <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Atlanta City Championship</div>
-                <div className="rounded-xl border-2 border-primary/50 bg-gradient-to-br from-primary/10 to-amber-500/10 p-5 text-xs space-y-3 shadow-md">
-                  <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold text-xs uppercase tracking-wide">
-                    <Trophy className="size-4" />
-                    Championship Final
-                  </div>
-                  <div className="space-y-2 border-y border-border/60 py-3">
-                    <div className="flex justify-between items-center font-bold text-sm text-foreground">
-                      <span>Alex Mercer</span>
-                      <span className="rounded bg-primary text-primary-foreground px-2 py-0.5 text-xs">CHAMPION</span>
-                    </div>
-                    <div className="flex justify-between items-center text-muted-foreground">
-                      <span>Elena Rostova</span>
-                      <span className="font-mono text-xs">6-4, 4-6, [10-6]</span>
-                    </div>
-                  </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    Venue: <strong>Bitsy Grant Tennis Center (Center Court)</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {activeTab === "bracket" && <PlayoffBracket />}
 
       {/* ─── League Participants Dialog Modal ─────────────────────────────── */}
       <Dialog open={Boolean(selectedLeague)} onOpenChange={(open) => { if (!open) { setSelectedLeague(null); setSearchQuery(""); setStatusFilter("all"); } }}>
