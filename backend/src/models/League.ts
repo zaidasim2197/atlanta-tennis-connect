@@ -21,6 +21,7 @@ export interface ILeague extends Document {
   playerLimit: number;
   spotsRemaining: number; // decremented atomically on reservation
   registrationOpen: boolean;
+  registrationDeadline?: Date;
   description: string;
   startDate?: string;
   endDate?: string;
@@ -53,6 +54,7 @@ const LeagueSchema = new Schema<ILeague>(
     playerLimit:      { type: Number, required: true, min: 1 },
     spotsRemaining:   { type: Number, required: true, min: 0 },
     registrationOpen: { type: Boolean, default: true },
+    registrationDeadline: { type: Date },
     description:      { type: String, default: "" },
     startDate:        { type: String },
     endDate:          { type: String },

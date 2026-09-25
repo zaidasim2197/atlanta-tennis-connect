@@ -91,7 +91,7 @@ export async function createReservation(
     try {
       await mongoose.connection.transaction(async (session) => {
         const league = await League.findOneAndUpdate(
-          { slug: input.leagueSlug, registrationOpen: true, spotsRemaining: { $gt: 0 } },
+          { slug: input.leagueSlug, spotsRemaining: { $gt: 0 }, $or: [{ registrationDeadline: { $gt: new Date() } }, { registrationDeadline: { $exists: false }, registrationOpen: true }] },
           { $inc: { spotsRemaining: -1 } },
           { new: true, session },
         );

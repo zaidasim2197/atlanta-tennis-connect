@@ -39,7 +39,8 @@ function leagueToFrontend(l: InstanceType<typeof League>) {
     playerLimit,
     spotsRemaining,
     registeredCount,
-    registrationOpen: l.registrationOpen,
+    registrationOpen: l.registrationDeadline ? l.spotsRemaining > 0 && new Date(l.registrationDeadline).getTime() > Date.now() : l.registrationOpen && l.spotsRemaining > 0,
+    registrationDeadline: l.registrationDeadline,
     description: l.description,
     startDate: l.startDate,
     endDate: l.endDate,
@@ -56,7 +57,6 @@ router.get(
     const filter: Record<string, any> = {};
     if (format)     filter.format = format;
     if (skillLevel) filter.skillLevel = skillLevel;
-    if (open !== undefined) filter.registrationOpen = open === "true";
     if (season)     filter.seasonSlug = season;
 
     const leagues = await League.find(filter).sort({ createdAt: 1 }).lean();
@@ -79,7 +79,7 @@ router.get(
         : null,
     }));
 
-    ok(res, payload);
+    ok(res, open === undefined ? payload : payload.filter(l => l.registrationOpen === (open === "true")));
   }),
 );
 
