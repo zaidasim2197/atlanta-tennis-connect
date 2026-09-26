@@ -73,9 +73,10 @@ export function ZipCodeInput({
       setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : matchingZips.length - 1));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (highlightedIndex >= 0 && highlightedIndex < matchingZips.length) {
-        handleSelect(matchingZips[highlightedIndex]);
-      } else if (matchingZips.length === 1) {
+      const target = matchingZips[highlightedIndex];
+      if (target) {
+        handleSelect(target);
+      } else if (matchingZips[0]) {
         handleSelect(matchingZips[0]);
       }
     } else if (e.key === "Escape") {

@@ -119,10 +119,13 @@ function OrganizerHub() {
     if (!hydrated) return;
     if (!user) {
       navigate({ to: "/login", search: { leagueId: undefined } });
-    } else if (user.role !== "organizer") {
+      return;
+    }
+    if (user.role !== "organizer") {
       toast.error("Access denied. You do not have organizer privileges.");
       navigate({ to: "/dashboard" });
-    } else {
+      return;
+    }
       // Fetch live registrations for all leagues and distinct player count
       const fetchLiveRegistrations = () => {
         fetch(getApiUrl("/api/registrations"), { credentials: "include" })
@@ -159,7 +162,6 @@ function OrganizerHub() {
       }, 10000);
 
       return () => clearInterval(interval);
-    }
   }, [hydrated, user, navigate]);
 
   // Combine live registrations with local store (live API allRegistrations takes precedence)
