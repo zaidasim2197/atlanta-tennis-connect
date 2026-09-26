@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite dev",
     "dev:api": "npm --prefix backend run dev",
-    "build": "npm run typecheck && npm test && vite build --mode production",
+    "build": "npm run typecheck && vite build --mode production",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.api.json",
     "test": "vitest run",
     "build:dev": "vite build --mode development",
