@@ -87,7 +87,7 @@ router.use(requireAuth);
 const CreateBody = z.object({
   leagueId:     z.string().min(1),
   playerEmail:  z.string().email(),
-  partnerEmail: z.string().email().optional(),
+  partnerEmail: z.string().min(1).optional(),
 });
 
 // POST /api/registrations

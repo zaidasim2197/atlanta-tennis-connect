@@ -86,6 +86,27 @@ function Signup() {
   const { user, hydrated, logout, refreshSession, leagueById } = useStore();
   const navigate = useNavigate();
 
+  const { leagueId, redirect } = Route.useSearch();
+  const targetLeagueId = leagueId || (redirect?.startsWith("/leagues/") ? redirect.replace("/leagues/", "") : undefined);
+  const leagueData = targetLeagueId ? leagueById(targetLeagueId) : undefined;
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [parentName, setParentName] = useState("");
+  const [parentPhone, setParentPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [city, setCity] = useState("Atlanta");
+  const [zipCode, setZipCode] = useState("30309");
+  const [preferredCourt, setPreferredCourt] = useState("Piedmont Park Courts");
+  const [ntrp, setNtrp] = useState<SkillLevel>("3.5");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     if (hydrated && user?.role === "organizer") {
       navigate({ to: "/organizer", replace: true });
@@ -124,27 +145,6 @@ function Signup() {
       </div>
     );
   }
-  const { leagueId, redirect } = Route.useSearch();
-  const targetLeagueId = leagueId || (redirect?.startsWith("/leagues/") ? redirect.replace("/leagues/", "") : undefined);
-  const leagueData = targetLeagueId ? leagueById(targetLeagueId) : undefined;
-
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [dateOfBirth, setDateOfBirth] = useState("");
-  const [parentName, setParentName] = useState("");
-  const [parentPhone, setParentPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [phone, setPhone] = useState("");
-  const [city, setCity] = useState("Atlanta");
-  const [zipCode, setZipCode] = useState("30309");
-  const [preferredCourt, setPreferredCourt] = useState("Piedmont Park Courts");
-  const [ntrp, setNtrp] = useState<SkillLevel>("3.5");
-  const [gender, setGender] = useState<"male" | "female" | "prefer-not-to-say">("prefer-not-to-say");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Calculate age based on entered Date of Birth
   const calculateAge = (dobString: string): number | null => {
@@ -221,7 +221,6 @@ function Signup() {
           dateOfBirth, parentName: isUnder18 ? parentName.trim() : undefined,
           parentPhone: isUnder18 ? parentPhone.trim() : undefined, isJunior: isUnder18,
           zipCode: zipCode.trim(), preferredCourt: preferredCourt.trim(),
-          gender,
         }),
       });
       const json = await res.json();
@@ -491,35 +490,6 @@ function Signup() {
               />
             </div>
 
-            {/* Gender selection */}
-            <div>
-              <div className="mb-1.5 flex items-center justify-between">
-                <label className="text-sm font-medium text-foreground">
-                  <span className="text-red-500 font-bold text-xs mr-1 select-none" aria-hidden="true">*</span>Gender
-                </label>
-                <span className="text-[11px] text-muted-foreground">Used for demographic grouping; not shared publicly</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { value: "male", label: "Male" },
-                  { value: "female", label: "Female" },
-                  { value: "prefer-not-to-say", label: "Prefer not to say" },
-                ].map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setGender(opt.value as any)}
-                    className={`rounded-lg py-2 text-xs font-semibold border transition-all ${
-                      gender === opt.value
-                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                        : "bg-muted/60 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {/* Password & Confirm Password */}
             <div className="grid gap-4 sm:grid-cols-2">

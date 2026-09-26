@@ -27,7 +27,6 @@ function Profile() {
   const [preferredCourt, setPreferredCourt] = useState(player?.preferredCourt || "Piedmont Park Courts");
   const [ntrp, setNtrp] = useState<SkillLevel>(player?.ntrp || "3.5");
   const [handedness, setHandedness] = useState<"right" | "left">(player?.handedness || "right");
-  const [gender, setGender] = useState<"male" | "female" | "prefer-not-to-say">(player?.gender || "prefer-not-to-say");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -78,7 +77,6 @@ function Profile() {
           ntrp,
           zipCode: zipCode.trim(),
           preferredCourt: preferredCourt.trim(),
-          gender,
         }),
       });
       const json = await res.json();
@@ -95,7 +93,6 @@ function Profile() {
         preferredCourt: preferredCourt.trim(),
         ntrp,
         handedness,
-        gender,
       });
       toast.success("Profile updated successfully");
     } finally {
@@ -244,34 +241,6 @@ function Profile() {
                 <option value="right">Right-handed</option>
                 <option value="left">Left-handed</option>
               </select>
-            </div>
-          </div>
-
-          {/* Gender */}
-          <div>
-            <label className="block text-sm font-medium text-foreground">
-              Gender Identity
-            </label>
-            <p className="text-xs text-muted-foreground mb-1.5">Visible to organizers for league grouping; kept private on your account.</p>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { value: "male", label: "Male" },
-                { value: "female", label: "Female" },
-                { value: "prefer-not-to-say", label: "Prefer not to say" },
-              ].map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setGender(opt.value as any)}
-                  className={`rounded-lg py-2 text-xs font-semibold border transition-all ${
-                    gender === opt.value
-                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                      : "bg-muted/60 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
             </div>
           </div>
 

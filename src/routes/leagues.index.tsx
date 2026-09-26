@@ -64,15 +64,6 @@ function BrowseLeagues() {
   const { leagues, seasons, spotsLeft, hydrated, user, players } = useStore();
   const navigate = useNavigate();
 
-  React.useEffect(() => {
-    if (hydrated && user?.role === "organizer") {
-      navigate({ to: "/organizer" });
-    }
-  }, [hydrated, user, navigate]);
-
-  if (hydrated && user?.role === "organizer") {
-    return null;
-  }
   const [status, setStatus] = React.useState<Status>("loading");
   const [attempt, setAttempt] = React.useState(0);
   const [failNext, setFailNext] = React.useState(false);
@@ -108,26 +99,6 @@ function BrowseLeagues() {
     }
   }, [playerSkill]);
 
-  // Auto-set other filters once when player profile is detected
-  const profileAppliedRef = React.useRef(false);
-  React.useEffect(() => {
-    if (currentPlayer && !profileAppliedRef.current) {
-      if (currentPlayer.preferredFormat) {
-        setFormat(currentPlayer.preferredFormat);
-      }
-      if (currentPlayer.city) {
-        const pCity = currentPlayer.city.toLowerCase();
-        if (pCity.includes("midtown") || pCity.includes("atlanta")) {
-          setCity("Midtown");
-        } else {
-          const matched = CITY_OPTIONS.find((c) => c.value.toLowerCase() === pCity);
-          setCity(matched ? matched.value : "Midtown");
-        }
-      }
-      profileAppliedRef.current = true;
-    }
-  }, [currentPlayer]);
-
   // Update status immediately on hydrated / retry
   React.useEffect(() => {
     if (!hydrated) {
@@ -137,6 +108,12 @@ function BrowseLeagues() {
     setStatus(failNext ? "error" : "ready");
     setFailNext(false);
   }, [attempt, hydrated, failNext]);
+
+  React.useEffect(() => {
+    if (hydrated && user?.role === "organizer") {
+      navigate({ to: "/organizer", replace: true });
+    }
+  }, [hydrated, user, navigate]);
 
   const results = React.useMemo(() => {
     return leagues.filter((l) => {
@@ -174,6 +151,27 @@ function BrowseLeagues() {
       return true;
     });
   }, [leagues, seasons, format, skill, playerSkill, city, query]);
+
+  if (hydrated && user?.role === "organizer") {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <ShieldCheck className="size-6 text-primary" />
+          </div>
+          <h2 className="mt-4 text-xl font-bold text-foreground">Organizer Access Only</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            As an organizer, you are restricted from player league views. Manage all leagues, rosters, and scores in the Organizer Hub.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <Button asChild>
+              <Link to="/organizer">Go to Organizer Hub</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -309,7 +307,7 @@ function BrowseLeagues() {
               <div className="inline-flex items-center gap-1.5">
                 <span className="size-2 rounded-full bg-primary" />
                 <span>
-                  Auto-aligned to profile: <strong>NTRP {playerSkill || currentPlayer.ntrp}</strong> (Fixed) · <strong>{FORMAT_LABELS[currentPlayer.preferredFormat || "men-singles"]}</strong>{currentPlayer.city ? ` · ${currentPlayer.city}` : ''}
+                  Showing leagues for your skill level: <strong>NTRP {playerSkill || currentPlayer.ntrp}</strong> (Fixed)
                 </span>
               </div>
               {(city !== "all" || format !== "all" || (!playerSkill && skill !== "all")) && (

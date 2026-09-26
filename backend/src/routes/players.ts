@@ -9,6 +9,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { Player } from "../models/Player";
+import { Account } from "../models/Auth";
 import { APPROVED_ATLANTA_ZIPS } from "../lib/constants";
 import { wrap, ok, err } from "../lib/apiResponse";
 import { requireAuth, ownsEmail } from "../lib/auth";
@@ -100,6 +101,84 @@ router.get(
   wrap(async (_req, res) => {
     const count = await Player.countDocuments();
     ok(res, { count });
+  }),
+);
+
+// GET /api/players/search?q=&exclude=&rating=
+router.get(
+  "/search",
+  wrap(async (req, res) => {
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const exclude = typeof req.query.exclude === "string" ? req.query.exclude.trim() : (req.identity?.playerSlug || "");
+    const excludeEmail = req.identity?.email || "";
+    const rating = typeof req.query.rating === "string" ? req.query.rating.trim() : (typeof req.query.ntrp === "string" ? req.query.ntrp.trim() : "");
+
+    const filter: Record<string, unknown> = {
+      accountStatus: { $ne: "suspended" },
+    };
+
+    const andConditions: any[] = [];
+    if (exclude) {
+      andConditions.push({ slug: { $ne: exclude } });
+    }
+    if (excludeEmail) {
+      andConditions.push({ email: { $ne: excludeEmail.toLowerCase() } });
+    }
+
+    // Exclude all organizers completely from partner selection
+    const organizerAccounts = await Account.find({ role: "organizer" }).select("email playerSlug").lean();
+    const organizerEmails = new Set<string>(
+      organizerAccounts.map((a: any) => (a.email ? a.email.toLowerCase() : "")).filter(Boolean),
+    );
+    organizerEmails.add("organizer@baselineatl.com");
+    const organizerSlugs = organizerAccounts.map((a: any) => a.playerSlug).filter(Boolean);
+
+    if (organizerEmails.size > 0) {
+      andConditions.push({ email: { $nin: Array.from(organizerEmails) } });
+    }
+    if (organizerSlugs.length > 0) {
+      andConditions.push({ slug: { $nin: organizerSlugs } });
+    }
+
+    // Filter by required league rating if specified
+    if (rating) {
+      andConditions.push({ ntrp: rating });
+    }
+
+    if (q) {
+      const sanitized = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(sanitized, "i");
+      andConditions.push({
+        $or: [
+          { firstName: regex },
+          { lastName: regex },
+          { slug: regex },
+          { email: regex },
+        ],
+      });
+    }
+
+    if (andConditions.length > 0) {
+      filter.$and = andConditions;
+    }
+
+    const matches = await Player.find(filter)
+      .limit(15)
+      .select("slug firstName lastName email phone ntrp city preferredCourt rating");
+
+    const results = matches.map((p) => ({
+      id: p.slug,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      email: p.email,
+      phone: p.phone,
+      ntrp: p.ntrp,
+      city: p.city,
+      preferredCourt: p.preferredCourt,
+      rating: p.rating,
+    }));
+
+    ok(res, results);
   }),
 );
 

@@ -57,12 +57,10 @@ describe("league browsing", () => {
     expect(screen.getByRole("heading", { name: "Singles" })).toBeTruthy();
   });
 
-  it("renders on a direct visit with an existing player session", () => {
+  it("renders on a direct visit with an existing player session with default filters", () => {
     store = { ...store, user, players: [player] };
     render(<BrowseLeagues />);
     finishLoading();
-    expect(screen.getByText(/1 league found/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "View all Atlanta leagues" }));
     expect(screen.getByText("1 league found (NTRP 3.5)")).toBeTruthy();
   });
 
@@ -85,13 +83,13 @@ describe("league browsing", () => {
     expect(screen.getByRole("heading", { name: "No leagues found for this specific combination" })).toBeTruthy();
   });
 
-  it("prevents organizers from viewing player leagues and renders nothing", () => {
+  it("prevents organizers from viewing player leagues and renders organizer access notice", () => {
     const organizerUser: AuthUser = {
       id: "org-1", email: "organizer@example.com", name: "Organizer Admin", role: "organizer",
     };
     store = { ...store, user: organizerUser };
-    const { container } = render(<BrowseLeagues />);
+    render(<BrowseLeagues />);
     finishLoading();
-    expect(container.innerHTML).toBe("");
+    expect(screen.getByText(/Organizer Access Only/i)).toBeTruthy();
   });
 });

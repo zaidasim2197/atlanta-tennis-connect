@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { League } from "../models/League";
 import { Player } from "../models/Player";
+import { Account } from "../models/Auth";
 import { Reservation, type IReservation, type ReservationStatus } from "../models/Reservation";
 import { TournamentHistory } from "../models/TournamentHistory";
 import { AuditLog, type AuditAction } from "../models/AuditLog";
@@ -116,12 +117,32 @@ export async function createReservation(
         if (league.format.includes("doubles") && !input.partnerEmail)
           throw error("Select a doubles partner", 400);
         if (input.partnerEmail) {
-          if (input.partnerEmail.toLowerCase() === email)
+          const partnerInput = input.partnerEmail.trim();
+          const partnerLower = partnerInput.toLowerCase();
+          if (partnerLower === email || partnerInput === player.slug)
             throw error("Select a different player as your partner", 400);
-          const partner = await Player.findOne({ email: input.partnerEmail.toLowerCase() }).session(
-            session,
-          );
+          const partner = await Player.findOne({
+            $or: [
+              { email: partnerLower },
+              { slug: partnerInput },
+            ],
+          }).session(session);
           if (!partner) throw error("Partner not found", 400);
+
+          // Verify partner is not an organizer
+          const organizerAccount = await Account.findOne({
+            $or: [{ email: partner.email.toLowerCase() }, { playerSlug: partner.slug }],
+            role: "organizer",
+          }).session(session);
+          if (organizerAccount || partner.email.toLowerCase() === "organizer@baselineatl.com") {
+            throw error("Organizers cannot be selected as doubles partners", 400);
+          }
+
+          // Verify partner has the same rating as required by the doubles league
+          if (league.format.includes("doubles") && partner.ntrp !== league.skillLevel) {
+            throw error(`Doubles partner must have a ${league.skillLevel} rating for this league`, 400);
+          }
+
           partnerSlug = partner.slug;
         }
         const history = await TournamentHistory.findOne({

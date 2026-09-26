@@ -16,6 +16,9 @@ import {
   Clock,
   Trophy,
   UserCheck,
+  Search,
+  User,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { StripeCheckoutForm } from "@/components/stripe-checkout-form";
@@ -78,11 +81,23 @@ function RegisterLeague() {
   const [partnerQuery, setPartnerQuery] = useState("");
   const [partnerId, setPartnerId] = useState("");
   const [partnerEmail, setPartnerEmail] = useState("");
+  const [selectedPartnerData, setSelectedPartnerData] = useState<any | null>(null);
+  const [partnerResults, setPartnerResults] = useState<any[]>([]);
+  const [isSearchingPartner, setIsSearchingPartner] = useState(false);
+  const [isPartnerDropdownOpen, setIsPartnerDropdownOpen] = useState(false);
+  const [partnerHighlightedIndex, setPartnerHighlightedIndex] = useState(-1);
+  const partnerContainerRef = useRef<HTMLDivElement>(null);
+
   const [preferredCourt, setPreferredCourt] = useState(player?.preferredCourt || "Piedmont Park Courts");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [reservation, setReservation] = useState<ActiveReservation | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const busy = useRef(false);
+  const paying = useRef(false);
+  const completed = useRef(false);
+  const storageKey = `checkout:${leagueId}:${user?.email || ""}`;
 
   const isAlreadyRegistered = useMemo(() => {
     if (!user) return false;
@@ -96,33 +111,98 @@ function RegisterLeague() {
   }, [registrations, leagueId, user, player]);
 
   const isDoubles = league?.format ? league.format.includes("doubles") : false;
-  const selectedPartner = partnerId ? players.find((p) => p.id === partnerId) : undefined;
+  const selectedPartner = selectedPartnerData || (partnerId ? players.find((p) => p.id === partnerId) : undefined);
   const hasPartner = isDoubles && partnerChoice === "have-partner" && !!partnerId;
   const effectiveFeeCents = league ? league.feeCents : 3500;
-  const partnerSearchResults = partnerQuery.trim() && player ? searchPartners(partnerQuery, player.id) : [];
 
   const formatLabel = league?.format
     ? (FORMAT_LABELS[league.format as LeagueFormat] ||
        league.format.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" "))
     : "Standard League";
 
+  // Predictive search for registered doubles partners
+  useEffect(() => {
+    let active = true;
+    const cleanQ = partnerQuery.trim();
+    const excludeSlug = player?.id || user?.playerId || "";
+    const excludeEmail = user?.email || "";
+    const leagueRating = league?.skillLevel || "";
+
+    setIsSearchingPartner(true);
+    const params = new URLSearchParams();
+    if (cleanQ) params.set("q", cleanQ);
+    if (excludeSlug) params.set("exclude", excludeSlug);
+    if (leagueRating) params.set("rating", leagueRating);
+
+    const searchUrl = getApiUrl(`/api/players/search?${params.toString()}`);
+
+    fetch(searchUrl, { credentials: "include" })
+      .then((res) => res.json())
+      .then((json) => {
+        if (!active) return;
+        if (json.ok && Array.isArray(json.data)) {
+          // Strictly exclude current player, organizers, and players whose rating doesn't match league
+          const filtered = json.data.filter(
+            (p: any) =>
+              p.id !== excludeSlug &&
+              p.email?.toLowerCase() !== excludeEmail.toLowerCase() &&
+              p.email?.toLowerCase() !== "organizer@baselineatl.com" &&
+              (!leagueRating || p.ntrp === leagueRating),
+          );
+          setPartnerResults(filtered);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (active) setIsSearchingPartner(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [partnerQuery, player?.id, user?.playerId, user?.email, league?.skillLevel]);
+
+  // Click outside to close partner dropdown
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (partnerContainerRef.current && !partnerContainerRef.current.contains(e.target as Node)) {
+        setIsPartnerDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelectPartner = (p: any) => {
+    const currentSlug = player?.id || user?.playerId;
+    const currentEmail = user?.email?.toLowerCase();
+    if (p.id === currentSlug || (p.email && p.email.toLowerCase() === currentEmail)) {
+      toast.error("You cannot select yourself as a doubles partner.");
+      return;
+    }
+    if (p.email?.toLowerCase() === "organizer@baselineatl.com") {
+      toast.error("Organizers cannot be selected as doubles partners.");
+      return;
+    }
+    if (league?.skillLevel && p.ntrp && p.ntrp !== league.skillLevel) {
+      toast.error(`Doubles partner must have a ${league.skillLevel} rating for this league.`);
+      return;
+    }
+    setPartnerId(p.id);
+    setPartnerEmail(p.email || p.id);
+    setSelectedPartnerData(p);
+    setPartnerQuery("");
+    setIsPartnerDropdownOpen(false);
+    toast.success(`Selected ${p.firstName} ${p.lastName} (NTRP ${p.ntrp}) as your doubles partner.`);
+  };
+
   useEffect(() => {
     if (hydrated && !user) {
       navigate({ to: "/login", search: { leagueId } });
     } else if (hydrated && user?.role === "organizer") {
-      toast.error("Organizers cannot register for leagues.");
-      navigate({ to: "/organizer" });
+      navigate({ to: "/organizer", replace: true });
     }
   }, [user, hydrated, navigate, leagueId]);
-
-  if (hydrated && user?.role === "organizer") {
-    return null;
-  }
-
-  const busy = useRef(false);
-  const paying = useRef(false);
-  const completed = useRef(false);
-  const storageKey = `checkout:${leagueId}:${user?.email || ""}`;
 
   // Restore checkout after refresh without creating another hold or charge.
   useEffect(() => {
@@ -174,6 +254,27 @@ function RegisterLeague() {
       }
     };
   }, [reservation?.id]);
+
+  if (hydrated && user?.role === "organizer") {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-sm">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <ShieldCheck className="size-6 text-primary" />
+          </div>
+          <h2 className="mt-4 text-xl font-bold text-foreground">Organizer Access Notice</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Organizers manage leagues from the Organizer Hub and cannot register as participants.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <Button asChild>
+              <Link to="/organizer">Go to Organizer Hub</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!hydrated || (!league && leagues.length === 0)) {
     return (
@@ -265,7 +366,11 @@ function RegisterLeague() {
         body: JSON.stringify({
           leagueId: league.id,
           playerEmail: user.email,
-          ...(partnerEmail.trim() ? { partnerEmail: partnerEmail.trim().toLowerCase() } : {}),
+          ...(partnerEmail.trim()
+            ? { partnerEmail: partnerEmail.trim().toLowerCase() }
+            : partnerId.trim()
+            ? { partnerEmail: partnerId.trim() }
+            : {}),
         }),
       });
       const json = await res.json();
@@ -717,58 +822,173 @@ function RegisterLeague() {
                   <div className="space-y-3 pt-1">
                     {selectedPartner ? (
                       <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 p-4 text-xs">
-                        <div>
-                          <p className="font-bold text-sm text-foreground">
-                            {selectedPartner.firstName} {selectedPartner.lastName}
-                          </p>
-                          <p className="text-muted-foreground text-xs mt-0.5">
-                            Rating: NTRP {selectedPartner.ntrp} · <span className="font-mono text-[11px] text-muted-foreground/80">ID: {selectedPartner.id}</span>
-                          </p>
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xs shadow-sm">
+                            {selectedPartner.firstName?.[0] || "P"}{selectedPartner.lastName?.[0] || ""}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-sm text-foreground">
+                                {selectedPartner.firstName} {selectedPartner.lastName}
+                              </p>
+                              <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold px-2 py-0.5 text-[10px] inline-flex items-center gap-1">
+                                <Check className="size-3" /> Registered Partner
+                              </span>
+                            </div>
+                            <p className="text-muted-foreground text-xs mt-0.5">
+                              Rating: NTRP {selectedPartner.ntrp} · <span className="font-mono text-[11px] font-semibold text-primary">ID: {selectedPartner.id}</span>
+                              {selectedPartner.email && <span> · {selectedPartner.email}</span>}
+                            </p>
+                          </div>
                         </div>
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => setPartnerId("")}
+                          onClick={() => {
+                            setPartnerId("");
+                            setPartnerEmail("");
+                            setSelectedPartnerData(null);
+                          }}
                           className="h-8 text-xs text-destructive hover:bg-destructive/10"
                         >
                           Change
                         </Button>
                       </div>
                     ) : (
-                      <div>
-                        <label className="block text-xs font-semibold text-foreground mb-1.5">
-                          Search by Player Name or Player ID
-                        </label>
-                        <input
-                          type="text"
-                          value={partnerQuery}
-                          onChange={(e) => setPartnerQuery(e.target.value)}
-                          placeholder="e.g. Jordan Ellis or p-1"
-                          className="block w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                        />
+                      <div ref={partnerContainerRef} className="relative">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="block text-xs font-semibold text-foreground">
+                            Search by Player Name or Player ID
+                          </label>
+                          {league?.skillLevel && (
+                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                              Division Rating: NTRP {league.skillLevel} Only
+                            </span>
+                          )}
+                        </div>
+                        <div className="relative">
+                          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                          <input
+                            type="text"
+                            value={partnerQuery}
+                            onFocus={() => setIsPartnerDropdownOpen(true)}
+                            onChange={(e) => {
+                              setPartnerQuery(e.target.value);
+                              setIsPartnerDropdownOpen(true);
+                              setPartnerHighlightedIndex(0);
+                            }}
+                            onKeyDown={(e) => {
+                              if (!isPartnerDropdownOpen && (e.key === "ArrowDown" || e.key === "Enter")) {
+                                setIsPartnerDropdownOpen(true);
+                                return;
+                              }
+                              if (e.key === "ArrowDown") {
+                                e.preventDefault();
+                                setPartnerHighlightedIndex((prev) => (prev < partnerResults.length - 1 ? prev + 1 : 0));
+                              } else if (e.key === "ArrowUp") {
+                                e.preventDefault();
+                                setPartnerHighlightedIndex((prev) => (prev > 0 ? prev - 1 : partnerResults.length - 1));
+                              } else if (e.key === "Enter") {
+                                e.preventDefault();
+                                if (partnerHighlightedIndex >= 0 && partnerHighlightedIndex < partnerResults.length) {
+                                  handleSelectPartner(partnerResults[partnerHighlightedIndex]);
+                                } else if (partnerResults.length === 1) {
+                                  handleSelectPartner(partnerResults[0]);
+                                }
+                              } else if (e.key === "Escape") {
+                                setIsPartnerDropdownOpen(false);
+                              }
+                            }}
+                            placeholder={`Type a player's name or ID (e.g. Liam, p-10)`}
+                            className="block w-full rounded-xl border border-input bg-background pl-10 pr-10 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                          {partnerQuery && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPartnerQuery("");
+                                setIsPartnerDropdownOpen(false);
+                              }}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="size-4" />
+                            </button>
+                          )}
+                        </div>
 
-                        {partnerSearchResults.length > 0 && (
-                          <div className="mt-2 max-h-48 overflow-y-auto rounded-xl border border-border bg-background p-1 divide-y divide-border/50 shadow-md">
-                            {partnerSearchResults.map((p) => (
+                        {/* Predictive suggestions preview pills */}
+                        {!partnerQuery && partnerResults.length > 0 && isPartnerDropdownOpen && (
+                          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                            <span className="text-[11px] font-medium text-muted-foreground mr-0.5">Quick select (NTRP {league?.skillLevel}):</span>
+                            {partnerResults.slice(0, 4).map((p) => (
                               <button
                                 key={p.id}
                                 type="button"
-                                onClick={() => {
-                                  setPartnerId(p.id);
-                                  setPartnerQuery("");
-                                }}
-                                className="flex w-full items-center justify-between p-3 text-left text-xs hover:bg-muted rounded-lg transition-colors"
+                                onClick={() => handleSelectPartner(p)}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-foreground hover:border-primary hover:bg-primary/5 transition-colors shadow-2xs"
                               >
-                                <div>
-                                  <p className="font-bold text-foreground">{p.firstName} {p.lastName}</p>
-                                  <p className="text-muted-foreground text-[11px] mt-0.5">
-                                    NTRP {p.ntrp} · {p.city || "Atlanta"} · <span className="font-mono text-[10px] text-muted-foreground/75">ID: {p.id}</span>
-                                  </p>
-                                </div>
-                                <span className="text-primary font-bold">Select</span>
+                                <span className="font-semibold">{p.firstName} {p.lastName}</span>
+                                <span className="font-mono text-[10px] text-muted-foreground">({p.id})</span>
                               </button>
                             ))}
+                          </div>
+                        )}
+
+                        {/* Predictive Dropdown */}
+                        {isPartnerDropdownOpen && (
+                          <div className="absolute z-30 mt-2 w-full max-h-60 overflow-y-auto rounded-xl border border-border bg-popover p-1.5 shadow-lg divide-y divide-border/40">
+                            {isSearchingPartner ? (
+                              <div className="p-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                                <span className="size-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                                <span>Searching registered players…</span>
+                              </div>
+                            ) : partnerResults.length === 0 ? (
+                              <div className="p-4 text-center text-xs text-muted-foreground">
+                                {partnerQuery ? (
+                                  <>No registered NTRP {league?.skillLevel} players found matching <strong className="text-foreground">"{partnerQuery}"</strong>.</>
+                                ) : (
+                                  <>No registered players found with matching NTRP {league?.skillLevel} rating.</>
+                                )}
+                              </div>
+                            ) : (
+                              partnerResults.map((p, idx) => {
+                                const isHighlighted = idx === partnerHighlightedIndex;
+                                return (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    onMouseEnter={() => setPartnerHighlightedIndex(idx)}
+                                    onClick={() => handleSelectPartner(p)}
+                                    className={`flex w-full items-center justify-between p-3 text-left rounded-lg transition-colors ${
+                                      isHighlighted ? "bg-accent text-accent-foreground" : "hover:bg-muted/80 text-foreground"
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-xs text-primary">
+                                        {p.firstName?.[0] || "P"}{p.lastName?.[0] || ""}
+                                      </div>
+                                      <div>
+                                        <p className="font-bold text-sm leading-tight text-foreground">
+                                          {p.firstName} {p.lastName}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                          <span className="font-mono text-[11px] font-semibold text-primary">{p.id}</span>
+                                          {p.city && <span> · {p.city}</span>}
+                                          {p.preferredCourt && <span> · {p.preferredCourt}</span>}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                                        NTRP {p.ntrp}
+                                      </span>
+                                      <span className="text-xs font-bold text-primary hover:underline">Select</span>
+                                    </div>
+                                  </button>
+                                );
+                              })
+                            )}
                           </div>
                         )}
                       </div>

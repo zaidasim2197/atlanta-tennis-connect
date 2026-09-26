@@ -181,6 +181,56 @@ test("transaction rolls back capacity on partner validation failure", async () =
   assert.equal(await spots(), 1);
   assert.equal(await Reservation.countDocuments(), 0);
 });
+test("doubles rejects partner with mismatched rating or organizer", async () => {
+  await League.create({
+    slug: "l-doubles",
+    seasonSlug: "s-test",
+    name: "Test Doubles",
+    format: "men-doubles",
+    skillLevel: "3.5",
+    feeCents: 5000,
+    scheduleDay: "Tuesday",
+    scheduleTime: "6 PM",
+    venue: "Bitsy Grant",
+    spotsRemaining: 2,
+    playerLimit: 2,
+    registrationOpen: true,
+  });
+  await Player.create({
+    slug: "p-wrong-rating",
+    firstName: "Wrong",
+    lastName: "Rating",
+    email: "wrong@example.com",
+    ntrp: "4.0",
+    city: "Atlanta",
+    zipCode: "30309",
+  });
+  await assert.rejects(
+    createReservation({
+      leagueSlug: "l-doubles",
+      playerEmail: "player@example.com",
+      partnerEmail: "wrong@example.com",
+    }),
+    /Doubles partner must have a 3.5 rating/,
+  );
+  await Player.create({
+    slug: "p-organizer",
+    firstName: "Org",
+    lastName: "Anizer",
+    email: "organizer@baselineatl.com",
+    ntrp: "3.5",
+    city: "Atlanta",
+    zipCode: "30309",
+  });
+  await assert.rejects(
+    createReservation({
+      leagueSlug: "l-doubles",
+      playerEmail: "player@example.com",
+      partnerEmail: "organizer@baselineatl.com",
+    }),
+    /Organizers cannot be selected as doubles partners/,
+  );
+});
 test("creation timeout recovers original intent and held slot on retry", async () => {
   createFails = true;
   await assert.rejects(reserve());
