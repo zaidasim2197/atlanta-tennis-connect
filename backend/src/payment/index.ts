@@ -12,7 +12,11 @@ export function getPaymentProvider(): PaymentProvider {
 
   const name = (process.env.PAYMENT_PROVIDER ?? "stripe").toLowerCase();
   if (name !== "stripe" && name !== "mock") throw new Error("Invalid PAYMENT_PROVIDER");
-  if (name === "mock" && (process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production")) {
+  const allowMockInProd =
+    process.env.ALLOW_MOCK_PAYMENTS === "true" ||
+    process.env.ALLOW_MOCK_IN_PRODUCTION === "true" ||
+    (process.env.PAYMENT_PROVIDER ?? "").toLowerCase() === "mock";
+  if (name === "mock" && !allowMockInProd && (process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production")) {
     throw new Error("Mock payments are disabled in production");
   }
 
