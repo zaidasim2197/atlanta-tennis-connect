@@ -25,6 +25,8 @@ import { allowedOrigin, protectOrigin } from "./lib/origins";
 import { expireReservations } from "./jobs/expireReservations";
 import { reconcilePayments } from "./jobs/reconcilePayments";
 import { wrap, ok, err } from "./lib/apiResponse";
+import { WebSocketServer, WebSocket } from "ws";
+import { capacityEvents } from "./lib/events";
 
 export const app = express();
 app.disable("x-powered-by");
@@ -104,6 +106,21 @@ if (require.main === module) {
         console.log(`Atlanta Tennis API running on http://localhost:${PORT}`);
         console.log(`Payment provider: ${process.env.PAYMENT_PROVIDER ?? "mock"}`);
       });
+
+      const wss = new WebSocketServer({ server, path: "/ws" });
+      wss.on("connection", (ws) => {
+        ws.send(JSON.stringify({ type: "connected", ts: Date.now() }));
+      });
+
+      const capacityListener = (data: any) => {
+        const payload = JSON.stringify(data);
+        for (const client of wss.clients) {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(payload);
+          }
+        }
+      };
+      capacityEvents.on("capacity_change", capacityListener);
 
       server.on("error", (err: NodeJS.ErrnoException) => {
         if (err.code === "EADDRINUSE") {

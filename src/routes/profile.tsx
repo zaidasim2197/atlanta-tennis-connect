@@ -2,10 +2,11 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { SKILL_LEVELS, type SkillLevel } from "@/lib/tennis";
+import { SKILL_LEVELS, type SkillLevel, APPROVED_ATLANTA_ZIPS } from "@/lib/tennis";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { BallLoader } from "@/components/tennis-ball";
+import { ZipCodeInput } from "@/components/zip-code-input";
 
 export const Route = createFileRoute("/profile")({
   component: Profile,
@@ -58,6 +59,10 @@ function Profile() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (zipCode && !APPROVED_ATLANTA_ZIPS.includes(zipCode.trim() as any)) {
+      toast.error("Please select a valid 5-digit approved Atlanta metro ZIP code.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(getApiUrl("/api/players"), {
@@ -115,7 +120,7 @@ function Profile() {
               Manage your identity, preferred home court, and declared tennis rating.
             </p>
           </div>
-          <div className="rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-1.5 font-mono text-xs font-bold text-primary">
+          <div className="rounded font-mono text-[11px] text-muted-foreground bg-muted/60 px-2.5 py-1 border border-border/40">
             Player ID: {player.id}
           </div>
         </div>
@@ -196,16 +201,14 @@ function Profile() {
               />
             </div>
             <div>
-              <label htmlFor="zipCode" className="block text-sm font-medium text-foreground">
+              <label htmlFor="zipCode" className="block text-sm font-medium text-foreground mb-1.5">
                 ZIP Code
               </label>
-              <input
+              <ZipCodeInput
                 id="zipCode"
-                type="text"
                 value={zipCode}
-                onChange={(e) => setZipCode(e.target.value)}
+                onChange={setZipCode}
                 placeholder="30309"
-                className="mt-1.5 block w-full rounded-lg border border-input bg-background px-3.5 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
           </div>

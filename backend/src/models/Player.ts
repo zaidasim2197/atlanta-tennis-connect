@@ -1,5 +1,6 @@
 import { Schema, model, Document } from "mongoose";
 import type { SkillLevel } from "./League";
+import { APPROVED_ATLANTA_ZIPS, ApprovedAtlantaZip } from "../lib/constants";
 
 export interface IPlayer extends Document {
   slug: string;       // stable frontend ID e.g. "p-1"
@@ -34,7 +35,7 @@ const PlayerSchema = new Schema<IPlayer>(
     phone:           { type: String, default: "" },
     ntrp:            { type: String, enum: ["2.5","3.0","3.5","4.0","4.5","5.0"], required: true },
     city:            { type: String, default: "" },
-    zipCode:         { type: String, required: true, default: "30309" },
+    zipCode:         { type: String, required: true, enum: APPROVED_ATLANTA_ZIPS, default: "30309" },
     preferredCourt:  { type: String, default: "" },
     preferredFormat: { type: String, default: "men-singles" },
     dateOfBirth:     { type: String, default: "" },

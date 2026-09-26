@@ -169,9 +169,9 @@ function Dashboard() {
             <h1 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               Welcome back, {currentPlayer.firstName}!
             </h1>
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 font-mono text-xs font-bold text-primary">
-              <User className="size-3" />
-              ID: {currentPlayer.id}
+            <span className="inline-flex items-center gap-1 rounded font-mono text-[11px] text-muted-foreground bg-muted/60 px-2 py-0.5 border border-border/40">
+              <User className="size-3 text-muted-foreground/70" />
+              <span>ID: {currentPlayer.id}</span>
             </span>
           </div>
           <p className="mt-1.5 text-sm text-muted-foreground">

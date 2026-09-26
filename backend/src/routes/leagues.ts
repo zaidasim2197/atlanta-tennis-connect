@@ -13,6 +13,7 @@
 import { Router } from "express";
 import { League } from "../models/League";
 import { Season } from "../models/Season";
+import { broadcastCapacityChange } from "../lib/events";
 import { wrap, ok, err } from "../lib/apiResponse";
 
 const router = Router();
@@ -31,7 +32,8 @@ function leagueToFrontend(l: InstanceType<typeof League>) {
     format: l.format,
     skillLevel: l.skillLevel,
     offeredSkillLevels: (l as any).offeredSkillLevels || [l.skillLevel],
-    geographicGroup: (l as any).geographicGroup || (l.venue?.toLowerCase().includes("piedmont") ? "Midtown" : "Midtown"),
+    area: (l as any).area || "Midtown",
+    geographicGroup: (l as any).area || (l as any).geographicGroup || "Midtown",
     feeCents: l.feeCents,
     scheduleDay: l.scheduleDay,
     scheduleTime: l.scheduleTime,
@@ -122,6 +124,12 @@ router.patch(
       { new: true },
     );
     if (!league) return err(res, "League not found", 404);
+
+    broadcastCapacityChange({
+      type: "league.updated",
+      leagueSlug: league.slug,
+      spotsRemaining: league.spotsRemaining,
+    });
 
     ok(res, leagueToFrontend(league));
   }),

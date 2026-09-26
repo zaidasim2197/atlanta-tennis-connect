@@ -56,14 +56,14 @@ import { PlayoffBracket } from "@/components/playoff-bracket";
 function cleanLeagueName(name: string): string {
   if (!name) return "";
   return name
-    .replace(/^(Midtown|Buckhead|Decatur|Sandy Springs|Alpharetta|Dunwoody|Roswell|Brookhaven|Smyrna|Marietta|Atlanta|Intown|Downtown)\s+/i, "")
+    .replace(/^(Midtown|Buckhead|Decatur|Cumming|Sandy Springs|Alpharetta|Dunwoody|Roswell|Brookhaven|Smyrna|Marietta|Atlanta|Intown|Downtown)\s+/i, "")
     .trim();
 }
 
 function cleanVenue(venue: string): string {
   if (!venue) return "";
   return venue
-    .replace(/,\s*(Midtown|Buckhead|Decatur|Sandy Springs|Alpharetta|Dunwoody|Roswell|Brookhaven|Smyrna|Marietta|Atlanta|Intown|Downtown)\b/gi, "")
+    .replace(/,\s*(Midtown|Buckhead|Decatur|Cumming|Sandy Springs|Alpharetta|Dunwoody|Roswell|Brookhaven|Smyrna|Marietta|Atlanta|Intown|Downtown)\b/gi, "")
     .trim();
 }
 
@@ -113,6 +113,7 @@ function OrganizerHub() {
   const [venue, setVenue] = useState("");
   const [playerLimit, setPlayerLimit] = useState(24);
   const [description, setDescription] = useState("");
+  const [totalPlayersCount, setTotalPlayersCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -122,21 +123,46 @@ function OrganizerHub() {
       toast.error("Access denied. You do not have organizer privileges.");
       navigate({ to: "/dashboard" });
     } else {
-      // Fetch live registrations for all leagues as organizer
+      // Fetch live registrations for all leagues and distinct player count
+      const fetchLiveRegistrations = () => {
+        fetch(getApiUrl("/api/registrations"), { credentials: "include" })
+          .then(async (res) => {
+            const json = await res.json();
+            if (res.ok && json.ok && Array.isArray(json.data)) {
+              setAllRegistrations(json.data);
+            }
+          })
+          .catch((e) => console.warn("Failed to fetch organizer registrations:", e))
+          .finally(() => setLoadingRegistrations(false));
+      };
+
+      const fetchPlayerCount = () => {
+        fetch(getApiUrl("/api/players/count"), { credentials: "include" })
+          .then(async (res) => {
+            const json = await res.json();
+            if (res.ok && json.ok && typeof json.data?.count === "number") {
+              setTotalPlayersCount(json.data.count);
+            }
+          })
+          .catch(() => {});
+      };
+
       setLoadingRegistrations(true);
-      fetch(getApiUrl("/api/registrations"), { credentials: "include" })
-        .then(async (res) => {
-          const json = await res.json();
-          if (res.ok && json.ok && Array.isArray(json.data)) {
-            setAllRegistrations(json.data);
-          }
-        })
-        .catch((e) => console.warn("Failed to fetch organizer registrations:", e))
-        .finally(() => setLoadingRegistrations(false));
+      fetchLiveRegistrations();
+      fetchPlayerCount();
+
+      const interval = setInterval(() => {
+        if (document.visibilityState === "visible") {
+          fetchLiveRegistrations();
+          fetchPlayerCount();
+        }
+      }, 10000);
+
+      return () => clearInterval(interval);
     }
   }, [hydrated, user, navigate]);
 
-  // Combine live registrations with local store and persisted registrations
+  // Combine live registrations with local store (live API allRegistrations takes precedence)
   const effectiveRegistrations = useMemo(() => {
     const list: any[] = [...allRegistrations];
     const seen = new Set<string>();
@@ -170,36 +196,6 @@ function OrganizerHub() {
         });
       }
     });
-
-    try {
-      const saved = JSON.parse(localStorage.getItem("atl-user-registrations") || "[]");
-      if (Array.isArray(saved)) {
-        saved.forEach((sr: any) => {
-          const email = (sr.player?.email || sr.email || "").toLowerCase();
-          const key = `${sr.leagueId}:${email || sr.playerId}`;
-          if (!seen.has(key) && (!sr.id || !seen.has(sr.id))) {
-            if (sr.id) seen.add(sr.id);
-            seen.add(key);
-            const isPaid = sr.paymentStatus === "paid" || sr.registrationStatus === "confirmed";
-            list.push({
-              id: sr.id || `local-${Math.random()}`,
-              leagueId: sr.leagueId,
-              playerId: sr.playerId || sr.player?.id,
-              name: sr.player ? `${sr.player.firstName} ${sr.player.lastName}`.trim() : sr.name || "Registered Player",
-              email: sr.player?.email || sr.email || "player@example.com",
-              phone: sr.player?.phone || sr.phone || "(404) 555-0100",
-              ntrp: sr.player?.ntrp || sr.ntrp || sr.skillLevelSnapshot || "3.5",
-              city: sr.player?.city || sr.city || "Atlanta",
-              status: isPaid ? "registered" : "held",
-              paymentStatus: isPaid ? "paid" : "held",
-              amountCents: sr.amountCents || 3500,
-              createdAt: sr.createdAt || new Date().toISOString(),
-              expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-            });
-          }
-        });
-      }
-    } catch { }
 
     return list;
   }, [allRegistrations, registrations, players]);
@@ -379,7 +375,7 @@ function OrganizerHub() {
               <div className="mt-2 text-3xl font-bold">{leagues.length}</div>
             </div>
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-              <div className="text-sm font-medium text-muted-foreground">Total Registrations</div>
+              <div className="text-sm font-medium text-muted-foreground">Total League Registrations</div>
               <div className="mt-2 text-3xl font-bold text-primary">
                 {loadingRegistrations && allRegistrations.length === 0 ? (
                   <Skeleton className="h-9 w-20" />
@@ -396,8 +392,13 @@ function OrganizerHub() {
               </div>
             </div>
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-              <div className="text-sm font-medium text-muted-foreground">Total Seasons</div>
-              <div className="mt-2 text-3xl font-bold">{seasons.length}</div>
+              <div className="text-sm font-medium text-muted-foreground">Total Players</div>
+              <div className="mt-2 text-3xl font-bold">
+                {totalPlayersCount !== null ? totalPlayersCount : players.length}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                Distinct registered players
+              </div>
             </div>
           </div>
 
@@ -415,8 +416,13 @@ function OrganizerHub() {
             {leagues.map((league) => {
               const season = seasons.find((s) => s.id === league.seasonId);
               const leagueRegs = effectiveRegistrations.filter((r) => r.leagueId === league.id);
-              const paidCount = leagueRegs.filter((r) => r.paymentStatus === "paid").length;
               const heldCount = leagueRegs.filter((r) => r.paymentStatus === "held").length;
+              const confirmedCount = typeof league.registeredCount === "number"
+                ? league.registeredCount
+                : Math.max(0, league.playerLimit - (league.spotsRemaining ?? league.playerLimit));
+              const spotsRemaining = typeof league.spotsRemaining === "number"
+                ? league.spotsRemaining
+                : Math.max(0, league.playerLimit - confirmedCount);
 
               return (
                 <div
@@ -461,7 +467,7 @@ function OrganizerHub() {
                   <div className="flex items-center justify-between rounded-xl bg-muted/50 p-2.5">
                     <div className="flex items-center gap-1.5 font-bold text-xs text-foreground">
                       <Users className="size-3.5 text-primary" />
-                      <span>{paidCount} / {league.playerLimit} confirmed</span>
+                      <span>{confirmedCount} / {league.playerLimit} confirmed</span>
                     </div>
                     {heldCount > 0 ? (
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10px] font-bold px-2 py-0.5">
@@ -470,7 +476,7 @@ function OrganizerHub() {
                       </span>
                     ) : (
                       <span className="text-[11px] text-muted-foreground">
-                        {Math.max(0, league.playerLimit - paidCount)} spots left
+                        {spotsRemaining} spots left
                       </span>
                     )}
                   </div>
@@ -482,7 +488,7 @@ function OrganizerHub() {
                       onClick={() => setSelectedLeague(league)}
                       className="flex-1 rounded-full text-xs font-semibold h-9"
                     >
-                      <Users className="size-3.5 mr-1.5 text-primary" /> View Participants ({paidCount + heldCount})
+                      <Users className="size-3.5 mr-1.5 text-primary" /> View Participants ({Math.min(league.playerLimit, confirmedCount + heldCount)})
                     </Button>
                     <Button
                       variant="outline"
@@ -515,8 +521,10 @@ function OrganizerHub() {
                   {leagues.map((league) => {
                     const season = seasons.find((s) => s.id === league.seasonId);
                     const leagueRegs = effectiveRegistrations.filter((r) => r.leagueId === league.id);
-                    const paidCount = leagueRegs.filter((r) => r.paymentStatus === "paid").length;
                     const heldCount = leagueRegs.filter((r) => r.paymentStatus === "held").length;
+                    const confirmedCount = typeof league.registeredCount === "number"
+                      ? league.registeredCount
+                      : Math.max(0, league.playerLimit - (league.spotsRemaining ?? league.playerLimit));
 
                     return (
                       <tr
@@ -552,7 +560,7 @@ function OrganizerHub() {
                             <div className="flex items-center gap-1.5 font-semibold text-foreground">
                               <Users className="size-4 text-primary" />
                               <span>
-                                {paidCount} / {league.playerLimit} confirmed
+                                {confirmedCount} / {league.playerLimit} confirmed
                               </span>
                             </div>
                             {heldCount > 0 && (
@@ -1005,7 +1013,7 @@ function OrganizerHub() {
               {[
                 { area: "Buckhead / North Atlanta", count: 142, zips: "30305, 30327, 30342", courts: "Bitsy Grant, Chastain Park" },
                 { area: "Midtown / Intown", count: 168, zips: "30308, 30309, 30306", courts: "Sharon Lester at Piedmont Park" },
-                { area: "Decatur / DeKalb", count: 96, zips: "30030, 30033", courts: "McKoy Park, DeKalb Tennis Center" },
+                { area: "Cumming / Forsyth", count: 96, zips: "30028, 30040, 30041", courts: "Sharon Springs, Fowler Park, Central Park" },
                 { area: "Brookhaven & Sandy Springs", count: 94, zips: "30319, 30328", courts: "Blackburn, Sandy Springs TC" },
               ].map((loc) => (
                 <div key={loc.area} className="rounded-xl border border-border/80 bg-muted/20 p-5 space-y-2">
@@ -1043,7 +1051,12 @@ function OrganizerHub() {
             const leagueParticipants = effectiveRegistrations.filter((r) => r.leagueId === selectedLeague.id || ((selectedLeague as any).slug && r.leagueId === (selectedLeague as any).slug));
             const paidParticipants = leagueParticipants.filter((r) => r.paymentStatus === "paid");
             const heldParticipants = leagueParticipants.filter((r) => r.paymentStatus === "held");
-            const spotsRemaining = Math.max(0, selectedLeague.playerLimit - paidParticipants.length - heldParticipants.length);
+            const confirmedCount = typeof selectedLeague.registeredCount === "number"
+              ? selectedLeague.registeredCount
+              : Math.max(0, selectedLeague.playerLimit - (selectedLeague.spotsRemaining ?? selectedLeague.playerLimit));
+            const spotsRemaining = typeof selectedLeague.spotsRemaining === "number"
+              ? selectedLeague.spotsRemaining
+              : Math.max(0, selectedLeague.playerLimit - confirmedCount - heldParticipants.length);
 
             const filteredParticipants = leagueParticipants.filter((p) => {
               if (statusFilter === "paid" && p.paymentStatus !== "paid") return false;
@@ -1143,7 +1156,7 @@ function OrganizerHub() {
                         Paid (Confirmed)
                       </div>
                       <div className="text-xl sm:text-2xl font-bold text-emerald-800 dark:text-emerald-300 mt-0.5 flex items-baseline">
-                        {paidParticipants.length}
+                        {confirmedCount}
                         <span className="text-[11px] sm:text-xs font-normal text-muted-foreground ml-1">
                           / {selectedLeague.playerLimit}
                         </span>

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { FORMAT_LABELS, formatMoney, formatDateRange, type Season, type LeagueFormat } from "@/lib/tennis";
@@ -44,7 +44,7 @@ interface ActiveReservation {
 
 function RegisterLeague() {
   const { leagueId } = Route.useParams();
-  const { user, hydrated, leagues, seasons, players, refreshFromDb, spotsLeft, searchPartners, registerPlayer } = useStore();
+  const { user, hydrated, leagues, seasons, players, registrations, refreshFromDb, spotsLeft, searchPartners, registerPlayer } = useStore();
   const navigate = useNavigate();
 
   const league = leagues.find((l) => l.id === leagueId);
@@ -83,6 +83,17 @@ function RegisterLeague() {
   const [success, setSuccess] = useState(false);
   const [reservation, setReservation] = useState<ActiveReservation | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  const isAlreadyRegistered = useMemo(() => {
+    if (!user) return false;
+    return registrations.some(
+      (r) =>
+        r.leagueId === leagueId &&
+        (r.playerId === user.playerId ||
+          (player && r.playerId === player.id) ||
+          (user.email && (r as any).playerEmail?.toLowerCase() === user.email.toLowerCase())),
+    );
+  }, [registrations, leagueId, user, player]);
 
   const isDoubles = league?.format ? league.format.includes("doubles") : false;
   const selectedPartner = partnerId ? players.find((p) => p.id === partnerId) : undefined;
@@ -232,6 +243,22 @@ function RegisterLeague() {
     setLoading(true);
     setApiError(null);
     try {
+      // 1. Live capacity check right before initiating checkout/reservation
+      const checkRes = await fetch(getApiUrl(`/api/leagues/${league.id}`));
+      if (checkRes.ok) {
+        const checkJson = await checkRes.json();
+        if (checkJson.ok && checkJson.data) {
+          const freshLeague = checkJson.data;
+          if (freshLeague.spotsRemaining <= 0 || !freshLeague.registrationOpen) {
+            const msg = "This league has filled up or registration has closed. Please choose another league.";
+            setApiError(msg);
+            toast.error(msg);
+            return;
+          }
+        }
+      }
+
+      // 2. Attempt atomic server-side reservation
       const res = await fetch(getApiUrl("/api/registrations"), {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -242,36 +269,60 @@ function RegisterLeague() {
         }),
       });
       const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.error || "Could not reserve a spot.");
+      if (!res.ok || !json.ok) {
+        const errMsg = json.error || "Could not reserve a spot.";
+        if (errMsg.toLowerCase().includes("already registered")) {
+          registerPlayer({
+            leagueId: league.id,
+            player,
+            partnerId: partnerChoice === "have-partner" ? partnerId : undefined,
+            preferredCourt,
+          });
+          completed.current = true;
+          sessionStorage.removeItem(storageKey);
+          setSuccess(true);
+          await refreshFromDb();
+          toast.success(`You are already registered for ${league.name}.`);
+          return;
+        }
+        setApiError(errMsg);
+        toast.error(errMsg);
+        return;
+      }
       const data = json.data;
-      if (data && data.clientSecret && data.publishableKey) {
+      if (data && (data.reservation?.status === "registered" || data.reservation?.paymentStatus === "paid")) {
+        registerPlayer({
+          leagueId: league.id,
+          player,
+          partnerId: partnerChoice === "have-partner" ? partnerId : undefined,
+          preferredCourt,
+        });
+        completed.current = true;
+        sessionStorage.removeItem(storageKey);
+        setSuccess(true);
+        await refreshFromDb();
+        toast.success(`Registration confirmed for ${league.name}!`);
+        return;
+      }
+      if (data && data.reservation) {
         setReservation({
           ...data.reservation,
-          clientSecret: data.clientSecret,
-          publishableKey: data.publishableKey,
+          clientSecret: data.clientSecret || `mock_secret_${data.reservation.id}`,
+          publishableKey: data.publishableKey || "pk_test_mock",
           amountCents: effectiveFeeCents,
         });
         sessionStorage.setItem(storageKey, data.reservation.id);
         toast.success("Spot held! Enter your payment card details below.");
         return;
       }
-    } catch (e) {
-      console.warn("Backend API offline, transitioning to Stripe card checkout form:", e);
+    } catch (e: any) {
+      const errMsg = e?.message || "Could not connect to registration server.";
+      setApiError(errMsg);
+      toast.error(errMsg);
     } finally {
       busy.current = false;
       setLoading(false);
     }
-
-    // Always transition to Stripe Card payment form so user enters card details!
-    const expiresAt = new Date(Date.now() + 15 * 60000).toISOString();
-    setReservation({
-      id: `res-${Math.random().toString(36).slice(2, 9)}`,
-      clientSecret: "mock_secret",
-      publishableKey: "pk_test_mock",
-      expiresAt,
-      amountCents: effectiveFeeCents,
-    });
-    toast.success("Spot held for 15 minutes! Enter your card details below.");
   };
 
   const handlePaymentSuccess = async () => {
@@ -351,7 +402,7 @@ function RegisterLeague() {
   };
 
   // ─── Registration Success Screen ──────────────────────────────────
-  if (success) {
+  if (success || isAlreadyRegistered) {
     return (
       <div className="flex min-h-[85vh] items-center justify-center px-4 py-12">
         <div className="w-full max-w-lg">
@@ -564,7 +615,7 @@ function RegisterLeague() {
                   <p className="text-xs text-muted-foreground mt-0.5">Verified profile and skill snapshot</p>
                 </div>
               </div>
-              <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-md">
+              <span className="font-mono text-[11px] text-muted-foreground bg-muted/60 px-2 py-0.5 rounded border border-border/40">
                 ID: {player.id}
               </span>
             </div>
@@ -670,8 +721,8 @@ function RegisterLeague() {
                           <p className="font-bold text-sm text-foreground">
                             {selectedPartner.firstName} {selectedPartner.lastName}
                           </p>
-                          <p className="text-muted-foreground font-mono mt-0.5">
-                            Player ID: {selectedPartner.id} · Rating: NTRP {selectedPartner.ntrp}
+                          <p className="text-muted-foreground text-xs mt-0.5">
+                            Rating: NTRP {selectedPartner.ntrp} · <span className="font-mono text-[11px] text-muted-foreground/80">ID: {selectedPartner.id}</span>
                           </p>
                         </div>
                         <Button
@@ -711,8 +762,8 @@ function RegisterLeague() {
                               >
                                 <div>
                                   <p className="font-bold text-foreground">{p.firstName} {p.lastName}</p>
-                                  <p className="text-muted-foreground font-mono text-[11px] mt-0.5">
-                                    ID: {p.id} · Rating: NTRP {p.ntrp} · {p.city || "Atlanta"}
+                                  <p className="text-muted-foreground text-[11px] mt-0.5">
+                                    NTRP {p.ntrp} · {p.city || "Atlanta"} · <span className="font-mono text-[10px] text-muted-foreground/75">ID: {p.id}</span>
                                   </p>
                                 </div>
                                 <span className="text-primary font-bold">Select</span>

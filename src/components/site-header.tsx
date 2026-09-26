@@ -98,7 +98,7 @@ export function SiteHeader() {
                       {user.name}
                     </span>
                     {!isOrganizer && user.playerId && (
-                      <span className="font-mono text-[10px] font-semibold text-primary/90 leading-tight">
+                      <span className="font-mono text-[10px] text-muted-foreground leading-tight">
                         ID: {user.playerId}
                       </span>
                     )}
@@ -130,7 +130,7 @@ export function SiteHeader() {
                   </div>
                   {!isOrganizer && user.playerId && (
                     <div className="mt-2.5 flex items-center justify-between rounded-lg bg-background/90 px-2.5 py-1.5 border border-border/70 text-xs">
-                      <span className="font-mono text-[11px] font-bold text-primary truncate">
+                      <span className="font-mono text-[11px] text-muted-foreground truncate">
                         ID: {user.playerId}
                       </span>
                       <button
@@ -264,10 +264,10 @@ export function SiteHeader() {
                       <button
                         type="button"
                         onClick={() => handleCopyId(user.playerId!)}
-                        className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1 font-mono text-xs font-bold text-primary active:bg-primary/20 transition-colors"
+                        className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-0.5 font-mono text-[11px] text-muted-foreground border border-border/50 hover:bg-muted/80 active:bg-muted transition-colors"
                         title="Copy Player ID"
                       >
-                        {copiedId ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3" />}
+                        {copiedId ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3 text-muted-foreground" />}
                         <span>ID: {user.playerId}</span>
                       </button>
                     )}

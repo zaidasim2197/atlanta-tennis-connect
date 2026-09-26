@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { Account } from "../models/Auth";
 import { Player } from "../models/Player";
+import { APPROVED_ATLANTA_ZIPS } from "../lib/constants";
 import { beginSession, endSession, hashPassword, limitAuth, requireAuth, verifyPassword } from "../lib/auth";
 import { ok, err, wrap } from "../lib/apiResponse";
 const router = Router();
@@ -19,16 +20,16 @@ const signup = credentials.extend({
   parentName: z.string().optional(),
   parentPhone: z.string().optional(),
   isJunior: z.boolean().optional(),
-  zipCode: z.string().optional(),
+  zipCode: z.enum(APPROVED_ATLANTA_ZIPS).optional(),
   preferredCourt: z.string().optional(),
   gender: z.enum(["male", "female", "prefer-not-to-say"]).optional(),
 }).strict();
 async function userDTO(account: { _id: unknown; email: string; role: string; playerSlug: string }) {
   const player = await Player.findOne({ slug: account.playerSlug });
-  if (!player) throw Object.assign(new Error("Account profile unavailable"), { statusCode: 403 });
+  if (!player && account.role !== "organizer") throw Object.assign(new Error("Account profile unavailable"), { statusCode: 403 });
   const name = account.role === "organizer" || account.email === "organizer@baselineatl.com"
     ? "Organizer"
-    : `${player.firstName} ${player.lastName}`;
+    : `${player?.firstName || "Player"} ${player?.lastName || ""}`.trim();
   return { id: String(account._id), email: account.email, role: account.role, playerId: account.playerSlug, name };
 }
 router.use((_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });

@@ -20,7 +20,7 @@ export function LeagueCard({
   const isFull = spotsLeft <= 0;
   const isClosed = !league.registrationOpen;
 
-  const cleanTitle = league.name.replace(/^(Midtown|Buckhead|Decatur|Westside|Sandy Springs|Alpharetta|East Atlanta|Peachtree)\s+/i, "");
+  const cleanTitle = league.name.replace(/^(Midtown|Buckhead|Decatur|Cumming|Marietta|Westside|Sandy Springs|Alpharetta|East Atlanta|Peachtree)\s+/i, "");
   const cleanSeason = season?.name?.replace(/\s*(Metro|Indoor|Premier)?\s*Season/i, "") || season?.name;
   const cleanSkill = (league.skillLevel as string).replace("+", "");
 

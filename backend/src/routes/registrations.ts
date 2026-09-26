@@ -19,6 +19,9 @@ import {
   adminRegister,
   getPlayerReservations,
 } from "../lib/reservationService";
+import { Player } from "../models/Player";
+import { League } from "../models/League";
+import { Reservation } from "../models/Reservation";
 import { wrap, ok, err } from "../lib/apiResponse";
 import { requireAuth, requireOrganizer, ownsEmail } from "../lib/auth";
 
@@ -43,17 +46,12 @@ router.post(
         phone: phone || "(404) 555-0100",
         ntrp: ntrp || "3.5",
         city: "Atlanta",
+        zipCode: "30309",
         preferredCourt: preferredCourt || "Piedmont Park Courts",
         accountStatus: "active",
         profileStatus: "complete",
       });
     }
-
-    // Decrement league spots if league exists in database
-    await League.findOneAndUpdate(
-      { slug: leagueId, spotsRemaining: { $gt: 0 } },
-      { $inc: { spotsRemaining: -1 } },
-    );
 
     const reservation = await Reservation.findOneAndUpdate(
       { leagueSlug: leagueId, playerEmail: email },
@@ -117,10 +115,6 @@ router.post(
     ok(res, { ...result, publishableKey }, 201);
   }),
 );
-
-import { Reservation } from "../models/Reservation";
-import { Player } from "../models/Player";
-import { League } from "../models/League";
 
 // GET /api/registrations?email=&leagueId=
 router.get(

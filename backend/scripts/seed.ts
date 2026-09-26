@@ -152,7 +152,8 @@ const LAST_NAMES = [
 ];
 
 const NTRP_LEVELS = ["2.5","3.0","3.5","4.0","4.5","5.0"] as const;
-const ATLANTA_ZIPS = ["30305", "30309", "30327", "30318", "30306", "30030", "30067", "30075", "30328", "30342"];
+import { APPROVED_ATLANTA_ZIPS } from "../src/lib/constants";
+const ATLANTA_ZIPS = APPROVED_ATLANTA_ZIPS;
 const CITIES = ["Atlanta","Decatur","Smyrna","Marietta","Sandy Springs","Buckhead","Alpharetta","Dunwoody","Roswell","Tucker"];
 const PREFERRED_SIDES = ["deuce", "ad", "both"] as const;
 

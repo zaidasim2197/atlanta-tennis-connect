@@ -6,6 +6,7 @@ import { TournamentHistory } from "../models/TournamentHistory";
 import { AuditLog, type AuditAction } from "../models/AuditLog";
 import { getPaymentProvider } from "../payment";
 import { expireReservations } from "../jobs/expireReservations";
+import { broadcastCapacityChange } from "./events";
 
 const PENDING: ReservationStatus[] = ["held", "payment_pending"];
 const ACTIVE: ReservationStatus[] = [...PENDING, "paid", "registered"];
@@ -169,6 +170,14 @@ export async function createReservation(
           { session },
         );
       });
+      if (reservation) {
+        broadcastCapacityChange({
+          type: "reservation.created",
+          leagueSlug: input.leagueSlug,
+          reservationId: (reservation as any)._id.toString(),
+          status: "held",
+        });
+      }
     } catch (e) {
       // Concurrent retries by one player reuse the winner's reservation.
       if ((e as { code?: number }).code !== 11000) throw e;
@@ -244,6 +253,14 @@ async function transition(
     );
     changed = true;
   });
+  if (changed) {
+    broadcastCapacityChange({
+      type: status === "registered" ? "reservation.registered" : (status === "cancelled" ? "reservation.cancelled" : (status === "expired" ? "reservation.expired" : "reservation.failed")),
+      leagueSlug: r.leagueSlug,
+      reservationId: r._id.toString(),
+      status,
+    });
+  }
   return changed;
 }
 

@@ -9,6 +9,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { Player } from "../models/Player";
+import { APPROVED_ATLANTA_ZIPS } from "../lib/constants";
 import { wrap, ok, err } from "../lib/apiResponse";
 import { requireAuth, ownsEmail } from "../lib/auth";
 
@@ -24,7 +25,7 @@ const PlayerBody = z.object({
   phone:           z.string().optional().default(""),
   ntrp:            SkillLevel,
   city:            z.string().optional().default(""),
-  zipCode:         z.string().optional().default("30309"),
+  zipCode:         z.enum(APPROVED_ATLANTA_ZIPS).optional().default("30309"),
   preferredCourt:  z.string().optional().default(""),
   preferredFormat: z.string().optional().default("men-singles"),
   dateOfBirth:     z.string().optional().default(""),
@@ -90,6 +91,15 @@ router.post(
 
     if (!player) return err(res, "Player not found", 404);
     ok(res, playerToFrontend(player));
+  }),
+);
+
+// GET /api/players/count
+router.get(
+  "/count",
+  wrap(async (_req, res) => {
+    const count = await Player.countDocuments();
+    ok(res, { count });
   }),
 );
 

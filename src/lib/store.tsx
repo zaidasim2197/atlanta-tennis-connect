@@ -175,7 +175,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           format,
           skillLevel,
           offeredSkillLevels: [skillLevel],
-          geographicGroup: l.geographicGroup || (l.venue?.toLowerCase().includes("piedmont") ? "Midtown" : "Midtown"),
+          area: l.area || l.geographicGroup || "Midtown",
+          geographicGroup: l.area || l.geographicGroup || "Midtown",
           feeCents: l.feeCents,
           scheduleDay: l.scheduleDay,
           scheduleTime: l.scheduleTime,
@@ -278,6 +279,68 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setHydrated(true);
       });
   }, [fetchDbData, refreshSession]);
+
+  // Real-time updates via WebSocket with automatic reconnection and periodic focus polling
+  React.useEffect(() => {
+    let ws: WebSocket | null = null;
+    let reconnectTimer: any = null;
+    let isDisposed = false;
+
+    function connectWs() {
+      if (typeof window === "undefined") return;
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const host = window.location.host;
+      const wsUrl = `${protocol}//${host}/ws`;
+
+      try {
+        ws = new WebSocket(wsUrl);
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data?.type && (data.type.startsWith("reservation.") || data.type.startsWith("league."))) {
+              void fetchDbData();
+            }
+          } catch {}
+        };
+        ws.onclose = () => {
+          if (!isDisposed) {
+            reconnectTimer = setTimeout(connectWs, 3000);
+          }
+        };
+        ws.onerror = () => {
+          ws?.close();
+        };
+      } catch {
+        if (!isDisposed) {
+          reconnectTimer = setTimeout(connectWs, 5000);
+        }
+      }
+    }
+
+    connectWs();
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void fetchDbData();
+      }
+    }, 12000);
+
+    const onFocus = () => {
+      void fetchDbData();
+    };
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      isDisposed = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      if (ws) {
+        ws.onclose = null;
+        ws.close();
+      }
+    };
+  }, [fetchDbData]);
 
   const value = React.useMemo<StoreValue>(() => {
     return {

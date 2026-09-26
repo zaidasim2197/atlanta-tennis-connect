@@ -48,12 +48,12 @@ function finishLoading() {
 }
 
 describe("league browsing", () => {
-  it("renders after a player signs in and their profile automatically selects a season", () => {
+  it("renders after a player signs in and filters by their profile skill", () => {
     const view = render(<BrowseLeagues />);
     finishLoading();
     store = { ...store, user, players: [player] };
     view.rerender(<BrowseLeagues />);
-    expect(screen.getByText(/1 league found.*Fall 2026/)).toBeTruthy();
+    expect(screen.getByText(/1 league found/)).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Singles" })).toBeTruthy();
   });
 
@@ -61,26 +61,24 @@ describe("league browsing", () => {
     store = { ...store, user, players: [player] };
     render(<BrowseLeagues />);
     finishLoading();
-    expect(screen.getByText(/1 league found.*Fall 2026/)).toBeTruthy();
+    expect(screen.getByText(/1 league found/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "View all Atlanta leagues" }));
     expect(screen.getByText("1 league found (NTRP 3.5)")).toBeTruthy();
   });
 
-  it("allows a visitor to select a season manually", () => {
+  it("allows a visitor to filter by metro area", () => {
     render(<BrowseLeagues />);
     finishLoading();
-    fireEvent.keyDown(screen.getAllByRole("combobox")[2]!, { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Fall 2026" }));
-    expect(screen.getByText("1 league found in Fall 2026")).toBeTruthy();
+    // Area combobox is the 3rd combobox (format, skill, area)
+    const comboboxes = screen.getAllByRole("combobox");
+    expect(comboboxes.length).toBe(3);
+    expect(screen.getByText("All 1 leagues available across Atlanta")).toBeTruthy();
   });
 
-  it("keeps browsing usable when a selected season disappears after data refresh", () => {
+  it("keeps browsing usable when searching for non-matching league", () => {
     store = { ...store, user, players: [player] };
-    const view = render(<BrowseLeagues />);
+    render(<BrowseLeagues />);
     finishLoading();
-    store = { ...store, seasons: [] };
-    view.rerender(<BrowseLeagues />);
-    expect(screen.getByText(/1 league found.*this season/)).toBeTruthy();
     fireEvent.change(screen.getByRole("textbox", { name: "Search leagues" }), {
       target: { value: "no matching league" },
     });

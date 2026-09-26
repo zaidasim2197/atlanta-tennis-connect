@@ -1,4 +1,5 @@
 import { Schema, model, Document } from "mongoose";
+import { ATLANTA_AREAS, type AtlantaArea } from "../lib/constants";
 
 export type LeagueFormat =
   | "men-singles"
@@ -18,6 +19,7 @@ export interface ILeague extends Document {
   scheduleDay: string;    // e.g. "Tuesday"
   scheduleTime: string;   // e.g. "6:30 PM"
   venue: string;
+  area?: AtlantaArea;
   playerLimit: number;
   spotsRemaining: number; // decremented atomically on reservation
   registrationOpen: boolean;
@@ -51,6 +53,7 @@ const LeagueSchema = new Schema<ILeague>(
     scheduleDay:      { type: String, required: true },
     scheduleTime:     { type: String, required: true },
     venue:            { type: String, required: true },
+    area:             { type: String, enum: ATLANTA_AREAS, default: "Midtown" },
     playerLimit:      { type: Number, required: true, min: 1 },
     spotsRemaining:   { type: Number, required: true, min: 0 },
     registrationOpen: { type: Boolean, default: true },

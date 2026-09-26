@@ -50,7 +50,7 @@ const CITY_OPTIONS = [
   { value: "all", label: "All Metro Atlanta" },
   { value: "Midtown", label: "Midtown" },
   { value: "Buckhead", label: "Buckhead" },
-  { value: "Decatur", label: "Decatur" },
+  { value: "Cumming", label: "Cumming" },
   { value: "Sandy Springs", label: "Sandy Springs" },
   { value: "Alpharetta", label: "Alpharetta" },
   { value: "Marietta", label: "Marietta" },
@@ -98,8 +98,6 @@ function BrowseLeagues() {
   // Modern dropdown filter states - skill level is locked to player profile when logged in
   const [format, setFormat] = React.useState<"all" | LeagueFormat>("all");
   const [skill, setSkill] = React.useState<"all" | SkillLevel>(playerSkill || "all");
-  const [seasonId, setSeasonId] = React.useState<string>("all");
-  const activeSeason = seasons.find((season) => season.id === seasonId);
   const [city, setCity] = React.useState<string>("all");
   const [query, setQuery] = React.useState("");
 
@@ -126,12 +124,9 @@ function BrowseLeagues() {
           setCity(matched ? matched.value : "Midtown");
         }
       }
-      if (seasons.length > 0 && seasons[0]?.id) {
-        setSeasonId(seasons[0].id);
-      }
       profileAppliedRef.current = true;
     }
-  }, [currentPlayer, seasons]);
+  }, [currentPlayer]);
 
   // Update status immediately on hydrated / retry
   React.useEffect(() => {
@@ -156,25 +151,16 @@ function BrowseLeagues() {
           (format !== "all" && l.format === format && ["3.0", "3.5"].includes(effectiveSkill) && ["3.0", "3.5"].includes(l.skillLevel));
         if (!matchesSkill) return false;
       }
-      // 3. Season filter
-      if (seasonId !== "all" && l.seasonId !== seasonId) return false;
-      // 4. City / Region filter (prefer Midtown if chosen)
+      // 3. City / Area filter
       if (city !== "all") {
         const cLower = city.toLowerCase();
-        const matchesGroup = l.geographicGroup?.toLowerCase() === cLower;
+        const leagueArea = (l.area || l.geographicGroup || "").toLowerCase();
+        const matchesGroup = leagueArea === cLower || leagueArea.includes(cLower);
         const matchesVenue = l.venue?.toLowerCase().includes(cLower);
         const matchesName = l.name?.toLowerCase().includes(cLower);
-        const isMidtownMatch =
-          (cLower === "midtown" || cLower.includes("midtown") || cLower.includes("atlanta") || cLower.includes("intown")) &&
-          (l.geographicGroup?.toLowerCase().includes("midtown") ||
-            l.venue?.toLowerCase().includes("midtown") ||
-            l.venue?.toLowerCase().includes("piedmont") ||
-            l.geographicGroup?.toLowerCase() === "atlanta" ||
-            !l.geographicGroup);
-
-        if (!matchesGroup && !matchesVenue && !matchesName && !isMidtownMatch) return false;
+        if (!matchesGroup && !matchesVenue && !matchesName) return false;
       }
-      // 5. Text search query
+      // 4. Text search query
       if (query.trim()) {
         const q = query.toLowerCase();
         const season = seasons.find((s) => s.id === l.seasonId);
@@ -187,7 +173,7 @@ function BrowseLeagues() {
       }
       return true;
     });
-  }, [leagues, seasons, format, skill, playerSkill, seasonId, city, query]);
+  }, [leagues, seasons, format, skill, playerSkill, city, query]);
 
   return (
     <div>
@@ -226,8 +212,8 @@ function BrowseLeagues() {
             />
           </div>
 
-          {/* 4 Professional Dropdowns */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {/* 3 Professional Dropdowns */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {/* League Type Dropdown */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -297,28 +283,6 @@ function BrowseLeagues() {
               </div>
             )}
 
-            {/* Season Dropdown */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Season
-              </label>
-              <Select value={seasonId} onValueChange={setSeasonId}>
-                <SelectTrigger className="h-11 rounded-xl bg-background text-xs sm:text-sm font-semibold">
-                  <SelectValue placeholder="All Seasons" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="all" className="text-xs sm:text-sm font-semibold">
-                    All Seasons
-                  </SelectItem>
-                  {seasons.map((s) => (
-                    <SelectItem key={s.id} value={s.id} className="text-xs sm:text-sm font-medium">
-                      {cleanSeasonTitle(s.name)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* City / Area Dropdown */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -348,14 +312,13 @@ function BrowseLeagues() {
                   Auto-aligned to profile: <strong>NTRP {playerSkill || currentPlayer.ntrp}</strong> (Fixed) · <strong>{FORMAT_LABELS[currentPlayer.preferredFormat || "men-singles"]}</strong>{currentPlayer.city ? ` · ${currentPlayer.city}` : ''}
                 </span>
               </div>
-              {(city !== "all" || format !== "all" || (!playerSkill && skill !== "all") || seasonId !== "all") && (
+              {(city !== "all" || format !== "all" || (!playerSkill && skill !== "all")) && (
                 <button
                   type="button"
                   onClick={() => {
                     setCity("all");
                     setFormat("all");
                     if (!playerSkill) setSkill("all");
-                    setSeasonId("all");
                   }}
                   className="text-primary hover:underline font-semibold"
                 >
@@ -374,11 +337,10 @@ function BrowseLeagues() {
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-medium text-muted-foreground" aria-live="polite">
             {status === "ready"
-              ? format === "all" && skill === "all" && seasonId === "all" && city === "all"
+              ? format === "all" && skill === "all" && city === "all"
                 ? `All ${results.length} leagues available across Atlanta`
                 : `${results.length} league${results.length === 1 ? "" : "s"} found${format !== "all" ? ` for ${FORMAT_LABELS[format as LeagueFormat]}` : ""
-                }${skill !== "all" ? ` (NTRP ${skill})` : ""}${seasonId !== "all" ? ` in ${activeSeason ? cleanSeasonTitle(activeSeason.name) : "this season"}` : ""
-                }${city !== "all" ? ` in ${city}` : ""}`
+                }${skill !== "all" ? ` (NTRP ${skill})` : ""}${city !== "all" ? ` in ${city}` : ""}`
               : "Loading leagues…"}
           </p>
         </div>
@@ -425,7 +387,6 @@ function BrowseLeagues() {
                   setFormat("all");
                   setSkill("all");
                   setCity("all");
-                  setSeasonId("all");
                 }}
               >
                 View all Atlanta leagues

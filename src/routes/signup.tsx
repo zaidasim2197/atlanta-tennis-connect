@@ -2,10 +2,11 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useStore, getApiUrl } from "@/lib/store";
 import { Button } from "@/components/ui/button";
-import { SKILL_LEVELS, FORMAT_LABELS, formatMoney, type SkillLevel } from "@/lib/tennis";
+import { SKILL_LEVELS, FORMAT_LABELS, formatMoney, type SkillLevel, APPROVED_ATLANTA_ZIPS } from "@/lib/tennis";
 import { TennisBall } from "@/components/tennis-ball";
 import { MapPin, CalendarDays, Calendar, ShieldAlert, ShieldCheck, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { ModernDobPicker } from "@/components/modern-dob-picker";
+import { ZipCodeInput } from "@/components/zip-code-input";
 
 export const Route = createFileRoute("/signup")({
   validateSearch: (search: Record<string, unknown>): { leagueId?: string | undefined; redirect?: string | undefined } => ({
@@ -200,6 +201,11 @@ function Signup() {
 
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
+      return;
+    }
+
+    if (zipCode && !APPROVED_ATLANTA_ZIPS.includes(zipCode.trim() as any)) {
+      setError("Please select a valid 5-digit approved Atlanta metro ZIP code.");
       return;
     }
 
@@ -461,13 +467,11 @@ function Signup() {
                 <label htmlFor="zipCode" className="mb-1 block text-sm font-medium text-foreground">
                   ZIP Code
                 </label>
-                <input
+                <ZipCodeInput
                   id="zipCode"
-                  type="text"
                   value={zipCode}
-                  onChange={(e) => setZipCode(e.target.value)}
+                  onChange={setZipCode}
                   placeholder="30309"
-                  className="block w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
             </div>
