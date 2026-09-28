@@ -77,7 +77,7 @@ function RegisterLeague() {
     profileStatus: "complete" as const,
   } : undefined);
 
-  const [partnerChoice, setPartnerChoice] = useState<"have-partner" | "no-partner">("no-partner");
+  const [partnerChoice, setPartnerChoice] = useState<"have-partner" | "no-partner">("have-partner");
   const [partnerQuery, setPartnerQuery] = useState("");
   const [partnerId, setPartnerId] = useState("");
   const [partnerEmail, setPartnerEmail] = useState("");
@@ -770,238 +770,190 @@ function RegisterLeague() {
                   </div>
                   <div>
                     <h3 className="font-bold text-base text-foreground leading-none">3. Doubles Partner</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Link a partner or register as awaiting partner</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Search and select your doubles partner</p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setPartnerChoice("have-partner")}
-                    className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-all ${
-                      partnerChoice === "have-partner"
-                        ? "border-primary bg-primary/5 ring-1 ring-primary shadow-sm"
-                        : "border-border bg-background hover:border-primary/40 text-muted-foreground"
-                    }`}
-                  >
-                    <div className={`mt-0.5 size-4 rounded-full border flex items-center justify-center ${partnerChoice === "have-partner" ? "border-primary bg-primary text-white" : "border-muted-foreground"}`}>
-                      {partnerChoice === "have-partner" && <Check className="size-2.5" />}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-foreground">I have a partner</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Search and select by name or ID</p>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPartnerChoice("no-partner");
-                      setPartnerId("");
-                      setPartnerQuery("");
-                    }}
-                    className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-all ${
-                      partnerChoice === "no-partner"
-                        ? "border-primary bg-primary/5 ring-1 ring-primary shadow-sm"
-                        : "border-border bg-background hover:border-primary/40 text-muted-foreground"
-                    }`}
-                  >
-                    <div className={`mt-0.5 size-4 rounded-full border flex items-center justify-center ${partnerChoice === "no-partner" ? "border-primary bg-primary text-white" : "border-muted-foreground"}`}>
-                      {partnerChoice === "no-partner" && <Check className="size-2.5" />}
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-foreground">I don't have a partner yet</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">Join as awaiting partner</p>
-                    </div>
-                  </button>
-                </div>
-
-                {partnerChoice === "have-partner" ? (
-                  <div className="space-y-3 pt-1">
-                    {selectedPartner ? (
-                      <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 p-4 text-xs">
-                        <div className="flex items-center gap-3">
-                          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xs shadow-sm">
-                            {selectedPartner.firstName?.[0] || "P"}{selectedPartner.lastName?.[0] || ""}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-bold text-sm text-foreground">
-                                {selectedPartner.firstName} {selectedPartner.lastName}
-                              </p>
-                              <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold px-2 py-0.5 text-[10px] inline-flex items-center gap-1">
-                                <Check className="size-3" /> Registered Partner
-                              </span>
-                            </div>
-                            <p className="text-muted-foreground text-xs mt-0.5">
-                              Rating: NTRP {selectedPartner.ntrp} · <span className="font-mono text-[11px] font-semibold text-primary">ID: {selectedPartner.id}</span>
-                              {selectedPartner.email && <span> · {selectedPartner.email}</span>}
+                <div className="space-y-3 pt-1">
+                  {selectedPartner ? (
+                    <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 p-4 text-xs">
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xs shadow-sm">
+                          {selectedPartner.firstName?.[0] || "P"}{selectedPartner.lastName?.[0] || ""}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-sm text-foreground">
+                              {selectedPartner.firstName} {selectedPartner.lastName}
                             </p>
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setPartnerId("");
-                            setPartnerEmail("");
-                            setSelectedPartnerData(null);
-                          }}
-                          className="h-8 text-xs text-destructive hover:bg-destructive/10"
-                        >
-                          Change
-                        </Button>
-                      </div>
-                    ) : (
-                      <div ref={partnerContainerRef} className="relative">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className="block text-xs font-semibold text-foreground">
-                            Search by Player Name or Player ID
-                          </label>
-                          {league?.skillLevel && (
-                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                              Division Rating: NTRP {league.skillLevel} Only
+                            <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold px-2 py-0.5 text-[10px] inline-flex items-center gap-1">
+                              <Check className="size-3" /> Registered Partner
                             </span>
-                          )}
-                        </div>
-                        <div className="relative">
-                          <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                          <input
-                            type="text"
-                            value={partnerQuery}
-                            onFocus={() => setIsPartnerDropdownOpen(true)}
-                            onChange={(e) => {
-                              setPartnerQuery(e.target.value);
-                              setIsPartnerDropdownOpen(true);
-                              setPartnerHighlightedIndex(0);
-                            }}
-                            onKeyDown={(e) => {
-                              if (!isPartnerDropdownOpen && (e.key === "ArrowDown" || e.key === "Enter")) {
-                                setIsPartnerDropdownOpen(true);
-                                return;
-                              }
-                              if (e.key === "ArrowDown") {
-                                e.preventDefault();
-                                setPartnerHighlightedIndex((prev) => (prev < partnerResults.length - 1 ? prev + 1 : 0));
-                              } else if (e.key === "ArrowUp") {
-                                e.preventDefault();
-                                setPartnerHighlightedIndex((prev) => (prev > 0 ? prev - 1 : partnerResults.length - 1));
-                              } else if (e.key === "Enter") {
-                                e.preventDefault();
-                                if (partnerHighlightedIndex >= 0 && partnerHighlightedIndex < partnerResults.length) {
-                                  handleSelectPartner(partnerResults[partnerHighlightedIndex]);
-                                } else if (partnerResults.length === 1) {
-                                  handleSelectPartner(partnerResults[0]);
-                                }
-                              } else if (e.key === "Escape") {
-                                setIsPartnerDropdownOpen(false);
-                              }
-                            }}
-                            placeholder={`Type a player's name or ID (e.g. Liam, p-10)`}
-                            className="block w-full rounded-xl border border-input bg-background pl-10 pr-10 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                          />
-                          {partnerQuery && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPartnerQuery("");
-                                setIsPartnerDropdownOpen(false);
-                              }}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                            >
-                              <X className="size-4" />
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Predictive suggestions preview pills */}
-                        {!partnerQuery && partnerResults.length > 0 && isPartnerDropdownOpen && (
-                          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                            <span className="text-[11px] font-medium text-muted-foreground mr-0.5">Quick select (NTRP {league?.skillLevel}):</span>
-                            {partnerResults.slice(0, 4).map((p) => (
-                              <button
-                                key={p.id}
-                                type="button"
-                                onClick={() => handleSelectPartner(p)}
-                                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-foreground hover:border-primary hover:bg-primary/5 transition-colors shadow-2xs"
-                              >
-                                <span className="font-semibold">{p.firstName} {p.lastName}</span>
-                                <span className="font-mono text-[10px] text-muted-foreground">({p.id})</span>
-                              </button>
-                            ))}
                           </div>
-                        )}
-
-                        {/* Predictive Dropdown */}
-                        {isPartnerDropdownOpen && (
-                          <div className="absolute z-30 mt-2 w-full max-h-60 overflow-y-auto rounded-xl border border-border bg-popover p-1.5 shadow-lg divide-y divide-border/40">
-                            {isSearchingPartner ? (
-                              <div className="p-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-                                <span className="size-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                                <span>Searching registered players…</span>
-                              </div>
-                            ) : partnerResults.length === 0 ? (
-                              <div className="p-4 text-center text-xs text-muted-foreground">
-                                {partnerQuery ? (
-                                  <>No registered NTRP {league?.skillLevel} players found matching <strong className="text-foreground">"{partnerQuery}"</strong>.</>
-                                ) : (
-                                  <>No registered players found with matching NTRP {league?.skillLevel} rating.</>
-                                )}
-                              </div>
-                            ) : (
-                              partnerResults.map((p, idx) => {
-                                const isHighlighted = idx === partnerHighlightedIndex;
-                                return (
-                                  <button
-                                    key={p.id}
-                                    type="button"
-                                    onMouseEnter={() => setPartnerHighlightedIndex(idx)}
-                                    onClick={() => handleSelectPartner(p)}
-                                    className={`flex w-full items-center justify-between p-3 text-left rounded-lg transition-colors ${
-                                      isHighlighted ? "bg-accent text-accent-foreground" : "hover:bg-muted/80 text-foreground"
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-xs text-primary">
-                                        {p.firstName?.[0] || "P"}{p.lastName?.[0] || ""}
-                                      </div>
-                                      <div>
-                                        <p className="font-bold text-sm leading-tight text-foreground">
-                                          {p.firstName} {p.lastName}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground mt-0.5">
-                                          <span className="font-mono text-[11px] font-semibold text-primary">{p.id}</span>
-                                          {p.city && <span> · {p.city}</span>}
-                                          {p.preferredCourt && <span> · {p.preferredCourt}</span>}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                                        NTRP {p.ntrp}
-                                      </span>
-                                      <span className="text-xs font-bold text-primary hover:underline">Select</span>
-                                    </div>
-                                  </button>
-                                );
-                              })
-                            )}
-                          </div>
+                          <p className="text-muted-foreground text-xs mt-0.5">
+                            Rating: NTRP {selectedPartner.ntrp} · <span className="font-mono text-[11px] font-semibold text-primary">ID: {selectedPartner.id}</span>
+                            {selectedPartner.email && <span> · {selectedPartner.email}</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setPartnerId("");
+                          setPartnerEmail("");
+                          setSelectedPartnerData(null);
+                        }}
+                        className="h-8 text-xs text-destructive hover:bg-destructive/10"
+                      >
+                        Change
+                      </Button>
+                    </div>
+                  ) : (
+                    <div ref={partnerContainerRef} className="relative">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-semibold text-foreground">
+                          Search by Player Name or Player ID
+                        </label>
+                        {league?.skillLevel && (
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                            Division Rating: NTRP {league.skillLevel} Only
+                          </span>
                         )}
                       </div>
-                    )}
-                    <p className="text-[11px] text-muted-foreground">
-                      Notice: Partner invitations are confirmed once the invited partner registers or accepts the pairing in their dashboard.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-border/80 bg-muted/30 p-3.5 text-xs text-muted-foreground leading-relaxed">
-                    You can complete registration now. Your partnership status will be recorded as <strong className="text-foreground">Awaiting Partner / Replacement Needed</strong> without fake automated placement.
-                  </div>
-                )}
+                      <div className="relative">
+                        <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                          type="text"
+                          value={partnerQuery}
+                          onFocus={() => setIsPartnerDropdownOpen(true)}
+                          onChange={(e) => {
+                            setPartnerQuery(e.target.value);
+                            setIsPartnerDropdownOpen(true);
+                            setPartnerHighlightedIndex(0);
+                          }}
+                          onKeyDown={(e) => {
+                            if (!isPartnerDropdownOpen && (e.key === "ArrowDown" || e.key === "Enter")) {
+                              setIsPartnerDropdownOpen(true);
+                              return;
+                            }
+                            if (e.key === "ArrowDown") {
+                              e.preventDefault();
+                              setPartnerHighlightedIndex((prev) => (prev < partnerResults.length - 1 ? prev + 1 : 0));
+                            } else if (e.key === "ArrowUp") {
+                              e.preventDefault();
+                              setPartnerHighlightedIndex((prev) => (prev > 0 ? prev - 1 : partnerResults.length - 1));
+                            } else if (e.key === "Enter") {
+                              e.preventDefault();
+                              if (partnerHighlightedIndex >= 0 && partnerHighlightedIndex < partnerResults.length) {
+                                handleSelectPartner(partnerResults[partnerHighlightedIndex]);
+                              } else if (partnerResults.length === 1) {
+                                handleSelectPartner(partnerResults[0]);
+                              }
+                            } else if (e.key === "Escape") {
+                              setIsPartnerDropdownOpen(false);
+                            }
+                          }}
+                          placeholder={`Type a player's name or ID (e.g. Liam, p-10)`}
+                          className="block w-full rounded-xl border border-input bg-background pl-10 pr-10 py-2.5 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                        {partnerQuery && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPartnerQuery("");
+                              setIsPartnerDropdownOpen(false);
+                            }}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="size-4" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Predictive suggestions preview pills */}
+                      {!partnerQuery && partnerResults.length > 0 && isPartnerDropdownOpen && (
+                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                          <span className="text-[11px] font-medium text-muted-foreground mr-0.5">Quick select (NTRP {league?.skillLevel}):</span>
+                          {partnerResults.slice(0, 4).map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => handleSelectPartner(p)}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-foreground hover:border-primary hover:bg-primary/5 transition-colors shadow-2xs"
+                            >
+                              <span className="font-semibold">{p.firstName} {p.lastName}</span>
+                              <span className="font-mono text-[10px] text-muted-foreground">({p.id})</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Predictive Dropdown */}
+                      {isPartnerDropdownOpen && (
+                        <div className="absolute z-30 mt-2 w-full max-h-60 overflow-y-auto rounded-xl border border-border bg-popover p-1.5 shadow-lg divide-y divide-border/40">
+                          {isSearchingPartner ? (
+                            <div className="p-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                              <span className="size-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                              <span>Searching registered players…</span>
+                            </div>
+                          ) : partnerResults.length === 0 ? (
+                            <div className="p-4 text-center text-xs text-muted-foreground">
+                              {partnerQuery ? (
+                                <>No registered NTRP {league?.skillLevel} players found matching <strong className="text-foreground">"{partnerQuery}"</strong>.</>
+                              ) : (
+                                <>No registered players found with matching NTRP {league?.skillLevel} rating.</>
+                              )}
+                            </div>
+                          ) : (
+                            partnerResults.map((p, idx) => {
+                              const isHighlighted = idx === partnerHighlightedIndex;
+                              return (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onMouseEnter={() => setPartnerHighlightedIndex(idx)}
+                                  onClick={() => handleSelectPartner(p)}
+                                  className={`flex w-full items-center justify-between p-3 text-left rounded-lg transition-colors ${
+                                    isHighlighted ? "bg-accent text-accent-foreground" : "hover:bg-muted/80 text-foreground"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-xs text-primary">
+                                      {p.firstName?.[0] || "P"}{p.lastName?.[0] || ""}
+                                    </div>
+                                    <div>
+                                      <p className="font-bold text-sm leading-tight text-foreground">
+                                        {p.firstName} {p.lastName}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground mt-0.5">
+                                        <span className="font-mono text-[11px] font-semibold text-primary">{p.id}</span>
+                                        {p.city && <span> · {p.city}</span>}
+                                        {p.preferredCourt && <span> · {p.preferredCourt}</span>}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                                      NTRP {p.ntrp}
+                                    </span>
+                                    <span className="text-xs font-bold text-primary hover:underline">Select</span>
+                                  </div>
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-muted-foreground">
+                    Notice: Partner invitations are confirmed once the invited partner registers or accepts the pairing in their dashboard.
+                  </p>
+                </div>
               </div>
             </div>
           )}
