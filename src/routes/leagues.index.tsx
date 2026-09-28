@@ -124,8 +124,7 @@ function BrowseLeagues() {
       if (effectiveSkill !== "all") {
         const matchesSkill =
           l.skillLevel === effectiveSkill ||
-          (l.offeredSkillLevels && l.offeredSkillLevels.includes(effectiveSkill as SkillLevel)) ||
-          (format !== "all" && l.format === format && ["3.0", "3.5"].includes(effectiveSkill) && ["3.0", "3.5"].includes(l.skillLevel));
+          (l.offeredSkillLevels && l.offeredSkillLevels.includes(effectiveSkill as SkillLevel));
         if (!matchesSkill) return false;
       }
       // 3. City / Area filter
