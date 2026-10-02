@@ -230,6 +230,28 @@ export const FORMAT_DETAILS: Record<LeagueFormat, { teamSize: number; partnerReq
 
 export const SKILL_LEVELS: SkillLevel[] = ["2.5", "3.0", "3.5", "4.0", "4.5", "5.0"];
 
+export const ATLANTA_VENUES = [
+  "Piedmont Park Courts",
+  "Sharon Lester Tennis Center",
+  "Tolleson Park Courts",
+  "Newtown Park Courts",
+  "State Bridge Tennis Courts",
+  "Roswell Tennis Courts",
+  "Roswell Area Park Tennis Center",
+  "Terrell Mill Tennis Center",
+  "Harrison Tennis Center",
+  "Fowler Park Courts",
+  "Sharon Springs Park",
+  "Webb Bridge Park Courts",
+  "North Park Tennis Center",
+  "Sandy Springs Tennis Center",
+  "Cumming City Park Tennis Center",
+  "Central Park Tennis Complex",
+  "Chastain Park Tennis Center",
+  "Bitsy Grant Tennis Center",
+  "Smyrna Tennis Center"
+] as const;
+
 export const formatMoney = (cents: number) =>
   (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 });
 

@@ -35,7 +35,7 @@ interface StoreValue extends DataState {
   refreshSession: () => Promise<AuthUser | null>;
   logout: () => Promise<void>;
   createSeason: (input: Omit<Season, "id">) => Season;
-  createLeague: (input: Omit<League, "id">) => League;
+  createLeague: (input: Omit<League, "id">) => Promise<League>;
   toggleRegistration: (leagueId: string) => void;
   registerPlayer: (input: {
     leagueId: string;
@@ -382,10 +382,40 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setState((s) => ({ ...s, seasons: [season, ...s.seasons] }));
         return season;
       },
-      createLeague: (input) => {
-        const league: League = { ...input, id: uid("l") };
-        setState((s) => ({ ...s, leagues: [league, ...s.leagues] }));
-        return league;
+      createLeague: async (input) => {
+        const tempId = uid("l");
+        const optimisticLeague: League = { ...input, id: tempId };
+        setState((s) => ({ ...s, leagues: [optimisticLeague, ...s.leagues] }));
+
+        try {
+          const res = await fetch(getApiUrl("/api/leagues"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(input),
+          });
+          
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+          }
+          
+          const json = await res.json();
+          if (json.ok && json.data) {
+            const serverLeague = json.data;
+            setState((s) => ({
+              ...s,
+              leagues: s.leagues.map((l) =>
+                l.id === tempId ? { ...l, ...serverLeague } : l
+              ),
+            }));
+            return { ...optimisticLeague, ...serverLeague };
+          }
+        } catch (err) {
+          console.error("Failed to persist league to backend:", err);
+          // Rollback could be implemented here if desired
+        }
+        
+        return optimisticLeague;
       },
       toggleRegistration: (leagueId) => {
         const target = state.leagues.find((l) => l.id === leagueId);

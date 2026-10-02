@@ -49,6 +49,39 @@ function leagueToFrontend(l: InstanceType<typeof League>) {
   };
 }
 
+// POST /api/leagues
+router.post(
+  "/",
+  wrap(async (req, res) => {
+    const slug = req.body.id || `l-${Math.random().toString(36).slice(2, 9)}`;
+    
+    // Map seasonId to seasonSlug as that is what the model expects
+    const seasonSlug = req.body.seasonId || req.body.seasonSlug || "s-fall-26";
+
+    const newLeague = new League({
+      slug,
+      seasonSlug,
+      name: req.body.name,
+      format: req.body.format,
+      skillLevel: req.body.skillLevel,
+      feeCents: req.body.feeCents,
+      scheduleDay: req.body.scheduleDay,
+      scheduleTime: req.body.scheduleTime,
+      venue: req.body.venue,
+      playerLimit: req.body.playerLimit,
+      spotsRemaining: req.body.playerLimit,
+      registrationOpen: req.body.registrationOpen !== undefined ? req.body.registrationOpen : true,
+      description: req.body.description || "",
+      startDate: req.body.startDate,
+      endDate: req.body.endDate,
+    });
+
+    await newLeague.save();
+    
+    ok(res, leagueToFrontend(newLeague));
+  })
+);
+
 // GET /api/leagues
 router.get(
   "/",

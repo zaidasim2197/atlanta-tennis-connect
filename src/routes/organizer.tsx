@@ -16,6 +16,7 @@ import {
   type SkillLevel,
   SKILL_LEVELS,
   FORMAT_LABELS,
+  ATLANTA_VENUES,
   type League,
 } from "@/lib/tennis";
 import {
@@ -114,6 +115,7 @@ function OrganizerHub() {
   const [playerLimit, setPlayerLimit] = useState(24);
   const [description, setDescription] = useState("");
   const [totalPlayersCount, setTotalPlayersCount] = useState<number | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -221,27 +223,35 @@ function OrganizerHub() {
     );
   }
 
-  const handleCreateLeague = (e: React.FormEvent) => {
+  const handleCreateLeague = async (e: React.FormEvent) => {
     e.preventDefault();
-    createLeague({
-      seasonId,
-      name,
-      format,
-      skillLevel,
-      feeCents: Math.round(feeUsd * 100),
-      scheduleDay,
-      scheduleTime,
-      venue,
-      playerLimit,
-      registrationOpen: true,
-      description,
-    });
-    setActiveTab("leagues");
-    // reset form
-    setName("");
-    setVenue("");
-    setDescription("");
-    setFeeUsd(100);
+    setIsCreating(true);
+    try {
+      await createLeague({
+        seasonId,
+        name,
+        format,
+        skillLevel,
+        feeCents: Math.round(feeUsd * 100),
+        scheduleDay,
+        scheduleTime,
+        venue,
+        playerLimit,
+        registrationOpen: true,
+        description,
+      });
+      toast.success("League created successfully!");
+      setActiveTab("leagues");
+      // reset form
+      setName("");
+      setVenue("");
+      setDescription("");
+      setFeeUsd(100);
+    } catch (err) {
+      toast.error("Failed to create league");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -985,7 +995,16 @@ function OrganizerHub() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">Venue</label>
-                <input required value={venue} onChange={e => setVenue(e.target.value)} className="block w-full rounded-md border border-input bg-background px-4 py-2.5 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary hover:border-primary/50" />
+                <Select value={venue} onValueChange={setVenue} required>
+                  <SelectTrigger className="h-11 px-4 text-sm bg-background border border-input shadow-sm transition-colors focus:ring-1 focus:ring-primary focus:border-primary hover:border-primary/50">
+                    <SelectValue placeholder="Select a venue" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ATLANTA_VENUES.map(v => (
+                      <SelectItem key={v} value={v}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
